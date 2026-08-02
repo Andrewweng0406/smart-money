@@ -197,3 +197,66 @@ def test_get_strategy_track_record_filters_by_symbol(tmp_path):
     all_records = db_manager.get_strategy_track_record(db_path=db_path)
     assert len(tsla_record) == 1
     assert len(all_records) == 2
+
+
+def _make_oi_legs():
+    return [
+        {"strike": 100.0, "call_oi": 500.0, "put_oi": 300.0},
+        {"strike": 105.0, "call_oi": 200.0, "put_oi": 150.0},
+    ]
+
+
+def test_save_and_get_oi_snapshot_round_trip(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_oi_snapshot("TSLA", "2026-08-01", _make_oi_legs(), db_path=db_path)
+
+    snapshot = db_manager.get_oi_snapshot("TSLA", "2026-08-01", db_path=db_path)
+
+    assert snapshot == {
+        100.0: {"call_oi": 500.0, "put_oi": 300.0},
+        105.0: {"call_oi": 200.0, "put_oi": 150.0},
+    }
+
+
+def test_get_oi_snapshot_returns_empty_dict_when_no_data(tmp_path):
+    db_path = tmp_path / "history.db"
+    assert db_manager.get_oi_snapshot("TSLA", "2026-08-01", db_path=db_path) == {}
+
+
+def test_save_oi_snapshot_same_symbol_date_and_strike_overwrites_not_duplicates(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_oi_snapshot("TSLA", "2026-08-01", _make_oi_legs(), db_path=db_path)
+    # 同一天同一個履約價重存（例如排程重跑），應該覆蓋成新數字，不是疊加成兩筆；
+    # 沒有重存到的履約價（105）維持原樣，不會被清空。
+    db_manager.save_oi_snapshot(
+        "TSLA", "2026-08-01", [{"strike": 100.0, "call_oi": 999.0, "put_oi": 999.0}], db_path=db_path,
+    )
+
+    snapshot = db_manager.get_oi_snapshot("TSLA", "2026-08-01", db_path=db_path)
+    assert snapshot == {
+        100.0: {"call_oi": 999.0, "put_oi": 999.0},
+        105.0: {"call_oi": 200.0, "put_oi": 150.0},
+    }
+
+
+def test_get_most_recent_oi_snapshot_date_finds_latest_before_given_date(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_oi_snapshot("TSLA", "2026-07-30", _make_oi_legs(), db_path=db_path)
+    db_manager.save_oi_snapshot("TSLA", "2026-07-31", _make_oi_legs(), db_path=db_path)
+
+    assert db_manager.get_most_recent_oi_snapshot_date("TSLA", "2026-08-01", db_path=db_path) == "2026-07-31"
+
+
+def test_get_most_recent_oi_snapshot_date_returns_none_when_no_earlier_data(tmp_path):
+    db_path = tmp_path / "history.db"
+    assert db_manager.get_most_recent_oi_snapshot_date("TSLA", "2026-08-01", db_path=db_path) is None
+
+
+def test_get_most_recent_oi_snapshot_date_skips_gap_days(tmp_path):
+    """排程可能漏跑好幾天——要找『實際上一次真的存過』的日期，不是假設
+    『昨天』一定有資料。
+    """
+    db_path = tmp_path / "history.db"
+    db_manager.save_oi_snapshot("TSLA", "2026-07-20", _make_oi_legs(), db_path=db_path)
+
+    assert db_manager.get_most_recent_oi_snapshot_date("TSLA", "2026-08-01", db_path=db_path) == "2026-07-20"

@@ -119,10 +119,12 @@ def _run_report_sync(symbol: str) -> tuple[str, Path]:
     # 回傳上一個交易日的舊資料——只有今天真的是交易日才寫進歷史資料庫，
     # 避免用「查詢當下的日期」當 key 存進一筆其實是舊資料的假快照。
     if data_fetcher.is_market_trading_day():
+        trading_date_str = data_fetcher.current_trading_date_str()
         try:
-            db_manager.save_snapshot(result, data_fetcher.current_trading_date_str())
+            db_manager.save_snapshot(result, trading_date_str)
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
+        analyze.save_oi_snapshot_if_trading_day(symbol, result, trading_date_str)
 
     strategy = analyze.compute_strategy_recommendation(symbol, result)
     # 跟排程模式（analyze.py --notify / run_watchlist.py）共用同一套追蹤

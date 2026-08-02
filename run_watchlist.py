@@ -65,6 +65,7 @@ def run_one_symbol(
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
         analyze.save_strategy_recommendation_if_trackable(symbol, strategy, trading_date_str)
+        analyze.save_oi_snapshot_if_trading_day(symbol, result, trading_date_str)
     else:
         logger.info("今天不是美股交易日，%s 跳過歷史資料庫寫入與策略追蹤紀錄", symbol)
 

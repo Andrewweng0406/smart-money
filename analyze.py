@@ -84,7 +84,45 @@ class AnalysisResult:
     mm_pressure: dict | None = None
 
 
-def fetch_and_aggregate(symbol: str, max_expiries: int | None, risk_free_rate: float) -> AnalysisResult:
+def _load_previous_oi_snapshot(symbol: str, db_path: Path | str) -> dict[float, dict] | None:
+    """查前一個交易日的逐履約價OI快照，給 detect_unusual_activity 判斷
+    「新開倉還是平倉/轉倉」用。找不到（例如系統第一次跑、還沒有歷史資料）
+    回傳 None，detect_unusual_activity 會把 likely_opening 都設成 None，
+    不會出錯——這是加分項中的加分項，查詢失敗不該讓其他 Smart Money
+    指標（IV Skew/PCR）也一起算不出來。
+    """
+    try:
+        today_str = data_fetcher.current_trading_date_str()
+        previous_date = db_manager.get_most_recent_oi_snapshot_date(symbol, today_str, db_path=db_path)
+        if previous_date is None:
+            return None
+        return db_manager.get_oi_snapshot(symbol, previous_date, db_path=db_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 查詢前一日OI快照失敗：%s", symbol, exc)
+        return None
+
+
+def save_oi_snapshot_if_trading_day(
+    symbol: str, result: AnalysisResult, date_str: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> None:
+    """把今天的逐履約價OI存進歷史快照，給明天判斷「新開倉還是平倉/轉倉」
+    用。跟 save_snapshot 一樣是加分項，寫入失敗只記警告，呼叫端應該只在
+    data_fetcher.is_market_trading_day() 為真時才呼叫這支函式。
+    """
+    try:
+        oi_legs = [
+            {"strike": row["strike"], "call_oi": row["call_oi"], "put_oi": row["put_oi"]}
+            for row in result.gex_by_strike
+        ]
+        db_manager.save_oi_snapshot(symbol, date_str, oi_legs, db_path=db_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s OI快照寫入失敗：%s", symbol, exc)
+
+
+def fetch_and_aggregate(
+    symbol: str, max_expiries: int | None, risk_free_rate: float,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> AnalysisResult:
     spot = data_fetcher.get_spot_price(symbol)
     expiries = data_fetcher.get_all_expiries(symbol, max_expiries=max_expiries)
     if not expiries:
@@ -143,7 +181,10 @@ def fetch_and_aggregate(symbol: str, max_expiries: int | None, risk_free_rate: f
         nearby_legs = [
             leg for leg in smart_legs if abs(leg.strike - spot) / spot <= UNUSUAL_ACTIVITY_MAX_DISTANCE_PCT
         ]
-        unusual_activity = smart_money.detect_unusual_activity(nearby_legs)
+        previous_oi_by_strike = _load_previous_oi_snapshot(symbol, db_path)
+        unusual_activity = smart_money.detect_unusual_activity(
+            nearby_legs, previous_oi_by_strike=previous_oi_by_strike,
+        )
         # in_negative_gamma 要單純看「現貨是否低於 Gamma 翻轉點」，不能沿用
         # alert（alert 也會因為單純跌破 Put Wall 而觸發，即使現貨仍在
         # Gamma Flip 之上、做市商其實還是淨多 Gamma）——這是實測抓到的真bug：
@@ -172,12 +213,18 @@ def _aggregate_smart_money_legs(raw_legs: list[data_fetcher.StrikeLegRaw]) -> li
     OI/成交量直接加總（跟 GEX 彙總邏輯一致，代表「這個履約價across所有
     考慮中的到期日」的總量）；IV 則用「有效樣本」（排除資料清洗後變成0的
     雜訊值，見 data_fetcher.IV_SANE_MIN/MAX）取平均，避免 0 把偏斜判斷拉低。
+
+    time_to_expiry_years 同樣取簡單平均（同一履約價跨到期日混在一起時，
+    沒有單一「正確」的到期時間，用平均值當 Delta 加權成交量計算的近似
+    代表值）——StrikeLegRaw 本身有 expiry 字串，用
+    data_fetcher.time_to_expiry_years() 換算成年化時間（純日期運算，不是
+    網路 I/O，可以放心在這個彙總函式裡呼叫）。
     """
     accum: dict[float, dict] = {}
     for raw in raw_legs:
         row = accum.setdefault(raw.strike, {
             "call_oi": 0.0, "put_oi": 0.0, "call_volume": 0.0, "put_volume": 0.0,
-            "call_iv_samples": [], "put_iv_samples": [],
+            "call_iv_samples": [], "put_iv_samples": [], "tte_samples": [],
         })
         row["call_oi"] += raw.call_oi
         row["put_oi"] += raw.put_oi
@@ -187,14 +234,17 @@ def _aggregate_smart_money_legs(raw_legs: list[data_fetcher.StrikeLegRaw]) -> li
             row["call_iv_samples"].append(raw.call_iv)
         if raw.put_iv > 0:
             row["put_iv_samples"].append(raw.put_iv)
+        row["tte_samples"].append(data_fetcher.time_to_expiry_years(raw.expiry))
 
     legs = []
     for strike, row in accum.items():
         call_iv = sum(row["call_iv_samples"]) / len(row["call_iv_samples"]) if row["call_iv_samples"] else 0.0
         put_iv = sum(row["put_iv_samples"]) / len(row["put_iv_samples"]) if row["put_iv_samples"] else 0.0
+        avg_tte = sum(row["tte_samples"]) / len(row["tte_samples"]) if row["tte_samples"] else 0.0
         legs.append(SimpleNamespace(
             strike=strike, call_oi=row["call_oi"], call_iv=call_iv, call_volume=row["call_volume"],
             put_oi=row["put_oi"], put_iv=put_iv, put_volume=row["put_volume"],
+            time_to_expiry_years=avg_tte,
         ))
     return legs
 
@@ -400,9 +450,16 @@ def build_markdown_report(
         lines += ["**異常大單（成交量遠超未平倉量，疑似當日新建倉）：**", ""]
         for item in result.unusual_activity[:5]:
             ratio_text = "∞" if item["ratio"] == float("inf") else f"{item['ratio']:.1f}x"
+            # likely_opening：跟前一交易日OI比較後的判斷（None代表沒有前一天
+            # 資料可比較，不確定是新開倉還是平倉/轉倉，不瞎猜）。
+            opening_note = {
+                True: "，OI較前一交易日增加，比較像新開倉",
+                False: "，OI較前一交易日持平或下降，比較像平倉/轉倉",
+                None: "",
+            }[item.get("likely_opening")]
             lines.append(
                 f"- ${item['strike']:.0f} {item['side'].upper()}：成交量 {item['volume']:,.0f} / "
-                f"OI {item['oi']:,.0f}（量能是OI的 {ratio_text}）"
+                f"OI {item['oi']:,.0f}（量能是OI的 {ratio_text}{opening_note}）"
             )
         lines.append("")
 
@@ -410,6 +467,8 @@ def build_markdown_report(
         lines += [
             "## 莊家收割壓力評分", "",
             f"- 壓力分數：{result.mm_pressure['score']} / 100（{result.mm_pressure['label']}）",
+            f"- Delta加權Call成交量：{result.mm_pressure['delta_adjusted_call_volume']:,.0f}"
+            "（比原始張數更能反映實質方向性曝險，深度價外的量能會被大幅折算）",
             "",
         ]
         if result.mm_pressure.get("is_death_loop_alert"):
@@ -521,6 +580,7 @@ def main() -> None:
             # 不該讓當天的報告產不出來。
             logger.warning("寫入歷史資料庫失敗：%s", exc)
         save_strategy_recommendation_if_trackable(args.symbol, strategy, trading_date_str)
+        save_oi_snapshot_if_trading_day(args.symbol, result, trading_date_str)
     else:
         logger.info("今天不是美股交易日，跳過歷史資料庫寫入與策略追蹤紀錄")
 

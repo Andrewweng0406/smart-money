@@ -61,6 +61,21 @@ CREATE TABLE IF NOT EXISTS strategy_recommendations (
 )
 """
 
+# 逐履約價的 OI 歷史快照——只有存下「昨天」的 OI，才能判斷「今天的異常大單
+# 是新開倉還是平倉/轉倉」（單靠當天的 volume/OI 比例分不出這兩種情況，
+# 這是審查抓出的訊號品質問題之一）。只存最小必要欄位，不是完整的期權鏈
+# 存檔——歷史 IV/成交量沒有拿來跟「昨天」比較的用途，不需要一起存。
+_OI_SNAPSHOT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS oi_snapshots (
+    symbol TEXT NOT NULL,
+    date TEXT NOT NULL,
+    strike REAL NOT NULL,
+    call_oi REAL NOT NULL,
+    put_oi REAL NOT NULL,
+    PRIMARY KEY (symbol, date, strike)
+)
+"""
+
 
 @contextmanager
 def _connect(db_path: Path | str = DEFAULT_DB_PATH):
@@ -68,6 +83,7 @@ def _connect(db_path: Path | str = DEFAULT_DB_PATH):
     try:
         conn.execute(_SCHEMA)
         conn.execute(_STRATEGY_SCHEMA)
+        conn.execute(_OI_SNAPSHOT_SCHEMA)
         yield conn
         conn.commit()
     finally:
@@ -213,3 +229,53 @@ def get_strategy_track_record(
                 (symbol, limit),
             ).fetchall()
     return [dict(row) for row in rows]
+
+
+def save_oi_snapshot(
+    symbol: str, date_str: str, legs: list[dict], db_path: Path | str = DEFAULT_DB_PATH,
+) -> None:
+    """存一天逐履約價的 OI 快照。legs 是 [{"strike":.., "call_oi":..,
+    "put_oi":..}, ...]；同一 symbol+date+strike 重複執行直接覆蓋（INSERT OR
+    REPLACE），跟 save_snapshot 一樣的「同一天重跑不留重複紀錄」慣例。
+    """
+    with _connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO oi_snapshots (symbol, date, strike, call_oi, put_oi)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [(symbol, date_str, leg["strike"], leg["call_oi"], leg["put_oi"]) for leg in legs],
+        )
+
+
+def get_oi_snapshot(
+    symbol: str, date_str: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> dict[float, dict[str, float]]:
+    """回傳某標的某天的逐履約價OI快照，格式
+    {strike: {"call_oi":.., "put_oi":..}}，給 smart_money.detect_unusual_activity
+    的 previous_oi_by_strike 參數用。查無資料回傳空 dict（呼叫端視為
+    「沒有前一天資料可比較」，不是錯誤）。
+    """
+    with _connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT strike, call_oi, put_oi FROM oi_snapshots WHERE symbol = ? AND date = ?",
+            (symbol, date_str),
+        ).fetchall()
+    return {row[0]: {"call_oi": row[1], "put_oi": row[2]} for row in rows}
+
+
+def get_most_recent_oi_snapshot_date(
+    symbol: str, before_date: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> str | None:
+    """找『某天之前』最近一次有存 OI 快照的日期——不能直接假設『昨天』
+    一定有資料（可能中間漏跑排程，或前一天是週末/假日），要找『實際
+    上一次真的存過』的那天，才能正確比較 OI 變化。查無任何更早的快照
+    回傳 None。
+    """
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT DISTINCT date FROM oi_snapshots WHERE symbol = ? AND date < ? "
+            "ORDER BY date DESC LIMIT 1",
+            (symbol, before_date),
+        ).fetchone()
+    return row[0] if row else None

@@ -143,7 +143,10 @@ python check_env.py
   Iron Condor最大虧損公式、Gamma Flip改用假設現貨價格網格重算、GEX單位
   少乘0.01、negative_gamma判斷誤用Put Wall突破、IV Skew混入清洗後的0值、
   launchd排程時區/交易日判斷、策略到期結算價、盤中警示去重）——這些都已
-  修好並補上回歸測試。同一次審查也建議把 Smart Money 的「死亡Loop」警示
-  降級為啟發式用語、加入 bid/ask 成交方向與OI日變化等更細緻的判斷訊號，
-  這兩項牽涉到文案語氣（原始警示文字是使用者明確指定的）與新資料蒐集，
-  刻意先不動，留給使用者決定。
+  修好並補上回歸測試。同一次審查也建議加入更細緻的訊號品質判斷：
+  Delta加權Call成交量（`smart_money.compute_delta_adjusted_call_volume`）
+  跟 OI 日增減追蹤（`db_manager` 的 `oi_snapshots` 表 + `detect_unusual_activity`
+  的 `likely_opening` 欄位）都已補上；「死亡Loop」警示文字也依使用者確認
+  改成啟發式用語（原本是使用者明確指定的斷言式文字）。**bid/ask 成交
+  方向判斷沒有做**——yfinance 沒有逐筆成交方向資料，需要換成即時OPRA級
+  付費資料源才做得到，屬於架構升級而非小修，先不做。

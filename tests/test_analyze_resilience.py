@@ -192,6 +192,29 @@ def test_fetch_and_aggregate_survives_smart_money_failure(monkeypatch):
     assert result.unusual_activity == []
 
 
+def test_fetch_and_aggregate_enriches_unusual_activity_with_previous_day_oi(monkeypatch, tmp_path):
+    """串接測試：昨天存過的OI快照要能正確傳進 detect_unusual_activity，
+    讓異常大單多一個 likely_opening 判斷（新開倉 vs 平倉/轉倉）。
+    """
+    db_path = tmp_path / "history.db"
+    monkeypatch.setattr(data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
+    db_manager.save_oi_snapshot("TSLA", "2026-07-31", [{"strike": 100.0, "call_oi": 50.0, "put_oi": 0.0}], db_path=db_path)
+
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-09-04"])
+    monkeypatch.setattr(data_fetcher, "time_to_expiry_years", lambda expiry: 30 / 365)
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [StrikeLegRaw(
+        expiry=expiry, strike=100.0, call_oi=1000.0, call_iv=0.5, call_volume=600.0,  # OI比昨天(50)高很多
+        put_oi=500.0, put_iv=0.5, put_volume=5.0,
+    )])
+
+    result = analyze.fetch_and_aggregate("TSLA", max_expiries=None, risk_free_rate=0.045, db_path=db_path)
+
+    assert len(result.unusual_activity) >= 1
+    call_item = next(item for item in result.unusual_activity if item["side"] == "call")
+    assert call_item["likely_opening"] is True  # 今天call_oi(1000) > 昨天(50)，判斷為新開倉
+
+
 def test_negative_gamma_flag_is_independent_of_put_wall_breach(monkeypatch):
     """現貨跌破 Put Wall 但仍高於 Gamma Flip（做市商仍是淨多Gamma）時，
     傳給 compute_market_maker_pressure_score 的 in_negative_gamma 應該是
@@ -442,3 +465,37 @@ def test_aggregate_smart_money_legs_excludes_zero_iv_noise_from_average():
     legs = analyze._aggregate_smart_money_legs(raw_legs)
     leg = legs[0]
     assert leg.call_iv == pytest.approx(0.6)  # 只取有效樣本平均，不是 (0+0.6)/2
+
+
+def test_save_oi_snapshot_if_trading_day_persists_strike_level_oi(tmp_path):
+    db_path = tmp_path / "history.db"
+    result = analyze.AnalysisResult(
+        symbol="TSLA", spot=100.0,
+        expiries_used=["2026-09-04"],
+        gex_by_strike=[
+            {"strike": 100.0, "net_gex": 1.0, "call_oi": 500.0, "put_oi": 300.0},
+            {"strike": 105.0, "net_gex": 1.0, "call_oi": 200.0, "put_oi": 150.0},
+        ],
+        volume_by_strike={}, max_pain=100.0, call_wall=110.0, put_wall=90.0,
+        gamma_flip=None, gamma_flip_distance_pct=None,
+        zero_dte_summary={"total_net_gex": 1, "zero_dte_net_gex": 0, "ex_zero_dte_net_gex": 1, "zero_dte_share_pct": 0.0},
+        alert=None,
+    )
+
+    analyze.save_oi_snapshot_if_trading_day("TSLA", result, "2026-08-01", db_path=db_path)
+
+    snapshot = db_manager.get_oi_snapshot("TSLA", "2026-08-01", db_path=db_path)
+    assert snapshot == {
+        100.0: {"call_oi": 500.0, "put_oi": 300.0},
+        105.0: {"call_oi": 200.0, "put_oi": 150.0},
+    }
+
+
+def test_save_oi_snapshot_if_trading_day_survives_malformed_gex_by_strike(tmp_path):
+    """gex_by_strike 缺少 call_oi/put_oi 欄位（例如上游資料格式意外改變）
+    不該讓整個報告流程炸掉——這是加分項，寫入失敗只記警告。
+    """
+    db_path = tmp_path / "history.db"
+    result = _fake_result()  # gex_by_strike 只有 strike/net_gex，沒有 call_oi/put_oi
+
+    analyze.save_oi_snapshot_if_trading_day("TSLA", result, "2026-08-01", db_path=db_path)  # 不應該拋出例外
