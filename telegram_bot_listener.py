@@ -47,7 +47,9 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 import analyze
 import backtester
+import db_manager
 import run_watchlist
+import strategy_tracker
 
 load_dotenv()
 
@@ -73,13 +75,15 @@ HELP_TEXT = (
     "/report <代號> - 立即分析單一標的（不指定代號預設 TSLA）\n"
     "/watchlist - 立即分析整份 watchlist.json\n"
     "/backtest <代號> - 歷史籌碼模型回測統計\n"
+    "/scorecard <代號> - 策略追蹤記分板（過去推薦的策略實際勝率/損益）\n"
+    "/status - 排程健康檢查（各標的最後一次成功分析是什麼時候）\n"
     "/help - 顯示這則說明"
 )
 
 
 class BotIntent(BaseModel):
     """自然語言意圖判斷結果——Claude 把使用者的口語訊息轉成結構化的動作。"""
-    action: Literal["report", "watchlist", "backtest", "help", "unknown"]
+    action: Literal["report", "watchlist", "backtest", "scorecard", "status", "help", "unknown"]
     symbol: Optional[str] = None
 
 
@@ -91,6 +95,10 @@ INTENT_SYSTEM_PROMPT = (
     "輝達→NVDA、蘋果→AAPL等），看不出來要查哪支就留空。\n"
     "- watchlist：查詢整份追蹤清單的綜合摘要（例如「幫我看一下整份清單」）。\n"
     "- backtest：查詢某標的的歷史回測統計（例如「TSLA的歷史勝率如何」）。\n"
+    "- scorecard：查詢某標的過去策略建議的實際勝率/損益戰績（例如「TSLA的策略"
+    "推薦準不準」「策略記分板」「勝率多少」）。\n"
+    "- status：查詢排程有沒有正常運作、最後一次成功分析是什麼時候（例如「排程"
+    "還活著嗎」「今天跑了嗎」「系統還好嗎」）。\n"
     "- help：使用者在問這個機器人能做什麼、怎麼用。\n"
     "- unknown：看不出來是上面哪一種，或者他在閒聊、問跟股票分析無關的問題。\n"
     "只要判斷意圖，不要自己回答股票問題。"
@@ -106,7 +114,6 @@ def _run_report_sync(symbol: str) -> tuple[str, Path]:
     result = analyze.fetch_and_aggregate(symbol, max_expiries=8, risk_free_rate=0.045)
 
     try:
-        import db_manager
         db_manager.save_snapshot(result, datetime.now().strftime("%Y-%m-%d"))
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
@@ -146,6 +153,62 @@ def _run_watchlist_sync() -> str:
         for symbol in symbols
     ]
     return run_watchlist.build_watchlist_summary(summaries)
+
+
+def _build_scorecard_sync(symbol: str) -> str:
+    """組出策略追蹤記分板的文字報告。這是唯一能回答「這個系統過去推薦的
+    策略到底準不準」的地方——策略引擎的 select_strategy() 本身只是規則式
+    判斷（docstring寫得很清楚，不是回測驗證過的最佳解），記分板才是拿真實
+    到期結算結果驗證這些規則到底有沒有用。
+    """
+    records = db_manager.get_strategy_track_record(symbol, limit=200)
+    summary = strategy_tracker.summarize_track_record(records)
+    if summary["total_count"] == 0:
+        return (
+            f"📊 {symbol} 目前還沒有已結算的策略建議。\n"
+            "策略通常25~45天後到期才會結算，系統開始運作沒多久的話，需要"
+            "累積一段時間才會有記分板資料。"
+        )
+
+    lines = [
+        f"📊 【{symbol} 策略追蹤記分板】",
+        f"已結算 {summary['total_count']} 筆　勝率 {summary['win_rate_pct']}%　"
+        f"累積損益 ${summary['total_pnl']:,.2f}（每口/每組單位，未乘上100股）",
+        "",
+        "分策略明細：",
+    ]
+    for name, stats in summary["by_strategy"].items():
+        lines.append(
+            f"- {name}：{stats['count']}筆，勝率{stats['win_rate_pct']}%，"
+            f"累積損益 ${stats['total_pnl']:,.2f}"
+        )
+    return "\n".join(lines)
+
+
+def _build_status_sync() -> str:
+    """組出排程健康檢查文字——檢查 watchlist.json 裡每個標的最後一次成功
+    寫入歷史快照是什麼時候，抓「排程默默停了好幾天都沒人發現」這種問題。
+    這裡刻意直接讀資料庫（而不是重新跑一次分析），才能真正反映「排程有沒有
+    在跑」，而不是「現在手動問一次能不能跑」。
+    """
+    symbols = run_watchlist.load_watchlist(Path("watchlist.json"))
+    now = datetime.now().date()
+    lines = ["🩺 【排程健康檢查】"]
+    for symbol in symbols:
+        rows = db_manager.get_recent_snapshots(symbol, limit=1)
+        if not rows:
+            lines.append(f"❌ {symbol}：從來沒有成功寫入過快照")
+            continue
+        last_date_str = rows[0]["date"]
+        last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
+        days_ago = (now - last_date).days
+        if days_ago <= 0:
+            lines.append(f"✅ {symbol}：今天已經跑過（{last_date_str}）")
+        elif days_ago <= 2:
+            lines.append(f"⚠️ {symbol}：最近一次是 {days_ago} 天前（{last_date_str}），可能只是還沒到排程時間")
+        else:
+            lines.append(f"❌ {symbol}：已經 {days_ago} 天沒有新快照了，排程可能停了！（最後一次 {last_date_str}）")
+    return "\n".join(lines)
 
 
 def _truncate(text: str, limit: int = 4000) -> str:
@@ -199,6 +262,28 @@ async def _handle_backtest(update: Update, symbol: str) -> None:
     await update.message.reply_text(_truncate(report_text))
 
 
+async def _handle_scorecard(update: Update, symbol: str) -> None:
+    try:
+        scorecard_text = await asyncio.to_thread(_build_scorecard_sync, symbol)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("查詢 %s 策略記分板失敗：%s", symbol, exc)
+        await update.message.reply_text(f"❌ 查詢失敗：{exc}")
+        return
+
+    await update.message.reply_text(_truncate(scorecard_text))
+
+
+async def _handle_status(update: Update) -> None:
+    try:
+        status_text = await asyncio.to_thread(_build_status_sync)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("排程健康檢查失敗：%s", exc)
+        await update.message.reply_text(f"❌ 查詢失敗：{exc}")
+        return
+
+    await update.message.reply_text(_truncate(status_text))
+
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(HELP_TEXT)
 
@@ -215,6 +300,15 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     symbol = context.args[0].upper() if context.args else "TSLA"
     await _handle_backtest(update, symbol)
+
+
+async def scorecard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    symbol = context.args[0].upper() if context.args else "TSLA"
+    await _handle_scorecard(update, symbol)
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await _handle_status(update)
 
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -259,6 +353,10 @@ async def natural_language_handler(update: Update, context: ContextTypes.DEFAULT
         await _handle_watchlist(update)
     elif intent.action == "backtest":
         await _handle_backtest(update, (intent.symbol or "TSLA").upper())
+    elif intent.action == "scorecard":
+        await _handle_scorecard(update, (intent.symbol or "TSLA").upper())
+    elif intent.action == "status":
+        await _handle_status(update)
     elif intent.action == "help":
         await update.message.reply_text(HELP_TEXT)
     else:
@@ -290,6 +388,8 @@ def _build_and_run_once(token: str) -> None:
     application.add_handler(CommandHandler("report", report_command))
     application.add_handler(CommandHandler("watchlist", watchlist_command))
     application.add_handler(CommandHandler("backtest", backtest_command))
+    application.add_handler(CommandHandler("scorecard", scorecard_command))
+    application.add_handler(CommandHandler("status", status_command))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
     # 放在所有 CommandHandler 之後——filters.COMMAND 那個 handler 已經攔截了
     # 所有斜線指令（包括打錯的），這裡只會接到不是斜線指令的一般口語訊息。

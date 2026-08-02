@@ -233,12 +233,44 @@ def compute_strategy_recommendation(symbol: str, result: AnalysisResult) -> opti
             return None
 
         tte = data_fetcher.time_to_expiry_years(strategy_expiry)
-        return options_strategy_engine.select_strategy(
+        strategy = options_strategy_engine.select_strategy(
             strategy_legs, result.spot, tte, result.put_wall, result.call_wall, result.alert,
         )
+        strategy.expiry_date = strategy_expiry  # select_strategy()只知道年化到期時間，這裡補上實際日期給追蹤記分板用
+        return strategy
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 策略建議計算失敗：%s", symbol, exc)
         return None
+
+
+def save_strategy_recommendation_if_trackable(
+    symbol: str, strategy: options_strategy_engine.StrategyRecommendation | None, date_str: str,
+) -> None:
+    """策略建議如果有結構化履約價（legs 不是 None，代表不是「今天找不到合適
+    履約價/到期日」這種退化情況），就存進歷史資料庫，等到期後給
+    strategy_resolver.py 結算——這是「策略追蹤記分板」的寫入端，讓策略引擎
+    的規則式判斷從「感覺合理」變成「可以驗證勝率/損益的紀錄」。跟其他加分項
+    一樣，任何失敗只記警告，不影響報告本身。
+    """
+    if strategy is None or strategy.legs is None or strategy.expiry_date is None:
+        return
+    try:
+        legs_as_dicts = [
+            {"action": leg.action, "option_type": leg.option_type, "strike_price": leg.strike_price}
+            for leg in strategy.legs
+        ]
+        db_manager.save_strategy_recommendation(
+            symbol=symbol,
+            recommended_date=date_str,
+            strategy_name=strategy.strategy_name,
+            strategy_type=strategy.strategy_type,
+            legs=legs_as_dicts,
+            net_premium=strategy.net_premium,
+            max_loss=strategy.max_loss,
+            expiry_date=strategy.expiry_date,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 策略追蹤紀錄寫入失敗：%s", symbol, exc)
 
 
 def send_line_alert_if_extreme(result: AnalysisResult) -> None:
@@ -475,6 +507,7 @@ def main() -> None:
         logger.warning("寫入歷史資料庫失敗：%s", exc)
 
     strategy = compute_strategy_recommendation(args.symbol, result)
+    save_strategy_recommendation_if_trackable(args.symbol, strategy, datetime.now().strftime("%Y-%m-%d"))
     macro_warnings = get_macro_warnings(args.symbol)
 
     ai_commentary = None

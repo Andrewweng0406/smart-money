@@ -53,6 +53,7 @@ def run_one_symbol(
         logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
 
     strategy = analyze.compute_strategy_recommendation(symbol, result)
+    analyze.save_strategy_recommendation_if_trackable(symbol, strategy, datetime.now().strftime("%Y-%m-%d"))
     macro_warnings = analyze.get_macro_warnings(symbol)
 
     if notify:

@@ -76,10 +76,20 @@ class StrategyRecommendation:
     """把賣方價差 / Iron Condor / 買方突圍三種不同形狀的結果，統一成呼叫端
     （analyze.py / run_watchlist.py）可以直接塞進 Markdown 的單一格式，不用
     另外判斷型別。
+
+    legs/net_premium/strategy_type/max_loss 這四個欄位是給「策略追蹤記分板」
+    （strategy_tracker.py + db_manager 的 strategy_recommendations 表）用的
+    結構化資料——「無建議」的情況（找不到合適履約價/找不到到期日）這幾個
+    欄位維持 None，呼叫端看到 None 就知道這筆不用存進追蹤資料庫。
     """
     strategy_name: str
     rationale: str  # 為什麼選這個策略（依 GEX 狀態的判斷邏輯，讓使用者知道不是黑箱）
     detail_lines: list[str]
+    legs: Optional[list[SpreadLegResult]] = None
+    net_premium: Optional[float] = None  # credit策略=收到的權利金；debit策略=付出的權利金，一律正數
+    strategy_type: Optional[Literal["credit", "debit"]] = None
+    max_loss: Optional[float] = None
+    expiry_date: Optional[str] = None  # select_strategy()本身不知道日期（只拿到年化到期時間），由呼叫端事後補上
 
 
 def _otm_pct(spot: float, strike: float, side: SpreadSide) -> float:
@@ -332,6 +342,10 @@ def select_strategy(
                 f"- 損益兩平點：${strangle.breakeven_low:.2f} ~ ${strangle.breakeven_high:.2f}",
                 f"- {strangle.ai_advice}",
             ],
+            legs=strangle.legs,
+            net_premium=strangle.total_debit,
+            strategy_type="debit",
+            max_loss=strangle.total_debit,  # 買方策略最大虧損就是付出的權利金全額
         )
 
     put_dist_pct = (spot - put_wall) / spot * 100
@@ -374,4 +388,8 @@ def select_strategy(
             f"- 理論勝率：{result.win_rate_bucket}",
             f"- {result.ai_advice}",
         ],
+        legs=result.legs,
+        net_premium=result.max_profit,  # 賣方策略的最大獲利＝到期兩腳都作廢時，當初收到的淨權利金
+        strategy_type="credit",
+        max_loss=result.max_loss,
     )

@@ -6,6 +6,7 @@ supervisor 迴圈用受控次數的 side_effect 測試「壞掉後會重啟」�
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -185,6 +186,134 @@ def test_backtest_command_defaults_to_tsla(monkeypatch):
     assert last_call_text == "回測報告內容"
 
 
+# ---------- /scorecard ----------
+
+def test_scorecard_command_defaults_to_tsla(monkeypatch):
+    captured = {}
+
+    def fake_build_scorecard(symbol):
+        captured["symbol"] = symbol
+        return "記分板內容"
+
+    monkeypatch.setattr(bot, "_build_scorecard_sync", fake_build_scorecard)
+
+    update, context = _fake_update_and_context(args=[])
+    _run(bot.scorecard_command(update, context))
+
+    assert captured["symbol"] == "TSLA"
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert last_call_text == "記分板內容"
+
+
+def test_scorecard_command_uses_symbol_from_args(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(bot, "_build_scorecard_sync", lambda symbol: captured.setdefault("symbol", symbol) or "ok")
+
+    update, context = _fake_update_and_context(args=["nvda"])
+    _run(bot.scorecard_command(update, context))
+
+    assert captured["symbol"] == "NVDA"
+
+
+def test_scorecard_command_replies_error_on_failure_without_raising(monkeypatch):
+    monkeypatch.setattr(
+        bot, "_build_scorecard_sync", lambda symbol: (_ for _ in ()).throw(RuntimeError("db 壞了"))
+    )
+
+    update, context = _fake_update_and_context(args=["TSLA"])
+    _run(bot.scorecard_command(update, context))  # 不應該拋出例外
+
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert "失敗" in last_call_text
+
+
+# ---------- /status ----------
+
+def test_status_command_sends_status_text(monkeypatch):
+    monkeypatch.setattr(bot, "_build_status_sync", lambda: "健康檢查內容")
+
+    update, context = _fake_update_and_context(args=[])
+    _run(bot.status_command(update, context))
+
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert last_call_text == "健康檢查內容"
+
+
+def test_status_command_replies_error_on_failure_without_raising(monkeypatch):
+    monkeypatch.setattr(bot, "_build_status_sync", lambda: (_ for _ in ()).throw(RuntimeError("db 壞了")))
+
+    update, context = _fake_update_and_context(args=[])
+    _run(bot.status_command(update, context))  # 不應該拋出例外
+
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert "失敗" in last_call_text
+
+
+# ---------- _build_scorecard_sync / _build_status_sync ----------
+
+def test_build_scorecard_sync_reports_no_data_when_empty(monkeypatch):
+    import db_manager
+    monkeypatch.setattr(db_manager, "get_strategy_track_record", lambda symbol, limit=200: [])
+
+    result = bot._build_scorecard_sync("TSLA")
+
+    assert "還沒有已結算" in result
+
+
+def test_build_scorecard_sync_summarizes_records(monkeypatch):
+    import db_manager
+    fake_records = [
+        {"strategy_name": "Bull Put Spread", "outcome": "WIN", "realized_pnl": 1.5},
+        {"strategy_name": "Bull Put Spread", "outcome": "LOSS", "realized_pnl": -3.5},
+    ]
+    monkeypatch.setattr(db_manager, "get_strategy_track_record", lambda symbol, limit=200: fake_records)
+
+    result = bot._build_scorecard_sync("TSLA")
+
+    assert "TSLA" in result
+    assert "Bull Put Spread" in result
+    assert "50.0%" in result  # 1勝1負
+
+
+def test_build_status_sync_reports_todays_run_as_healthy(monkeypatch):
+    import db_manager
+    import run_watchlist
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{"date": today_str}])
+
+    result = bot._build_status_sync()
+
+    assert "✅" in result
+    assert "TSLA" in result
+
+
+def test_build_status_sync_flags_stale_symbol_as_unhealthy(monkeypatch):
+    import db_manager
+    import run_watchlist
+
+    monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{"date": "2020-01-01"}])
+
+    result = bot._build_status_sync()
+
+    assert "❌" in result
+    assert "TSLA" in result
+
+
+def test_build_status_sync_flags_symbol_with_no_snapshots(monkeypatch):
+    import db_manager
+    import run_watchlist
+
+    monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [])
+
+    result = bot._build_status_sync()
+
+    assert "從來沒有成功寫入過快照" in result
+
+
 # ---------- 自然語言意圖判斷（interpret_intent） ----------
 
 def test_interpret_intent_returns_unknown_without_api_key(monkeypatch):
@@ -266,6 +395,30 @@ def test_natural_language_handler_dispatches_to_backtest(monkeypatch):
     _run(bot.natural_language_handler(update, context))
 
     handle_backtest_mock.assert_called_once_with(update, "TSLA")
+
+
+def test_natural_language_handler_dispatches_to_scorecard(monkeypatch):
+    monkeypatch.setattr(bot, "interpret_intent", AsyncMock(return_value=bot.BotIntent(action="scorecard", symbol="TSLA")))
+    handle_scorecard_mock = AsyncMock()
+    monkeypatch.setattr(bot, "_handle_scorecard", handle_scorecard_mock)
+
+    update, context = _fake_update_and_context()
+    update.message.text = "TSLA的策略推薦準不準"
+    _run(bot.natural_language_handler(update, context))
+
+    handle_scorecard_mock.assert_called_once_with(update, "TSLA")
+
+
+def test_natural_language_handler_dispatches_to_status(monkeypatch):
+    monkeypatch.setattr(bot, "interpret_intent", AsyncMock(return_value=bot.BotIntent(action="status")))
+    handle_status_mock = AsyncMock()
+    monkeypatch.setattr(bot, "_handle_status", handle_status_mock)
+
+    update, context = _fake_update_and_context()
+    update.message.text = "排程還活著嗎"
+    _run(bot.natural_language_handler(update, context))
+
+    handle_status_mock.assert_called_once_with(update)
 
 
 def test_natural_language_handler_dispatches_to_help(monkeypatch):

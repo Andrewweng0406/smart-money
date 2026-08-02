@@ -8,9 +8,11 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Literal
 
 DEFAULT_DB_PATH = Path(__file__).parent / "history.db"
 
@@ -33,12 +35,38 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
 )
 """
 
+# 策略追蹤記分板——每次 analyze.py 產生一個「有結構化履約價」的策略建議
+# 就存一筆，到期後由 strategy_resolver.py 結算，回填 outcome/realized_pnl。
+# 沒有這張表的話，策略引擎每天都在「推薦」，但沒有人知道這些推薦到期後
+# 到底是賺是賠——這張表就是讓「規則式策略選擇」變成「可驗證的績效」。
+_STRATEGY_SCHEMA = """
+CREATE TABLE IF NOT EXISTS strategy_recommendations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    recommended_date TEXT NOT NULL,
+    strategy_name TEXT NOT NULL,
+    strategy_type TEXT NOT NULL,
+    legs_json TEXT NOT NULL,
+    net_premium REAL NOT NULL,
+    max_loss REAL NOT NULL,
+    expiry_date TEXT NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    settlement_spot REAL,
+    outcome TEXT,
+    realized_pnl REAL,
+    resolved_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (symbol, recommended_date, strategy_name)
+)
+"""
+
 
 @contextmanager
 def _connect(db_path: Path | str = DEFAULT_DB_PATH):
     conn = sqlite3.connect(str(db_path))
     try:
         conn.execute(_SCHEMA)
+        conn.execute(_STRATEGY_SCHEMA)
         yield conn
         conn.commit()
     finally:
@@ -79,4 +107,101 @@ def get_recent_snapshots(symbol: str, limit: int = 30, db_path: Path | str = DEF
             "SELECT * FROM daily_snapshots WHERE symbol = ? ORDER BY date DESC LIMIT ?",
             (symbol, limit),
         ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_strategy_recommendation(
+    symbol: str,
+    recommended_date: str,
+    strategy_name: str,
+    strategy_type: Literal["credit", "debit"],
+    legs: list[dict],
+    net_premium: float,
+    max_loss: float,
+    expiry_date: str,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> int:
+    """存一筆策略建議，回傳新增那筆的 id（strategy_resolver.py 結算時要用
+    這個 id 呼叫 mark_strategy_resolved）。legs 存成 JSON 字串——履約價組合
+    每個策略形狀都不同（2腳/4腳），不值得為此另開一張正規化的腳位資料表。
+
+    (symbol, recommended_date, strategy_name) 有 UNIQUE 限制、用 INSERT OR
+    IGNORE——同一天同一個策略名稱重複寫入（例如手動重跑 run.sh 測試）不會
+    產生重複紀錄，避免記分板的勝率/損益被重複計入。這種情況下回傳值不保證
+    對應到真正新增的那筆（可能是 0 或既有那筆的 id），呼叫端目前都沒有依賴
+    這個回傳值做後續動作，之後真的需要精確 id 的話請改用查詢取得。
+    """
+    with _connect(db_path) as conn:
+        cursor = conn.execute(
+            """
+            INSERT OR IGNORE INTO strategy_recommendations
+            (symbol, recommended_date, strategy_name, strategy_type, legs_json,
+             net_premium, max_loss, expiry_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                symbol, recommended_date, strategy_name, strategy_type,
+                json.dumps(legs), net_premium, max_loss, expiry_date,
+            ),
+        )
+        return cursor.lastrowid
+
+
+def get_pending_strategy_recommendations(
+    as_of_date: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """回傳到期日已到（expiry_date <= as_of_date）但還沒結算的策略建議，
+    給 strategy_resolver.py 的每日結算工作用。legs_json 這裡不解析，呼叫端
+    自己視需要 json.loads()。
+    """
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM strategy_recommendations "
+            "WHERE resolved = 0 AND expiry_date <= ? "
+            "ORDER BY expiry_date ASC",
+            (as_of_date,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def mark_strategy_resolved(
+    recommendation_id: int,
+    settlement_spot: float,
+    outcome: Literal["WIN", "LOSS"],
+    realized_pnl: float,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> None:
+    """把一筆策略建議標記為已結算，回填結算價/勝負/損益。"""
+    with _connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE strategy_recommendations
+            SET resolved = 1, settlement_spot = ?, outcome = ?, realized_pnl = ?,
+                resolved_at = datetime('now')
+            WHERE id = ?
+            """,
+            (settlement_spot, outcome, realized_pnl, recommendation_id),
+        )
+
+
+def get_strategy_track_record(
+    symbol: str | None = None, limit: int = 200, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """回傳已結算的策略建議（新到舊），給 strategy_tracker.summarize_track_record
+    彙總勝率/損益用。symbol=None 時回傳所有標的。"""
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        if symbol is None:
+            rows = conn.execute(
+                "SELECT * FROM strategy_recommendations WHERE resolved = 1 "
+                "ORDER BY resolved_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM strategy_recommendations WHERE resolved = 1 AND symbol = ? "
+                "ORDER BY resolved_at DESC LIMIT ?",
+                (symbol, limit),
+            ).fetchall()
     return [dict(row) for row in rows]

@@ -161,6 +161,50 @@ Mac Mini 上蘋果官方建議用 **launchd** 而非 crontab——crontab 在 ma
 launchd 對「電腦剛好在跑排程時間點睡著」的行為處理較好，且是 macOS 現行
 的標準機制。
 
+### ⚠️ 先看這個：專案放在 `~/Desktop` 下，launchd/crontab 會被 macOS 擋權限
+
+**這是實測抓到的真實問題，不是理論上的提醒。** macOS（Mojave 之後）對
+`~/Desktop`、`~/Documents`、`~/Downloads` 這幾個資料夾有額外的隱私保護
+（TCC，Transparency Consent and Control）——不是一般的 Unix 檔案權限
+（`chmod`/`chown` 都沒用），而是「這個程式有沒有被系統明確授權讀取這個
+資料夾」。你在終端機手動執行 `python analyze.py` 之所以正常，是因為
+Terminal.app（或你用的終端機/IDE）早就被你自己（或系統）授權過。但
+launchd 或 crontab 啟動的背景程式是「全新的、沒被授權過的行程」，一碰到
+`~/Desktop/stock.agent` 底下的檔案就會被擋下來，錯誤長這樣：
+
+```
+PermissionError: [Errno 1] Operation not permitted: '.../stock.agent/.venv/pyvenv.cfg'
+# 或
+shell-init: error retrieving current directory: getcwd: cannot access parent directories: Operation not permitted
+```
+
+修復方式二選一：
+
+**方式一：把整個專案搬出 `~/Desktop`（推薦，一勞永逸）**
+搬到 `~/stock.agent` 或 `~/Projects/stock.agent` 這種一般家目錄底下的
+資料夾——只有 Desktop/Documents/Downloads/iCloud Drive 這幾個特殊資料夾
+有這層保護，一般資料夾不受影響。搬移後要記得：
+1. 更新三支 `scripts/*.plist` 裡所有寫死 `/Users/andrewweng/Desktop/stock.agent`
+   的路徑（`ProgramArguments`、`WorkingDirectory`）
+2. 重新 `cp` 到 `~/Library/LaunchAgents/` 並 `launchctl unload` 舊的、
+   `load` 新的
+3. Desktop 上少了一個資料夾圖示是預期的，不影響 git remote／功能
+
+**方式二：手動幫特定執行檔授予「完整磁碟取用權限」**
+系統設定 → 隱私權與安全性 → 完整磁碟取用權限 → 加入：
+- `crontab`/launchd 排程走 `/bin/bash`（`com.andrewweng.stockgex.plist`、
+  `com.andrewweng.stockgex-intraday.plist` 都是）→ 加入 `/bin/bash`
+- 互動機器人走 `.venv/bin/python3`（實際上是個 symlink，指向
+  `/Library/Developer/CommandLineTools/usr/bin/python3`）→ 把這個真正的
+  Python 執行檔路徑加進去
+授權後不用重開機，但要 `launchctl unload` 再 `load` 一次該 plist 才會
+生效。這個方式的缺點是「完整磁碟取用權限」授權範圍很廣（那個執行檔對
+你整台電腦的檔案都有讀寫權限），安全性不如方式一乾淨。
+
+不管選哪個方式，改完都建議先用 `launchctl start <Label>`（或直接跑
+`telegram_bot_listener.py`）手動觸發一次、看 log 確認真的不再出現
+`Operation not permitted`，再放著讓它自動排程。
+
 ### 選項 A：launchd（推薦）
 
 1. 專案內已附範例 `scripts/com.andrewweng.stockgex.plist`（預設跑 watchlist
@@ -258,3 +302,74 @@ launchctl unload ~/Library/LaunchAgents/com.andrewweng.stockgex-intraday.plist
 ```
 
 log 在 `~/Library/Logs/stockgex/stockgex-intraday.log`（跟 `.err.log`）。
+
+## 7. 互動式 Telegram 機器人（隨時主動查詢，不用等排程）
+
+前面幾節都是「排程自動推播」——這節是另一種用法：讓你隨時在 Telegram
+打字（指令或口語都可以）主動問，不用等每天固定時間的報告。這是一個
+**常駐服務**（要一直開著監聽），跟前面「排程觸發、跑完就結束」的腳本
+性質不同。
+
+### 支援的指令
+
+- `/report <代號>` - 立即分析單一標的（不指定預設 TSLA）
+- `/watchlist` - 立即分析整份 `watchlist.json`
+- `/backtest <代號>` - 歷史籌碼模型回測統計
+- `/scorecard <代號>` - 策略追蹤記分板（見下方說明）
+- `/status` - 排程健康檢查（各標的最後一次成功分析是什麼時候）
+- `/help` - 顯示說明
+
+也可以直接打口語，例如「幫我看一下特斯拉」「TSLA的策略推薦準不準」
+「排程還活著嗎」——機器人會用 Claude 判斷你想做哪一種操作，不需要背
+指令格式。看不出意圖時會請你改用上面的精確指令，不會亂猜。
+
+### 部署（launchd，KeepAlive 常駐）
+
+```bash
+cp scripts/com.andrewweng.stockgex-bot.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.andrewweng.stockgex-bot.plist
+launchctl list | grep stockgex-bot   # 驗證是否註冊成功（PID應該是個數字，不是"-"）
+tail -f ~/Library/Logs/stockgex/bot.log      # 確認有印出「開始長輪詢」
+tail -f ~/Library/Logs/stockgex/bot.err.log  # 有任何錯誤看這裡
+```
+
+跟前面兩支排程用 `StartCalendarInterval`/`StartInterval` 不同，這支用
+`KeepAlive=true`——process 只要結束（不管正常退出、被殺掉、還是崩潰）
+launchd 就會自動重啟。這是跟 `telegram_bot_listener.py` 內部自己的
+supervisor while迴圈互補的**第二層防護**：內部迴圈處理「同一個process裡
+發生例外，重建Application再試」，launchd 處理「整個process本身掛掉了」。
+
+⚠️ 這支也一樣會踩到上面「## 4a」提到的 `~/Desktop` 權限問題（症狀是
+`bot.err.log` 出現 `PermissionError` 或 `Fatal Python error:
+init_import_site`），請先照那節的兩個方式之一處理好，再 load 這支 plist。
+
+停用：
+```bash
+launchctl unload ~/Library/LaunchAgents/com.andrewweng.stockgex-bot.plist
+```
+
+### 策略追蹤記分板：讓「策略建議」變成「可驗證的績效」
+
+`options_strategy_engine.py` 每天都會依 GEX 狀態推薦一個策略（Bull Put
+Spread / Bear Call Spread / Iron Condor / Long Strangle），但推薦完就
+結束了——`CLAUDE.md` 裡說得很清楚，這是**規則式判斷，不是回測驗證過的
+最佳解**。策略追蹤記分板就是把這個「感覺合理」變成「可以驗證的績效」：
+
+1. 每次排程（`run.sh` / `run_watchlist.py`）跑出策略建議，就存一筆進
+   `history.db` 的 `strategy_recommendations` 表（`analyze.py` 的
+   `save_strategy_recommendation_if_trackable`）。
+2. 到期日之後，執行 `strategy_resolver.py` 結算：抓當下現貨價當結算價，
+   用 `strategy_tracker.py` 算出這組策略最後是賺是賠，寫回資料庫。
+3. 用 `/scorecard <代號>` 隨時查累積勝率/損益。
+
+`strategy_resolver.py` 需要排程執行（建議跟每日排程同一個 `run.sh` 掛在
+一起，或另外開一個每日 launchd job）：
+
+```bash
+python strategy_resolver.py --symbol TSLA --notify
+```
+
+`--notify` 會在有結算到東西時發一則 Telegram 摘要；沒有到期的建議時
+安靜跳過，不會每天洗版。用結算日當天的**收盤價**當結算價的近似值，不是
+選擇權到期當天官方公告的精確結算價——兩者可能有小落差，`/scorecard` 的
+輸出裡有註明這點。

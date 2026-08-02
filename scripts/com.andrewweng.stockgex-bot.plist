@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.andrewweng.stockgex-bot</string>
+
+    <!-- 常駐互動機器人，不是排程型腳本，所以不是 StartCalendarInterval，
+         而是靠 KeepAlive：一旦這個程序結束（不管是正常退出、被殺掉、還是
+         崩潰），launchd 就會自動重新啟動它。這是跟 telegram_bot_listener.py
+         自己內部的 supervisor while迴圈互補的第二層防護——內部迴圈處理
+         「同一個process裡發生例外，重建Application再試」，這裡處理
+         「整個process本身掛掉了（例如收到SIGKILL、機器重開機）」。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/andrewweng/Desktop/stock.agent/.venv/bin/python3</string>
+        <string>/Users/andrewweng/Desktop/stock.agent/telegram_bot_listener.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/andrewweng/Desktop/stock.agent</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- 跟崩潰之間至少間隔10秒才重啟——避免程式一啟動就立刻壞掉時，
+         launchd 瘋狂重啟造成 CPU/log 灌爆（跟舊專案
+         com.wengcrypto.liquidation-listener.plist 的慣例一致）。 -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/bot.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/bot.err.log</string>
+</dict>
+</plist>

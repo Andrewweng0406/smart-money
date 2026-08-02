@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import db_manager
@@ -92,3 +93,85 @@ def test_save_snapshot_stores_alert_text(tmp_path):
     db_manager.save_snapshot(_make_result(alert="⚠️ 做市商對沖賣壓風險高"), "2026-08-01", db_path=db_path)
     rows = db_manager.get_recent_snapshots("TSLA", db_path=db_path)
     assert rows[0]["alert"] == "⚠️ 做市商對沖賣壓風險高"
+
+
+def _make_legs():
+    return [
+        {"action": "SELL", "option_type": "PUT", "strike_price": 300.0},
+        {"action": "BUY", "option_type": "PUT", "strike_price": 295.0},
+    ]
+
+
+def test_save_and_get_pending_strategy_recommendation_round_trip(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_strategy_recommendation(
+        symbol="TSLA", recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+        strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+        expiry_date="2026-08-01", db_path=db_path,
+    )
+    pending = db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)
+    assert len(pending) == 1
+    assert pending[0]["symbol"] == "TSLA"
+    assert pending[0]["resolved"] == 0
+    assert json.loads(pending[0]["legs_json"]) == _make_legs()
+
+
+def test_get_pending_strategy_recommendations_excludes_future_expiry(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_strategy_recommendation(
+        symbol="TSLA", recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+        strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+        expiry_date="2026-09-01", db_path=db_path,
+    )
+    pending = db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)
+    assert pending == []
+
+
+def test_save_strategy_recommendation_same_day_same_strategy_does_not_duplicate(tmp_path):
+    db_path = tmp_path / "history.db"
+    for _ in range(2):
+        db_manager.save_strategy_recommendation(
+            symbol="TSLA", recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+            strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+            expiry_date="2026-08-01", db_path=db_path,
+        )
+    pending = db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)
+    assert len(pending) == 1
+
+
+def test_mark_strategy_resolved_updates_record_and_track_record(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_strategy_recommendation(
+        symbol="TSLA", recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+        strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+        expiry_date="2026-08-01", db_path=db_path,
+    )
+    pending = db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)
+    db_manager.mark_strategy_resolved(
+        recommendation_id=pending[0]["id"], settlement_spot=310.0, outcome="WIN",
+        realized_pnl=150.0, db_path=db_path,
+    )
+
+    assert db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path) == []
+    track_record = db_manager.get_strategy_track_record("TSLA", db_path=db_path)
+    assert len(track_record) == 1
+    assert track_record[0]["outcome"] == "WIN"
+    assert track_record[0]["realized_pnl"] == 150.0
+    assert track_record[0]["settlement_spot"] == 310.0
+
+
+def test_get_strategy_track_record_filters_by_symbol(tmp_path):
+    db_path = tmp_path / "history.db"
+    for symbol in ("TSLA", "NVDA"):
+        db_manager.save_strategy_recommendation(
+            symbol=symbol, recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+            strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+            expiry_date="2026-08-01", db_path=db_path,
+        )
+    for record in db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path):
+        db_manager.mark_strategy_resolved(record["id"], 310.0, "WIN", 150.0, db_path=db_path)
+
+    tsla_record = db_manager.get_strategy_track_record("TSLA", db_path=db_path)
+    all_records = db_manager.get_strategy_track_record(db_path=db_path)
+    assert len(tsla_record) == 1
+    assert len(all_records) == 2
