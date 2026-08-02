@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.andrewweng.stockgex</string>
+
+    <!-- 不帶標的參數 -> run.sh 會讀 watchlist.json 跑完清單裡所有標的，
+         推播一份多標的綜合摘要（見 run_watchlist.py）。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/andrewweng/Desktop/stock.agent/run.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/andrewweng/Desktop/stock.agent</string>
+
+    <!-- 美股收盤是美東 16:00。夏令時間（3月中~11月初）美東比台灣慢12小時，
+         台灣時間 04:00 對應美東前一日 16:00；冬令時間（11月初~3月中）
+         時差變13小時，要改成台灣時間 05:00。台灣不跟著美國調時間，所以
+         每年這兩個切換日要手動改一次下面的 Hour（或乾脆設兩個 plist，
+         切換日到了再手動 load/unload 對應那個）。 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/stockgex.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/stockgex.err.log</string>
+</dict>
+</plist>

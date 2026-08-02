@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.andrewweng.stockgex-intraday</string>
+
+    <!-- 用 run.sh --watch，不是直接呼叫 python intraday_watcher.py——
+         run.sh 負責 cd 到專案目錄、activate 虛擬環境、載入 .env，這支
+         plist 不用重複組這些步驟。--watch 模式本身會跳過單元測試（見
+         run.sh 裡的說明），保持每次觸發的開銷夠輕量。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/andrewweng/Desktop/stock.agent/run.sh</string>
+        <string>--watch</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/andrewweng/Desktop/stock.agent</string>
+
+    <!-- 每15分鐘觸發一次（900秒），全天候都會觸發，但 intraday_watcher.py
+         內部的 is_market_hours() 會在非美股盤前/盤中時間直接跳過、不打任何
+         API——StartInterval 選的是「每N秒」而不是 StartCalendarInterval
+         （那個要列出所有整點+15分的時間點，一天要列快50組，太笨重）。 -->
+    <key>StartInterval</key>
+    <integer>900</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/stockgex-intraday.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/andrewweng/Library/Logs/stockgex/stockgex-intraday.err.log</string>
+</dict>
+</plist>

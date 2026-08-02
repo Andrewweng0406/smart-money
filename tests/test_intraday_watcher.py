@@ -1,0 +1,200 @@
+"""intraday_watcher.py 測試——市場時間判斷用時區明確的合成時間測試，
+牆位/異常大單檢查用合成資料跟 monkeypatch，完全不用連網路或等真實時間。
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
+
+import data_fetcher
+import db_manager
+import intraday_watcher
+import smart_money
+from data_fetcher import StrikeLegRaw
+
+US_EASTERN = ZoneInfo("America/New_York")
+
+
+def _et(y, m, d, h, mi):
+    return datetime(y, m, d, h, mi, tzinfo=US_EASTERN)
+
+
+# ---------- is_market_hours ----------
+
+def test_is_market_hours_true_during_regular_session():
+    assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 10, 0))  # 週一 10:00 ET
+
+
+def test_is_market_hours_true_during_premarket():
+    assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 4, 30))  # 週一 04:30 ET
+
+
+def test_is_market_hours_false_before_premarket_open():
+    assert not intraday_watcher.is_market_hours(_et(2026, 8, 3, 3, 59))
+
+
+def test_is_market_hours_false_after_close():
+    assert not intraday_watcher.is_market_hours(_et(2026, 8, 3, 16, 1))
+
+
+def test_is_market_hours_false_on_saturday():
+    assert not intraday_watcher.is_market_hours(_et(2026, 8, 1, 10, 0))  # 假設是週六
+
+
+# ---------- check_wall_breach ----------
+
+@dataclass
+class _FakeResult:
+    symbol: str
+    spot: float
+    max_pain: float = 100.0
+    call_wall: float = 110.0
+    put_wall: float = 90.0
+    gamma_flip: float | None = None
+    gamma_flip_distance_pct: float | None = None
+    zero_dte_summary: dict = None
+    alert: str | None = None
+
+    def __post_init__(self):
+        if self.zero_dte_summary is None:
+            self.zero_dte_summary = {"total_net_gex": 0, "zero_dte_net_gex": 0, "ex_zero_dte_net_gex": 0, "zero_dte_share_pct": 0.0}
+
+
+def test_check_wall_breach_returns_none_without_history(tmp_path):
+    db_path = tmp_path / "history.db"
+    assert intraday_watcher.check_wall_breach("TSLA", spot=100.0, db_path=db_path) is None
+
+
+def test_check_wall_breach_detects_call_wall_breach(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+
+    breach = intraday_watcher.check_wall_breach("TSLA", spot=115.0, db_path=db_path)
+    assert breach is not None
+    assert "Call Wall" in breach
+
+
+def test_check_wall_breach_detects_put_wall_breach(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+
+    breach = intraday_watcher.check_wall_breach("TSLA", spot=85.0, db_path=db_path)
+    assert breach is not None
+    assert "Put Wall" in breach
+
+
+def test_check_wall_breach_no_breach_within_range(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+
+    assert intraday_watcher.check_wall_breach("TSLA", spot=100.0, db_path=db_path) is None
+
+
+# ---------- check_unusual_activity ----------
+
+def test_check_unusual_activity_returns_empty_when_no_expiries(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: [])
+    assert intraday_watcher.check_unusual_activity("TSLA") == []
+
+
+def test_check_unusual_activity_applies_strict_thresholds(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-08-03"])
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [
+        StrikeLegRaw(expiry=expiry, strike=310.0, call_oi=500.0, call_iv=0.5, call_volume=5000.0,
+                     put_oi=100.0, put_iv=0.5, put_volume=50.0),  # ratio=10, volume=5000 -> 符合門檻
+        StrikeLegRaw(expiry=expiry, strike=320.0, call_oi=100.0, call_iv=0.5, call_volume=350.0,
+                     put_oi=100.0, put_iv=0.5, put_volume=10.0),  # ratio=3.5 但 volume 350 < 3000 -> 不符合
+    ])
+
+    result = intraday_watcher.check_unusual_activity("TSLA")
+    assert len(result) == 1
+    assert result[0]["strike"] == 310.0
+
+
+# ---------- run_check ----------
+
+def test_run_check_records_error_when_spot_price_fails(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: (_ for _ in ()).throw(ConnectionError("down")))
+    result = intraday_watcher.run_check("TSLA")
+    assert result["error"] is not None
+    assert result["spot"] is None
+
+
+def test_run_check_continues_when_wall_breach_check_fails(monkeypatch, tmp_path):
+    """牆位檢查失敗不該連累異常大單檢查——兩個子檢查互相獨立。"""
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(intraday_watcher, "check_wall_breach", lambda *a, **k: (_ for _ in ()).throw(ValueError("boom")))
+    monkeypatch.setattr(intraday_watcher, "check_unusual_activity", lambda symbol: [{"strike": 100.0, "side": "call", "volume": 5000, "oi": 100, "ratio": 50.0}])
+
+    result = intraday_watcher.run_check("TSLA")
+    assert result["wall_breach"] is None
+    assert len(result["unusual_activity"]) == 1
+
+
+# ---------- build_alert_text ----------
+
+def test_build_alert_text_returns_none_when_nothing_triggered():
+    result = {"symbol": "TSLA", "wall_breach": None, "unusual_activity": [], "spot": 100.0, "error": None}
+    assert intraday_watcher.build_alert_text(result) is None
+
+
+def test_build_alert_text_formats_wall_breach_and_unusual_activity():
+    result = {
+        "symbol": "TSLA", "spot": 115.0, "error": None,
+        "wall_breach": "TSLA 現貨 $115.00 已突破 Call Wall $110（潛在壓力位失守）",
+        "unusual_activity": [{"strike": 320.0, "side": "call", "volume": 5000.0, "oi": 500.0, "ratio": 10.0}],
+    }
+    text = intraday_watcher.build_alert_text(result)
+    assert text is not None
+    assert intraday_watcher.INTRADAY_ALERT_PREFIX in text
+    assert "Call Wall" in text
+    assert "320" in text
+
+
+def test_build_alert_text_shows_infinity_symbol_not_python_inf():
+    result = {
+        "symbol": "TSLA", "spot": 100.0, "error": None, "wall_breach": None,
+        "unusual_activity": [{"strike": 400.0, "side": "put", "volume": 5000.0, "oi": 0.0, "ratio": float("inf")}],
+    }
+    text = intraday_watcher.build_alert_text(result)
+    assert "∞" in text
+    assert "inf" not in text.lower()
+
+
+# ---------- load_symbols ----------
+
+def test_load_symbols_returns_single_symbol_when_given():
+    assert intraday_watcher.load_symbols("TSLA", "watchlist.json") == ["TSLA"]
+
+
+def test_load_symbols_reads_watchlist_file(tmp_path):
+    path = tmp_path / "watchlist.json"
+    path.write_text(json.dumps({"symbols": ["TSLA", "NVDA"]}), encoding="utf-8")
+    assert intraday_watcher.load_symbols(None, str(path)) == ["TSLA", "NVDA"]
+
+
+# ---------- main ----------
+
+def test_main_skips_outside_market_hours(monkeypatch):
+    monkeypatch.setattr(intraday_watcher, "is_market_hours", lambda *a, **k: False)
+    monkeypatch.setattr(sys, "argv", ["intraday_watcher.py", "--symbol", "TSLA"])
+
+    with patch("intraday_watcher.run_check") as mock_run_check:
+        intraday_watcher.main()
+
+    mock_run_check.assert_not_called()
+
+
+def test_main_force_flag_bypasses_market_hours_check(monkeypatch):
+    monkeypatch.setattr(intraday_watcher, "is_market_hours", lambda *a, **k: False)
+    monkeypatch.setattr(sys, "argv", ["intraday_watcher.py", "--symbol", "TSLA", "--force"])
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol: {
+        "symbol": symbol, "wall_breach": None, "unusual_activity": [], "spot": 100.0, "error": None,
+    })
+
+    intraday_watcher.main()  # 不應該拋出例外，且應該真的執行了 run_check（透過上面 monkeypatch 驗證不會crash即可）

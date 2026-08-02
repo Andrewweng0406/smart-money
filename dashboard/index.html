@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AAPL GEX Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root { color-scheme: dark; --bg: #0d0d0d; --panel: #18191b; --line: #303236; --text: #eceff4; --muted: #969ca6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    main { width: min(1440px, 94vw); margin: 0 auto; padding: 30px 0 50px; }
+    h1 { margin: 0 0 22px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+    h2 { margin: 0 0 18px; font-size: 1.05rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(145px, 1fr)); gap: 12px; }
+    .kpi, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .kpi { padding: 16px; }
+    .kpi-label { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+    .kpi-value { margin-top: 9px; font-size: 1.25rem; font-weight: 700; }
+    .positive { color: #0ca30c; } .negative { color: #d03b3b; }
+    .page-alert, .death-loop-alert { color: #ffdddd; background: #3a1518; border: 1px solid #d03b3b; border-radius: 9px; padding: 13px 15px; }
+    .page-alert { margin-top: 14px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(310px, 1fr); gap: 16px; margin-top: 16px; }
+    .panel { padding: 20px; margin-top: 16px; }
+    .layout .panel { margin-top: 0; }
+    .chart-wrap { position: relative; min-height: 430px; }
+    #gex-chart { width: 100%; height: 430px; }
+    .empty-notice { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); color: var(--muted); z-index: 2; }
+    .pressure-card.danger { border-color: #d03b3b; box-shadow: 0 0 0 1px #d03b3b, 0 0 24px rgba(208,59,59,.18); }
+    .pressure-score { font-size: 3.2rem; font-weight: 800; line-height: 1; }
+    .pressure-label { color: #f2c94c; margin: 8px 0 16px; font-weight: 700; }
+    .insufficient, .muted { color: var(--muted); }
+    .ratios { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .ratio { background: #111214; border-radius: 8px; padding: 12px; }
+    .ratio span { display: block; color: var(--muted); font-size: .75rem; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th, td { padding: 9px 5px; border-bottom: 1px solid #292b2f; text-align: right; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+    .side { text-transform: uppercase; font-weight: 700; } .side.call { color: #2a78d6; } .side.put { color: #e34948; }
+    .macro-panel { border-color: #725f22; }
+    .macro-panel li { margin: 8px 0; }
+    .strategy { color: #79aef2; font-weight: 700; margin-bottom: 14px; }
+    .commentary { color: #d5d8de; line-height: 1.75; white-space: pre-wrap; }
+    @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .layout { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { .kpi-grid { grid-template-columns: 1fr; } main { width: 92vw; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>AAPL GEX Dashboard</h1>
+    <section class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">現貨價</div><div class="kpi-value">308.91</div></div>
+      <div class="kpi"><div class="kpi-label">Net GEX 狀態</div><div class="kpi-value positive">Positive Gamma</div></div>
+      <div class="kpi"><div class="kpi-label">Max Pain</div><div class="kpi-value">305.00</div></div>
+      <div class="kpi"><div class="kpi-label">Gamma Flip 距離</div><div class="kpi-value">-11.6%</div></div>
+      <div class="kpi"><div class="kpi-label">IV Skew</div><div class="kpi-value">+3.1%</div></div>
+    </section>
+    <div class="page-alert">⚠️ 做市商對沖賣壓風險高，注意洗盤與連鎖拋售</div>
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Net GEX by Strike</h2>
+        <div class="chart-wrap"><div id="gex-chart"></div></div>
+      </section>
+      <section class="panel pressure-card danger">
+        <h2>Smart Money 風險評級</h2>
+        
+          <div class="pressure-score">95</div>
+          <div class="pressure-label">極高</div>
+          <div class="death-loop-alert">⚠️ 散戶正陷入買 Call 送權利金的死亡 Loop，做市商對沖賣壓極大，隨時有強制洗盤爆倉風險！</div>
+        
+        <div class="ratios">
+          <div class="ratio"><span>Put/Call Volume</span>0.57</div>
+          <div class="ratio"><span>Put/Call OI</span>0.83</div>
+        </div>
+        <h2>異常期權活動</h2>
+        <table><thead><tr><th>Strike</th><th>Side</th><th>Volume</th><th>OI</th><th>Ratio</th></tr></thead><tbody><tr><td>302.50</td><td><span class="side call">call</span></td><td>34,365</td><td>248</td><td>138.57</td></tr><tr><td>307.50</td><td><span class="side call">call</span></td><td>28,301</td><td>251</td><td>112.75</td></tr><tr><td>312.50</td><td><span class="side call">call</span></td><td>19,944</td><td>235</td><td>84.87</td></tr><tr><td>292.50</td><td><span class="side put">put</span></td><td>10,134</td><td>177</td><td>57.25</td></tr><tr><td>297.50</td><td><span class="side call">call</span></td><td>1,067</td><td>21</td><td>50.81</td></tr></tbody></table>
+      </section>
+    </div>
+    
+    
+  </main>
+  <script>
+    const trace = {
+      type: "bar",
+      x: [50.0, 55.0, 60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0, 105.0, 110.0, 115.0, 120.0, 125.0, 130.0, 135.0, 140.0, 145.0, 150.0, 155.0, 160.0, 165.0, 170.0, 175.0, 180.0, 185.0, 190.0, 195.0, 200.0, 205.0, 210.0, 215.0, 220.0, 225.0, 230.0, 235.0, 240.0, 245.0, 250.0, 255.0, 260.0, 265.0, 270.0, 275.0, 277.5, 280.0, 282.5, 285.0, 287.5, 290.0, 292.5, 295.0, 297.5, 300.0, 302.5, 305.0, 307.5, 310.0, 312.5, 315.0, 317.5, 320.0, 322.5, 325.0, 327.5, 330.0, 332.5, 335.0, 337.5, 340.0, 342.5, 345.0, 347.5, 350.0, 352.5, 355.0, 357.5, 360.0, 362.5, 365.0, 367.5, 370.0, 375.0, 380.0, 385.0, 390.0, 395.0, 400.0, 405.0, 410.0, 415.0, 420.0, 430.0, 440.0, 450.0, 460.0, 470.0, 480.0, 490.0, 500.0, 510.0, 520.0, 530.0, 540.0, 550.0, 560.0, 570.0, 580.0, 590.0, 600.0],
+      y: [-240480.66631954972, -994779.7741682453, -79892.52594272455, -19179.968706528853, -152092.90706942772, -251807.0107587857, -26914.405966394228, -75674.20065289624, -128903.21883624897, -25684.21811714892, -23546.289786868118, 18452.687222723653, -275738.0126713698, 55270.993700358355, -1040060.2441499132, 1239874.3561559336, -544792.2150233958, -342033.3274665389, 3970075.793880411, -1294621.8105734105, -3243539.058740436, -476364.8096374604, -4600593.075422199, -11706622.85163194, -5749925.680526229, -6233107.46523333, -13124843.119329317, -9220597.59128064, -7271654.562165901, -22557470.78289409, -33504747.212468836, -22368938.75606767, -7308414.398038033, -21233886.959949695, -51032382.22879421, -49922266.32491878, -57936702.95408055, -63853198.793759614, -116856659.21827406, -87221429.53704989, -117328106.36569113, -183437972.24625117, -14002784.843070626, -338468644.74479735, -402070929.3660692, -800041811.9316876, -168682.4551570953, -407450209.00951076, -2393912.537682237, -561154135.1195946, -9125563.044131327, -836550448.6380577, 3283486.041910341, -860455854.2271423, -85874108.55901173, -7171274615.368249, -86135447.52765, 702731581.9043026, -1121358754.4660625, 1955579707.4205952, -595054239.1236563, -3442937633.4158707, -143329030.08130693, 2648504360.2344856, -224187766.559646, 1226929023.2591228, -745943537.0215652, 1751960747.5072632, -181490981.54794562, 1428958507.711306, 33418269.25794372, 2784169846.4131365, 104168865.15920818, 2735423170.635519, 41419654.78205429, 4106118978.0015535, 35425854.98912882, 600640242.8372865, 44746897.04844403, 936343096.6950206, 215190.89477322792, 246953502.39236262, 202689.03900503382, 315846993.96607643, 258261788.42366588, 236423270.8648811, 54512642.49788411, 113463782.78083563, 19537301.228017714, 141736082.14521736, 3433709.6124225757, 13169356.86172916, 305694.7350057796, 48660205.06033407, 3581847.599557965, 3991381.5124367783, 9999561.93505879, 1645454.7004403279, 4113013.531297489, 1224001.268428204, 2177756.273623066, 2045099.416019111, 882347.9235470607, 4711471.408105234, 8081738.790824499, 65747.4234459417, 14587.369777006761, 61671.59429686711, 29472.211770658694, 140986.98094670387, 6329.25661654549, 4830724.969761994],
+      marker: { color: ["#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#e34948", "#e34948", "#2a78d6", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#2a78d6", "#e34948", "#e34948", "#e34948", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#e34948", "#e34948", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#e34948", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6"] },
+      hovertemplate: "Strike: %{x}<br>Net GEX: %{y:,.2f}<extra></extra>"
+    };
+    const layout = {
+      paper_bgcolor: "#18191b", plot_bgcolor: "#18191b",
+      font: { color: "#cfd3da" }, margin: { l: 70, r: 24, t: 20, b: 60 },
+      xaxis: { title: "Strike", gridcolor: "#292b2f" },
+      yaxis: { title: "Net GEX", gridcolor: "#292b2f", zerolinecolor: "#69707a" },
+      shapes: [{"type": "line", "x0": 308.9100036621094, "x1": 308.9100036621094, "y0": 0, "y1": 1, "yref": "paper", "line": {"color": "#f2c94c", "width": 2, "dash": "dash"}}], showlegend: false
+    };
+    Plotly.newPlot("gex-chart", [trace], layout, { responsive: true, displaylogo: false });
+  </script>
+</body>
+</html>

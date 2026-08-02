@@ -1,0 +1,101 @@
+"""測試 Yahoo Finance 斷線／回傳異常資料時，data_fetcher 是否優雅降級
+（回傳空結果或明確的例外），而不是讓 NaN/exception 一路往上炸穿。
+"""
+
+from __future__ import annotations
+
+import math
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
+
+import data_fetcher
+
+
+def test_get_spot_price_falls_back_to_fast_info_when_history_fails():
+    fake_ticker = MagicMock()
+    fake_ticker.history.side_effect = ConnectionError("network down")
+    fake_ticker.fast_info = {"lastPrice": 123.45}
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        price = data_fetcher.get_spot_price("TSLA")
+
+    assert price == 123.45
+
+
+def test_get_spot_price_raises_clear_error_when_totally_unavailable():
+    fake_ticker = MagicMock()
+    fake_ticker.history.side_effect = ConnectionError("network down")
+    fake_ticker.fast_info = {}  # .get("lastPrice") -> None
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        with pytest.raises(RuntimeError):
+            data_fetcher.get_spot_price("TSLA")
+
+
+class _RaisingOptionsTicker:
+    """單獨開一個小類別而不是在 MagicMock 上動態掛 property——MagicMock
+    的 property 是掛在共用的類別物件上，會污染同一個行程裡其他測試用到
+    的 MagicMock 實例。
+    """
+
+    @property
+    def options(self):
+        raise ConnectionError("down")
+
+
+def test_get_all_expiries_returns_empty_list_on_api_failure():
+    with patch("data_fetcher.yf.Ticker", return_value=_RaisingOptionsTicker()):
+        result = data_fetcher.get_all_expiries("TSLA")
+
+    assert result == []
+
+
+def test_get_option_chain_legs_returns_empty_list_on_api_failure():
+    fake_ticker = MagicMock()
+    fake_ticker.option_chain.side_effect = ConnectionError("down")
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        result = data_fetcher.get_option_chain_legs("TSLA", "2026-01-01")
+
+    assert result == []
+
+
+def test_get_option_chain_legs_sanitizes_nan_and_insane_values():
+    """實測過的真實現象：Yahoo 對近到期、無流動性合約常回傳 NaN 或近乎 0 的
+    impliedVolatility——這些必須被清成 0，不能讓 NaN 流進 Gamma 計算。
+    """
+    calls = pd.DataFrame({
+        "strike": [100.0, 105.0],
+        "openInterest": [float("nan"), 50.0],
+        "impliedVolatility": [0.00001, 0.4],  # 第一筆是「假的近零 IV」雜訊
+        "volume": [10.0, 20.0],
+        "bid": [1.0, 2.0],
+        "ask": [1.1, 2.1],
+    })
+    puts = pd.DataFrame({
+        "strike": [100.0],
+        "openInterest": [-5.0],  # 負值同樣是異常資料
+        "impliedVolatility": [float("inf")],
+        "volume": [5.0],
+        "bid": [0.5],
+        "ask": [0.6],
+    })
+
+    fake_chain = MagicMock()
+    fake_chain.calls = calls
+    fake_chain.puts = puts
+    fake_ticker = MagicMock()
+    fake_ticker.option_chain.return_value = fake_chain
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        legs = data_fetcher.get_option_chain_legs("TSLA", "2026-01-01")
+
+    by_strike = {leg.strike: leg for leg in legs}
+    assert by_strike[100.0].call_oi == 0.0  # NaN -> 0
+    assert by_strike[100.0].call_iv == 0.0  # 近零 IV 雜訊 -> 0
+    assert by_strike[100.0].put_oi == 0.0  # 負值 -> 0
+    assert by_strike[100.0].put_iv == 0.0  # inf -> 0
+    assert not math.isnan(by_strike[100.0].call_oi)
+    assert by_strike[105.0].call_oi == 50.0
