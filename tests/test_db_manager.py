@@ -158,6 +158,28 @@ def test_mark_strategy_resolved_updates_record_and_track_record(tmp_path):
     assert track_record[0]["outcome"] == "WIN"
     assert track_record[0]["realized_pnl"] == 150.0
     assert track_record[0]["settlement_spot"] == 310.0
+    assert track_record[0]["max_loss_hit"] == 0
+
+
+def test_mark_strategy_resolved_stores_max_loss_hit(tmp_path):
+    """max_loss_hit（是否被完全壓穿最大虧損，不是普通小賠）先前算完就丟掉，
+    沒有存進資料庫——這是實測抓到的缺漏，記分板少了這個資訊沒辦法評估
+    策略引擎的風險控管品質。
+    """
+    db_path = tmp_path / "history.db"
+    db_manager.save_strategy_recommendation(
+        symbol="TSLA", recommended_date="2026-07-01", strategy_name="Bull Put Spread",
+        strategy_type="credit", legs=_make_legs(), net_premium=150.0, max_loss=350.0,
+        expiry_date="2026-08-01", db_path=db_path,
+    )
+    pending = db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)
+    db_manager.mark_strategy_resolved(
+        recommendation_id=pending[0]["id"], settlement_spot=280.0, outcome="LOSS",
+        realized_pnl=-350.0, max_loss_hit=True, db_path=db_path,
+    )
+
+    track_record = db_manager.get_strategy_track_record("TSLA", db_path=db_path)
+    assert track_record[0]["max_loss_hit"] == 1
 
 
 def test_get_strategy_track_record_filters_by_symbol(tmp_path):

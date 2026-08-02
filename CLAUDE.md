@@ -111,7 +111,7 @@ python check_env.py
 | `ai_analyst.py` | Claude API 盤後綜合評語 |
 | `analyze.py` | 單一標的完整流程編排（也是其他編排腳本會 import 的共用函式庫） |
 | `run_watchlist.py` | 多標的 watchlist 編排 |
-| `intraday_watcher.py` | 盤中即時異常監控（單次檢查，排程交給 launchd StartInterval） |
+| `intraday_watcher.py` | 盤中即時異常監控（單次檢查，排程交給 launchd StartInterval；同一事件有冷卻機制避免重複推播） |
 | `telegram_bot_listener.py` | 常駐互動機器人（/report /watchlist /backtest /scorecard /status + 自然語言） |
 | `run.sh` | 排程統一入口，launchd/cron 都呼叫這支 |
 | `watchlist.json` | 使用者維護的標的清單 |
@@ -136,3 +136,14 @@ python check_env.py
   (`com.andrewweng.stockgex-bot.plist`) 都還沒有修復這個問題，需要使用者
   手動處理後才能真正靠 launchd 自動運作**（手動用 `python`/`./run.sh`
   在終端機執行完全不受影響）。
+- **策略到期結算價是「到期日當天收盤價」的近似值，不是選擇權到期當天
+  交易所公告的官方結算價**（AM/PM settlement）——兩者可能有小落差，
+  `/scorecard` 的輸出裡有註明這點，見 `strategy_resolver.py`。
+- **一次獨立審查（2026-08）抓出並修復了多個真bug**（策略損益單位不一致、
+  Iron Condor最大虧損公式、Gamma Flip改用假設現貨價格網格重算、GEX單位
+  少乘0.01、negative_gamma判斷誤用Put Wall突破、IV Skew混入清洗後的0值、
+  launchd排程時區/交易日判斷、策略到期結算價、盤中警示去重）——這些都已
+  修好並補上回歸測試。同一次審查也建議把 Smart Money 的「死亡Loop」警示
+  降級為啟發式用語、加入 bid/ask 成交方向與OI日變化等更細緻的判斷訊號，
+  這兩項牽涉到文案語氣（原始警示文字是使用者明確指定的）與新資料蒐集，
+  刻意先不動，留給使用者決定。

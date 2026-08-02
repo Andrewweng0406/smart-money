@@ -5,9 +5,13 @@
 
 Net GEX 採用業界（SqueezeMetrics / SpotGamma 風格）常見的假設：
 「做市商（dealer）長 Call、短 Put」，所以：
-    Net GEX = (Call_OI * Call_Gamma - Put_OI * Put_Gamma) * S^2 * 100
-這是「現貨每變動 $1」對應的美元 Gamma 曝險（不是每變動 1% 的曝險，公式裡沒有
-再乘 0.01）。
+    Net GEX = (Call_OI * Call_Gamma - Put_OI * Put_Gamma) * S^2 * 100 * 0.01
+這是「現貨每變動 1%」對應的美元 Gamma 曝險（SpotGamma等業界工具常見的標示
+慣例）——實測抓到的真bug：先前公式少乘了最後這個 0.01，數字因此比業界慣例
+的「每1%GEX」大了100倍，且docstring原本誤標成「每變動$1」（真正的「每變動
+$1」公式應該只有一次 spot、不是 spot²：Gamma*OI*100*S，不是Gamma*OI*100*S²）。
+正負號跟履約價之間的相對排序不受影響（絕對值倍率一致地跟著縮放），只有
+絕對金額被少乘 0.01 而誇大了100倍。
 """
 
 from __future__ import annotations
@@ -111,7 +115,9 @@ def compute_net_gex_by_strike(legs: Sequence[OptionLeg], spot: float, risk_free_
     call_gamma = black_scholes_gamma(spot, strikes, time_arr, call_iv, risk_free_rate)
     put_gamma = black_scholes_gamma(spot, strikes, time_arr, put_iv, risk_free_rate)
 
-    scale = spot**2 * CONTRACT_MULTIPLIER
+    # *0.01：現貨每變動「1%」（而不是每變動「1股/1單位」）對應的美元曝險，
+    # 業界（SpotGamma等）標示 GEX 的標準慣例——見檔頭 docstring。
+    scale = spot**2 * CONTRACT_MULTIPLIER * 0.01
     call_gex = call_oi * call_gamma * scale
     put_gex = put_oi * put_gamma * scale
 
@@ -133,43 +139,86 @@ def compute_net_gex_by_strike(legs: Sequence[OptionLeg], spot: float, risk_free_
     return sorted(result, key=lambda r: r["strike"])
 
 
-def find_gamma_flip_point(gex_by_strike: Sequence[dict], spot: float | None = None) -> float | None:
-    """累計 Net GEX 由負轉正的履約價（線性內插）—— 現貨低於此點時做市商淨空
-    Gamma（避險行為會放大波動，即「大負 GEX 區域」）；高於此點則淨多 Gamma
-    （避險行為抑制波動）。找不到正負轉折時回傳 None。
-
-    傳入 spot 時，回傳「離現貨價最近」的那個交叉點，而不是曲線上第一個交叉點：
-    彙總多個到期日後，遠低於現貨價的深度價外履約價（LEAPS 留下的稀疏舊倉位）
-    理論 Gamma 幾乎是 0，但不會精確等於 0，累計 Net GEX 曲線常常在那些完全
-    不影響實際避險行為的低履約價附近出現好幾次「假交叉」（實測案例：TSLA
-    現貨 $311，這種假交叉出現在 $16，遠比任何有意義的翻轉點誇張）。業界講的
-    「Gamma 翻轉點」本來就是指離現貨最近的那個轉折，不是曲線上任意一個轉折。
-    不傳 spot（呼叫端不在乎哪一個）則維持原本「由下往上找第一個交叉」的行為。
+def _find_nearest_zero_crossing(x_values: Sequence[float], y_values: Sequence[float], reference_x: float) -> float | None:
+    """在一條由 (x_values, y_values) 描述的曲線上，找離 reference_x 最近的
+    那個 y 由負轉正（或正轉負）的交叉點（線性內插）。純數學工具，不管
+    x/y 軸實際代表什麼——find_gamma_flip_point 用它在『假設現貨價』軸上找
+    交叉，但這支函式本身跟金融公式無關，方便獨立測試內插邏輯本身對不對。
     """
-    if len(gex_by_strike) < 2:
-        return None
-
-    strikes = [row["strike"] for row in gex_by_strike]
-    cumulative = np.cumsum([row["net_gex"] for row in gex_by_strike])
-
     crossings: list[float] = []
-    for i in range(1, len(cumulative)):
-        prev, curr = cumulative[i - 1], cumulative[i]
+    for i in range(1, len(y_values)):
+        prev, curr = y_values[i - 1], y_values[i]
         if prev == 0:
-            crossing = float(strikes[i - 1])
+            crossings.append(float(x_values[i - 1]))
         elif (prev < 0) != (curr < 0):
-            frac = -prev / (curr - prev)
-            crossing = float(strikes[i - 1] + frac * (strikes[i] - strikes[i - 1]))
-        else:
-            continue
-
-        if spot is None:
-            return crossing
-        crossings.append(crossing)
+            frac = abs(prev) / (abs(prev) + abs(curr))
+            crossings.append(float(x_values[i - 1] + frac * (x_values[i] - x_values[i - 1])))
 
     if not crossings:
         return None
-    return min(crossings, key=lambda k: abs(k - spot))
+    return min(crossings, key=lambda x: abs(x - reference_x))
+
+
+def compute_net_gex_curve(
+    legs: Sequence[OptionLeg], spot: float, risk_free_rate: float = 0.045,
+    price_range_pct: float = 0.30, grid_points: int = 241,
+) -> list[dict]:
+    """建立一段以現貨價為中心的假設現貨價格網格，在每一個假設價格點都重新
+    計算所有期權的 Gamma（履約價/OI/IV/到期時間維持不變，只有這裡的『假設
+    現貨價』會變），加總成那個假設價格下的 Total Net GEX。
+
+    這是業界定義的 Gamma Flip 概念本身：『如果現貨真的走到這個價格，做市商
+    淨Gamma部位的正負號會是什麼』——是在『假設現貨價』這個軸上掃描。舊版
+    find_gamma_flip_point 是把『現在這個當下、不同履約價各自的GEX貢獻』
+    由低到高累加找交叉點，是在『履約價』這個軸上掃描，兩者是完全不同的
+    東西：後者容易被彙總多個到期日後、遠離現貨的稀疏舊倉位（LEAPS留下的）
+    造成的假交叉誤導，因為那些履約價的 Gamma 是用「現在的現貨價」算的，
+    根本沒有模擬「現貨真的走到那裡」的情境。
+
+    回傳依假設現貨價由低到高排序的 [{"spot": S, "net_gex": ...}, ...]。
+    """
+    if not legs or spot <= 0:
+        return []
+
+    strikes = np.array([leg.strike for leg in legs], dtype=float)
+    call_oi = np.array([leg.call_oi for leg in legs], dtype=float)
+    call_iv = np.array([leg.call_iv for leg in legs], dtype=float)
+    put_oi = np.array([leg.put_oi for leg in legs], dtype=float)
+    put_iv = np.array([leg.put_iv for leg in legs], dtype=float)
+    time_arr = np.array([leg.time_to_expiry_years for leg in legs], dtype=float)
+
+    price_grid = np.linspace(spot * (1 - price_range_pct), spot * (1 + price_range_pct), grid_points)
+
+    curve = []
+    for hypothetical_spot in price_grid:
+        call_gamma = black_scholes_gamma(hypothetical_spot, strikes, time_arr, call_iv, risk_free_rate)
+        put_gamma = black_scholes_gamma(hypothetical_spot, strikes, time_arr, put_iv, risk_free_rate)
+        # 跟 compute_net_gex_by_strike 用同一套「每變動1%」的單位慣例（*0.01）
+        # ——這裡是找零交叉點，乘上正的常數並不影響交叉點位置，但維持全專案
+        # GEX 數值單位一致，之後如果直接顯示這條曲線也不會跟其他地方對不上。
+        scale = float(hypothetical_spot) ** 2 * CONTRACT_MULTIPLIER * 0.01
+        net_gex = float(np.sum(call_oi * call_gamma * scale - put_oi * put_gamma * scale))
+        curve.append({"spot": float(hypothetical_spot), "net_gex": net_gex})
+    return curve
+
+
+def find_gamma_flip_point(
+    legs: Sequence[OptionLeg], spot: float, risk_free_rate: float = 0.045,
+    price_range_pct: float = 0.30, grid_points: int = 241,
+) -> float | None:
+    """在假設現貨價格網格上重新計算出的 Total Net GEX 曲線（見
+    compute_net_gex_curve）裡，找離現貨最近的那個正負號交叉點——現貨低於
+    此點時做市商淨空 Gamma（避險行為傾向放大波動，即「大負GEX區域」）；
+    高於此點則淨多 Gamma（避險行為抑制波動）。找不到交叉（例如整條曲線都
+    同號）時回傳 None。
+    """
+    curve = compute_net_gex_curve(legs, spot, risk_free_rate, price_range_pct, grid_points)
+    if len(curve) < 2:
+        return None
+
+    prices = [row["spot"] for row in curve]
+    values = [row["net_gex"] for row in curve]
+    return _find_nearest_zero_crossing(prices, values, reference_x=spot)
 
 
 def gamma_flip_distance_pct(spot: float, gamma_flip: float | None) -> float | None:

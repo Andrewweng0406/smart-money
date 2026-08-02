@@ -24,11 +24,15 @@ def compute_iv_skew(
     for leg in legs:
         if leg.strike > spot:
             call_otm_pct = (leg.strike - spot) / spot
-            if otm_min_pct <= call_otm_pct <= otm_max_pct:
+            # IV<=0 代表這一腳的IV是被資料清洗掉的缺值（data_fetcher.py 對
+            # 超出合理範圍/近到期雜訊的IV會清成0），不是「這檔真的零波動」，
+            # 混進平均會把 IV Skew 拉向錯誤方向，製造出假的偏斜訊號——這是
+            # 實測抓到的真bug。
+            if otm_min_pct <= call_otm_pct <= otm_max_pct and leg.call_iv > 0:
                 otm_call_ivs.append(leg.call_iv)
         elif leg.strike < spot:
             put_otm_pct = (spot - leg.strike) / spot
-            if otm_min_pct <= put_otm_pct <= otm_max_pct:
+            if otm_min_pct <= put_otm_pct <= otm_max_pct and leg.put_iv > 0:
                 otm_put_ivs.append(leg.put_iv)
 
     # 莊家做盤視角：兩側都要有樣本才可比較避險定價；缺一側就不能判斷偏斜。

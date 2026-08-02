@@ -47,7 +47,9 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 
 import analyze
 import backtester
+import data_fetcher
 import db_manager
+import options_strategy_engine
 import run_watchlist
 import strategy_tracker
 
@@ -113,12 +115,25 @@ def _run_report_sync(symbol: str) -> tuple[str, Path]:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     result = analyze.fetch_and_aggregate(symbol, max_expiries=8, risk_free_rate=0.045)
 
-    try:
-        db_manager.save_snapshot(result, datetime.now().strftime("%Y-%m-%d"))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
+    # 使用者隨時都可能傳訊息問（包括週末/休市日），這種時候 yfinance 只會
+    # 回傳上一個交易日的舊資料——只有今天真的是交易日才寫進歷史資料庫，
+    # 避免用「查詢當下的日期」當 key 存進一筆其實是舊資料的假快照。
+    if data_fetcher.is_market_trading_day():
+        try:
+            db_manager.save_snapshot(result, data_fetcher.current_trading_date_str())
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
 
     strategy = analyze.compute_strategy_recommendation(symbol, result)
+    # 跟排程模式（analyze.py --notify / run_watchlist.py）共用同一套追蹤
+    # 寫入邏輯——save_strategy_recommendation_if_trackable 內部有
+    # (symbol, recommended_date, strategy_name) 的 UNIQUE 限制 + INSERT OR
+    # IGNORE，同一天不管手動問幾次都不會產生重複紀錄，所以這裡納入追蹤
+    # 是安全的，不用擔心污染記分板。
+    if data_fetcher.is_market_trading_day():
+        analyze.save_strategy_recommendation_if_trackable(
+            symbol, strategy, data_fetcher.current_trading_date_str(),
+        )
     macro_warnings = analyze.get_macro_warnings(symbol)
 
     import ai_analyst
@@ -170,17 +185,19 @@ def _build_scorecard_sync(symbol: str) -> str:
             "累積一段時間才會有記分板資料。"
         )
 
+    # strategy_tracker 內部用「每股/每口」單位算損益（不乘 OPTIONS_MULTIPLIER），
+    # 顯示給人看時乘回去才是使用者實際會拿到/損失的美元金額（1口=100股）。
     lines = [
         f"📊 【{symbol} 策略追蹤記分板】",
         f"已結算 {summary['total_count']} 筆　勝率 {summary['win_rate_pct']}%　"
-        f"累積損益 ${summary['total_pnl']:,.2f}（每口/每組單位，未乘上100股）",
+        f"累積損益 ${summary['total_pnl'] * options_strategy_engine.OPTIONS_MULTIPLIER:,.0f}",
         "",
         "分策略明細：",
     ]
     for name, stats in summary["by_strategy"].items():
         lines.append(
             f"- {name}：{stats['count']}筆，勝率{stats['win_rate_pct']}%，"
-            f"累積損益 ${stats['total_pnl']:,.2f}"
+            f"累積損益 ${stats['total_pnl'] * options_strategy_engine.OPTIONS_MULTIPLIER:,.0f}"
         )
     return "\n".join(lines)
 

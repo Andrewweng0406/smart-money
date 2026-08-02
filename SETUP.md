@@ -216,13 +216,22 @@ shell-init: error retrieving current directory: getcwd: cannot access parent dir
    ```
    如果只想排程單一標的（不用 watchlist），把 plist 裡 `ProgramArguments`
    陣列最後加一行 `<string>TSLA</string>`（或你想要的代號）即可。
-2. **美股收盤時間換算成台灣時間會隨美國夏令/冬令時間改變**，設定前先確認
-   現在是哪一種：
-   - 美國夏令時間（約 3月中 ~ 11月初）：美東收盤 16:00 = 台灣時間隔天 04:00
-   - 美國冬令時間（約 11月初 ~ 3月中）：美東收盤 16:00 = 台灣時間隔天 05:00
-   - plist 裡預設 `Hour=4, Minute=30`（夏令時間、收盤後緩衝30分鐘讓
-     yfinance 資料更新穩定）。時間切換時記得手動改這個數字，改完要
-     `unload` 再 `load` 一次（見下方指令）才會生效。
+2. **plist 裡的時間是照「主機系統時區」設定，不是台灣時間**——先用
+   `date` 指令確認你的 Mac Mini 實際系統時區是什麼（`System Settings →
+   General → Date & Time` 也看得到）。專案內附的範例假設主機是美國
+   **太平洋時間（Pacific）**，設定 `Hour=13, Minute=30`（週一到週五）：
+   美東(ET)收盤 16:00 跟太平洋(PT)全年都固定差3小時（兩地同步隨美國
+   夏/冬令時間切換，不像台灣跟美國的時差每年會變），所以 13:30 PT
+   永遠對應美東收盤後30分鐘，不需要每年手動調整。
+   - 如果你的主機系統時區實際上是**台灣時間**，才需要換算：美國夏令
+     時間（約3月中~11月初）美東收盤=台灣時間隔天04:00；冬令時間
+     （約11月初~3月中）=台灣時間隔天05:00，且每年這兩個切換日要手動
+     改一次 plist 裡的 `Hour`。
+   - 不管主機是哪個時區，`analyze.py`/`run_watchlist.py` 內部都會用
+     `data_fetcher.is_market_trading_day()` 檢查當天美股是否真的有開盤
+     交易（排掉平日休市的假期），不是交易日就不會寫進歷史資料庫——這是
+     實測抓到的真bug的第二層防護，但排程時間本身還是建議設對，不要
+     依賴這層防護去掩蓋排錯時間的問題。
 3. 載入排程：
    ```bash
    launchctl load ~/Library/LaunchAgents/com.andrewweng.stockgex.plist

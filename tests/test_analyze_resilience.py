@@ -20,6 +20,17 @@ import smart_money
 from data_fetcher import StrikeLegRaw
 
 
+@pytest.fixture(autouse=True)
+def _assume_trading_day(monkeypatch):
+    """main() 現在只有「今天是美股交易日」才寫歷史資料庫/策略追蹤——這裡
+    預設一律當作是交易日，避免每個既有測試都要各自 mock 一次，也避免測試
+    真的打網路查 SPY。個別測試要測「非交易日跳過寫入」的情境時，可以在
+    測試本體裡再蓋一次 monkeypatch.setattr 成 False。
+    """
+    monkeypatch.setattr(data_fetcher, "is_market_trading_day", lambda *a, **k: True)
+    monkeypatch.setattr(data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
+
+
 def test_fetch_and_aggregate_succeeds_when_one_expiry_fails(monkeypatch):
     """模擬其中一個到期日的期權鏈查詢失敗（data_fetcher 內部已經接住例外、
     回傳空列表），確認彙總結果仍然用另一個到期日的資料算得出來。
@@ -179,6 +190,41 @@ def test_fetch_and_aggregate_survives_smart_money_failure(monkeypatch):
     assert result.iv_skew is None
     assert result.put_call_ratio == {}
     assert result.unusual_activity == []
+
+
+def test_negative_gamma_flag_is_independent_of_put_wall_breach(monkeypatch):
+    """現貨跌破 Put Wall 但仍高於 Gamma Flip（做市商仍是淨多Gamma）時，
+    傳給 compute_market_maker_pressure_score 的 in_negative_gamma 應該是
+    False——不能因為 alert 被 Put Wall 觸發就誤判成負Gamma。這是實測抓到
+    的真bug：混用會讓莊家壓力分數平白多加50分，也可能誤觸死亡Loop警示。
+    """
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-01-02"])
+    monkeypatch.setattr(data_fetcher, "time_to_expiry_years", lambda expiry: 7 / 365)
+    # put_oi 在 105 這檔最大 -> put_wall=105 > spot=100，現貨已跌破 Put Wall，觸發 alert。
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [
+        StrikeLegRaw(expiry=expiry, strike=100.0, call_oi=100.0, call_iv=0.5, call_volume=10.0,
+                     put_oi=50.0, put_iv=0.5, put_volume=5.0),
+        StrikeLegRaw(expiry=expiry, strike=105.0, call_oi=50.0, call_iv=0.5, call_volume=5.0,
+                     put_oi=200.0, put_iv=0.5, put_volume=20.0),
+    ])
+    # gamma_flip=90 < spot=100，現貨仍在 Gamma Flip 之上，做市商仍是淨多Gamma。
+    monkeypatch.setattr(analyze, "find_gamma_flip_point", lambda *a, **k: 90.0)
+
+    captured = {}
+
+    def fake_pressure(spot, put_wall, in_negative_gamma, legs):
+        captured["in_negative_gamma"] = in_negative_gamma
+        return None
+
+    monkeypatch.setattr(smart_money, "compute_market_maker_pressure_score", fake_pressure)
+
+    result = analyze.fetch_and_aggregate("TSLA", max_expiries=None, risk_free_rate=0.045)
+
+    assert result.put_wall == 105.0
+    assert result.spot < result.put_wall  # 確認 alert 真的是被 Put Wall 突破觸發
+    assert result.alert is not None
+    assert captured["in_negative_gamma"] is False
     assert result.mm_pressure is None
 
 
@@ -323,6 +369,49 @@ def test_main_triggers_line_alert_when_notify_and_extreme_event(monkeypatch, tmp
         analyze.main()
 
     mock_line.assert_called_once()  # 現貨 $100 > Call Wall $95，應該觸發
+
+
+def test_main_resolves_strategy_scorecard_and_notifies(monkeypatch, tmp_path):
+    """main() 現在會在單一標的排程模式（./run.sh TSLA）也自動結算到期的
+    策略建議——過去只有手動執行 strategy_resolver.py 才會結算，排程從沒
+    真的觸發過。
+    """
+    monkeypatch.setattr(sys, "argv", [
+        "analyze.py", "--symbol", "TSLA", "--output-dir", str(tmp_path), "--no-ai",
+        "--no-dashboard", "--notify",
+    ])
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-01-02"])
+    monkeypatch.setattr(data_fetcher, "time_to_expiry_years", lambda expiry: 7 / 365)
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [StrikeLegRaw(
+        expiry=expiry, strike=100.0, call_oi=100.0, call_iv=0.5, call_volume=10.0,
+        put_oi=100.0, put_iv=0.5, put_volume=10.0,
+    )])
+    monkeypatch.setattr(data_fetcher, "get_expiry_by_dte", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda symbol: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: None)
+
+    import strategy_resolver
+    fake_resolved = [{
+        "symbol": "TSLA", "strategy_name": "Bull Put Spread", "expiry_date": "2026-08-01",
+        "outcome": "WIN", "realized_pnl": 1.5, "settlement_spot": 310.0, "approximate": False,
+    }]
+    captured = {}
+
+    def fake_resolve_pending(symbol):
+        captured["symbol"] = symbol
+        return fake_resolved
+
+    monkeypatch.setattr(strategy_resolver, "resolve_pending", fake_resolve_pending)
+
+    import telegram_notifier
+    with patch.object(telegram_notifier, "send_daily_report"), patch.object(telegram_notifier, "send_text_report") as mock_text:
+        analyze.main()
+
+    assert captured["symbol"] == "TSLA"
+    mock_text.assert_called_once()
+    assert "Bull Put Spread" in mock_text.call_args.args[0]
 
 
 def test_aggregate_smart_money_legs_sums_oi_volume_across_expiries():

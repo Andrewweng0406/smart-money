@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS strategy_recommendations (
     settlement_spot REAL,
     outcome TEXT,
     realized_pnl REAL,
+    max_loss_hit INTEGER,
     resolved_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (symbol, recommended_date, strategy_name)
@@ -170,18 +171,25 @@ def mark_strategy_resolved(
     settlement_spot: float,
     outcome: Literal["WIN", "LOSS"],
     realized_pnl: float,
+    max_loss_hit: bool = False,
     db_path: Path | str = DEFAULT_DB_PATH,
 ) -> None:
-    """把一筆策略建議標記為已結算，回填結算價/勝負/損益。"""
+    """把一筆策略建議標記為已結算，回填結算價/勝負/損益/是否觸及最大虧損。
+
+    max_loss_hit（strategy_tracker.score_outcome() 算好的結果）先前只是
+    算完就丟掉，沒有存進資料庫——這是實測抓到的缺漏：記分板因此沒辦法
+    區分「普通小賠」跟「被完全壓穿最大虧損」，這個資訊對評估策略引擎的
+    風險控管品質很重要，理應保留。
+    """
     with _connect(db_path) as conn:
         conn.execute(
             """
             UPDATE strategy_recommendations
             SET resolved = 1, settlement_spot = ?, outcome = ?, realized_pnl = ?,
-                resolved_at = datetime('now')
+                max_loss_hit = ?, resolved_at = datetime('now')
             WHERE id = ?
             """,
-            (settlement_spot, outcome, realized_pnl, recommendation_id),
+            (settlement_spot, outcome, realized_pnl, int(max_loss_hit), recommendation_id),
         )
 
 

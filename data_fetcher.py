@@ -9,7 +9,8 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
@@ -76,6 +77,59 @@ def get_spot_price(symbol: str) -> float:
         logger.warning("抓取 %s 即時報價失敗：%s", symbol, exc)
 
     raise RuntimeError(f"無法取得 {symbol} 的現貨價格")
+
+
+def get_close_price_on_date(symbol: str, date_str: str) -> float | None:
+    """抓某個「已經過去」的交易日當天收盤價，給策略到期結算用——結算應該
+    用『到期日當天』的收盤價，不是『現在查詢當下』的最新價。如果
+    strategy_resolver.py 沒有每天準時執行（例如漏跑了幾天），用「現在」
+    的價格結算幾天前到期的紀錄會有落差，這支函式就是抓正確那一天的資料。
+    查不到（日期打錯、yfinance資料缺漏、非交易日）回傳 None，呼叫端自行
+    決定要不要退回用當下報價當近似值。
+    """
+    try:
+        target = datetime.strptime(date_str, "%Y-%m-%d").date()
+        next_day = target + timedelta(days=1)
+        hist = yf.Ticker(symbol).history(start=target.isoformat(), end=next_day.isoformat())
+        if hist.empty:
+            return None
+        return float(hist["Close"].iloc[-1])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("抓取 %s 在 %s 的收盤價失敗：%s", symbol, date_str, exc)
+        return None
+
+
+def current_trading_date_str() -> str:
+    """回傳「現在」對應的美股交易日期字串（America/New_York 時區），格式
+    YYYY-MM-DD。歷史快照／策略追蹤都該用這個，而不是主機本地時區的
+    `datetime.now()`——排程主機時區可能是 PDT 或任何其他時區，用本地時間
+    當交易日期在時區換算上容易出錯（尤其接近午夜的執行時間）。
+    """
+    return datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
+
+
+def is_market_trading_day(reference_date: date | None = None) -> bool:
+    """檢查某個日期（預設今天，美東時區）美股是否真的有開盤交易。
+
+    launchd 的 Weekday 過濾只能排除週六週日，排不掉感恩節、耶誕節這類美股
+    休市的平日假期——排程如果在假期當天照常執行，會把「其實沒有新資料」
+    的一天寫進 daily_snapshots，汙染 backtester.py 依星期幾配對比較的統計。
+    這裡用 SPY（高流動性、幾乎不可能停牌的代表性標的）最近一根日K的日期
+    跟目標日期比對，而不是自己維護一份假日表——不用每年手動更新，也不用
+    多裝套件。任何查詢失敗都保守回傳 False（寧可跳過分析，也不要在無法
+    確認的情況下誤判成交易日、留下誤導性的紀錄）。
+    """
+    if reference_date is None:
+        reference_date = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).date()
+    try:
+        hist = yf.Ticker("SPY").history(period="5d", interval="1d")
+        if hist.empty:
+            return False
+        last_trading_date = hist.index[-1].date()
+        return last_trading_date == reference_date
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("檢查美股交易日失敗：%s", exc)
+        return False
 
 
 def get_all_expiries(symbol: str, max_expiries: int | None = None) -> list[str]:

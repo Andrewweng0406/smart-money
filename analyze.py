@@ -125,7 +125,7 @@ def fetch_and_aggregate(symbol: str, max_expiries: int | None, risk_free_rate: f
     max_pain = _calculate_max_pain(gex_by_strike)
     call_wall = max(gex_by_strike, key=lambda r: r["call_oi"])["strike"]
     put_wall = max(gex_by_strike, key=lambda r: r["put_oi"])["strike"]
-    gamma_flip = find_gamma_flip_point(gex_by_strike, spot=spot)
+    gamma_flip = find_gamma_flip_point(all_legs, spot=spot, risk_free_rate=risk_free_rate)
     flip_distance_pct = gamma_flip_distance_pct(spot, gamma_flip)
     zero_dte_summary = summarize_zero_dte_contribution(gex_by_strike, zero_dte_gex_by_strike)
 
@@ -144,8 +144,13 @@ def fetch_and_aggregate(symbol: str, max_expiries: int | None, risk_free_rate: f
             leg for leg in smart_legs if abs(leg.strike - spot) / spot <= UNUSUAL_ACTIVITY_MAX_DISTANCE_PCT
         ]
         unusual_activity = smart_money.detect_unusual_activity(nearby_legs)
+        # in_negative_gamma 要單純看「現貨是否低於 Gamma 翻轉點」，不能沿用
+        # alert（alert 也會因為單純跌破 Put Wall 而觸發，即使現貨仍在
+        # Gamma Flip 之上、做市商其實還是淨多 Gamma）——這是實測抓到的真bug：
+        # 混用會讓莊家壓力分數平白多加50分，並可能誤觸「死亡Loop」警示。
+        in_negative_gamma = gamma_flip is not None and spot < gamma_flip
         mm_pressure = smart_money.compute_market_maker_pressure_score(
-            spot, put_wall, in_negative_gamma=(alert is not None), legs=smart_legs,
+            spot, put_wall, in_negative_gamma=in_negative_gamma, legs=smart_legs,
         )
     except Exception as exc:  # noqa: BLE001
         # Smart Money 指標是報告的加分項，計算失敗不該影響核心的 GEX/Wall/Max Pain 結果。
@@ -327,7 +332,7 @@ def build_chart(result: AnalysisResult, output_path: Path) -> None:
 
     fig.update_layout(
         title=f"{result.symbol} Gamma Exposure by Strike (Spot ${result.spot:.2f})",
-        xaxis_title="Strike Price", yaxis_title="Net GEX (USD per $1 spot move)",
+        xaxis_title="Strike Price", yaxis_title="Net GEX (USD per 1% spot move)",
         plot_bgcolor="#fcfcfb", paper_bgcolor="#fcfcfb",
         font_color="#1a1a19", showlegend=False,
         xaxis=dict(showgrid=True, gridcolor="#e8e7e3"),
@@ -499,15 +504,26 @@ def main() -> None:
     chart_path = output_dir / f"gex_chart_{args.symbol}_{date_tag}"
     report_path = output_dir / f"daily_report_{args.symbol}_{date_tag}.md"
 
-    try:
-        db_manager.save_snapshot(result, datetime.now().strftime("%Y-%m-%d"))
-    except Exception as exc:  # noqa: BLE001
-        # 歷史資料庫是回頭比對訊號準不準的加分項，寫入失敗（例如磁碟權限問題）
-        # 不該讓當天的報告產不出來。
-        logger.warning("寫入歷史資料庫失敗：%s", exc)
-
     strategy = compute_strategy_recommendation(args.symbol, result)
-    save_strategy_recommendation_if_trackable(args.symbol, strategy, datetime.now().strftime("%Y-%m-%d"))
+
+    # 只有「今天美股真的有開盤交易」才寫進歷史資料庫——launchd 的 Weekday
+    # 過濾只能排除週六週日，排不掉感恩節這類平日休市日，如果排程照樣執行
+    # 分析（yfinance 會回傳上一個交易日的舊資料），寫進去會留下一筆「其實
+    # 沒有新資料」的假紀錄，汙染 backtester.py 依星期幾配對的統計，也會讓
+    # 策略追蹤記分板收到重複/過期的建議。報告本身照常產生（手動測試不該
+    # 被這個檔案擋下來），只是不寫入歷史資料庫。
+    if data_fetcher.is_market_trading_day():
+        trading_date_str = data_fetcher.current_trading_date_str()
+        try:
+            db_manager.save_snapshot(result, trading_date_str)
+        except Exception as exc:  # noqa: BLE001
+            # 歷史資料庫是回頭比對訊號準不準的加分項，寫入失敗（例如磁碟權限問題）
+            # 不該讓當天的報告產不出來。
+            logger.warning("寫入歷史資料庫失敗：%s", exc)
+        save_strategy_recommendation_if_trackable(args.symbol, strategy, trading_date_str)
+    else:
+        logger.info("今天不是美股交易日，跳過歷史資料庫寫入與策略追蹤紀錄")
+
     macro_warnings = get_macro_warnings(args.symbol)
 
     ai_commentary = None
@@ -546,6 +562,18 @@ def main() -> None:
             png_path=chart_path.with_suffix(".png"),
         )
         send_line_alert_if_extreme(result)
+
+    # 結算到期的策略建議（策略追蹤記分板）——單一標的排程模式（./run.sh
+    # TSLA）跟 watchlist 模式一樣，都該有這一步，不然只跑單一標的的使用者
+    # 永遠不會有 /scorecard 資料。加分項，失敗只記警告。
+    try:
+        import strategy_resolver
+        resolved = strategy_resolver.resolve_pending(args.symbol)
+        if resolved and args.notify:
+            import telegram_notifier
+            telegram_notifier.send_text_report(strategy_resolver.build_resolution_summary_text(args.symbol, resolved))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 策略追蹤記分板結算失敗：%s", args.symbol, exc)
 
 
 if __name__ == "__main__":

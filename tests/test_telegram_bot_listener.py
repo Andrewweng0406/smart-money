@@ -56,6 +56,8 @@ def test_run_report_sync_returns_text_and_chart_path(monkeypatch, tmp_path):
 
     import db_manager
     monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: None)
+    monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: True)
+    monkeypatch.setattr(bot.data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
 
     import ai_analyst
     monkeypatch.setattr(ai_analyst, "generate_commentary", lambda **k: None)
@@ -64,6 +66,68 @@ def test_run_report_sync_returns_text_and_chart_path(monkeypatch, tmp_path):
 
     assert report_text == "報告內容"
     assert chart_path.suffix == ".png"
+
+
+def test_run_report_sync_records_strategy_recommendation_when_trading_day(monkeypatch, tmp_path):
+    """/report 手動查詢現在也該納入策略追蹤記分板——
+    save_strategy_recommendation_if_trackable 內建 UNIQUE+INSERT OR IGNORE
+    保護，同一天重複手動查詢不會造成記分板污染，所以這裡跟排程模式一樣
+    可以安全地記錄。
+    """
+    monkeypatch.setattr(bot, "OUTPUT_DIR", tmp_path)
+    fake_result = MagicMock(spot=100.0, max_pain=100.0, call_wall=110.0, put_wall=90.0, gamma_flip=None, alert=None)
+    fake_strategy = MagicMock()
+
+    import analyze
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda *a, **k: fake_result)
+    monkeypatch.setattr(analyze, "compute_strategy_recommendation", lambda *a, **k: fake_strategy)
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda *a, **k: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "build_markdown_report", lambda result, path, **k: path.write_text("報告內容", encoding="utf-8"))
+
+    captured = {}
+    monkeypatch.setattr(
+        analyze, "save_strategy_recommendation_if_trackable",
+        lambda symbol, strategy, date_str: captured.update(symbol=symbol, strategy=strategy, date_str=date_str),
+    )
+
+    import db_manager
+    monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: None)
+    monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: True)
+    monkeypatch.setattr(bot.data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
+
+    import ai_analyst
+    monkeypatch.setattr(ai_analyst, "generate_commentary", lambda **k: None)
+
+    bot._run_report_sync("TSLA")
+
+    assert captured == {"symbol": "TSLA", "strategy": fake_strategy, "date_str": "2026-08-01"}
+
+
+def test_run_report_sync_skips_strategy_tracking_when_not_trading_day(monkeypatch, tmp_path):
+    monkeypatch.setattr(bot, "OUTPUT_DIR", tmp_path)
+    fake_result = MagicMock(spot=100.0, max_pain=100.0, call_wall=110.0, put_wall=90.0, gamma_flip=None, alert=None)
+
+    import analyze
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda *a, **k: fake_result)
+    monkeypatch.setattr(analyze, "compute_strategy_recommendation", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda *a, **k: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "build_markdown_report", lambda result, path, **k: path.write_text("報告內容", encoding="utf-8"))
+
+    save_mock = MagicMock()
+    monkeypatch.setattr(analyze, "save_strategy_recommendation_if_trackable", save_mock)
+
+    import db_manager
+    monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: None)
+    monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: False)
+
+    import ai_analyst
+    monkeypatch.setattr(ai_analyst, "generate_commentary", lambda **k: None)
+
+    bot._run_report_sync("TSLA")
+
+    save_mock.assert_not_called()
 
 
 def test_run_report_sync_survives_db_write_failure(monkeypatch, tmp_path):
@@ -82,12 +146,42 @@ def test_run_report_sync_survives_db_write_failure(monkeypatch, tmp_path):
 
     import db_manager
     monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: True)
+    monkeypatch.setattr(bot.data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
 
     import ai_analyst
     monkeypatch.setattr(ai_analyst, "generate_commentary", lambda **k: None)
 
     report_text, chart_path = bot._run_report_sync("TSLA")  # 不應該拋出例外
     assert report_text == "報告內容"
+
+
+def test_run_report_sync_skips_db_write_when_not_a_trading_day(monkeypatch, tmp_path):
+    """使用者週末/休市日傳訊息問 /report 也完全合理——這種時候不該把
+    yfinance 回傳的舊資料當成「今天的」快照存進歷史資料庫。
+    """
+    monkeypatch.setattr(bot, "OUTPUT_DIR", tmp_path)
+    fake_result = MagicMock(spot=100.0, max_pain=100.0, call_wall=110.0, put_wall=90.0, gamma_flip=None, alert=None)
+
+    import analyze
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda *a, **k: fake_result)
+    monkeypatch.setattr(analyze, "compute_strategy_recommendation", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda *a, **k: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "build_markdown_report", lambda result, path, **k: path.write_text("報告內容", encoding="utf-8"))
+
+    import db_manager
+    save_snapshot_mock = MagicMock()
+    monkeypatch.setattr(db_manager, "save_snapshot", save_snapshot_mock)
+    monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: False)
+
+    import ai_analyst
+    monkeypatch.setattr(ai_analyst, "generate_commentary", lambda **k: None)
+
+    report_text, _ = bot._run_report_sync("TSLA")
+
+    assert report_text == "報告內容"  # 報告本身照常產生
+    save_snapshot_mock.assert_not_called()  # 但不寫進歷史資料庫
 
 
 def test_run_watchlist_sync_aggregates_summaries(monkeypatch, tmp_path):

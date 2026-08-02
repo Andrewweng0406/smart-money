@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -42,6 +42,12 @@ UNUSUAL_ACTIVITY_MIN_RATIO = 3.0
 UNUSUAL_ACTIVITY_MIN_VOLUME = 3000.0
 
 INTRADAY_ALERT_PREFIX = "🚨 盤中緊急警報"
+
+# 同一個訊號（同一道牆被突破/同一組異常大單）在這段時間內不重複推播——
+# 沒有這層冷卻機制的話，一個持續好幾小時的突破會每15分鐘（一次排程觸發
+# 間隔）就轟炸一次 Telegram，這是實測抓到的真問題。
+ALERT_COOLDOWN_MINUTES = 60
+ALERT_STATE_PATH = Path(__file__).parent / "intraday_alert_state.json"
 
 
 def is_market_hours(now: datetime | None = None) -> bool:
@@ -142,6 +148,73 @@ def build_alert_text(result: dict) -> str | None:
     return f"{INTRADAY_ALERT_PREFIX}\n\n" + "\n".join(lines)
 
 
+def _load_alert_state(state_path: Path = ALERT_STATE_PATH) -> dict:
+    if not state_path.exists():
+        return {}
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        # 狀態檔壞掉/格式不對，視為沒有歷史紀錄——寧可多推播一次也不要讓
+        # 去重機制本身的故障擋住真正該發的警報。
+        logger.warning("讀取盤中警示去重狀態失敗，視為沒有歷史紀錄：%s", exc)
+        return {}
+
+
+def _save_alert_state(state: dict, state_path: Path = ALERT_STATE_PATH) -> None:
+    try:
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("寫入盤中警示去重狀態失敗：%s", exc)
+
+
+def build_alert_signature(result: dict) -> str:
+    """把警示內容濃縮成一個跟現貨小幅波動無關的簽章，用來判斷『這是同一個
+    還在持續的事件』還是『新事件』——現貨價格本身每次檢查都會變，不能直接
+    拿警示全文字串比對，否則同一個持續中的突破會因為訊息裡的價格數字不同
+    每次都被誤判成新事件，去重機制形同虛設。
+    """
+    parts = []
+    if result["wall_breach"]:
+        parts.append("call_wall" if "Call Wall" in result["wall_breach"] else "put_wall")
+    for item in result["unusual_activity"]:
+        parts.append(f"{item['side']}:{item['strike']}")
+    return "|".join(sorted(parts))
+
+
+def should_send_alert(
+    symbol: str, signature: str, now: datetime | None = None,
+    state_path: Path | None = None, cooldown_minutes: int = ALERT_COOLDOWN_MINUTES,
+) -> bool:
+    """同一個訊號（signature相同）如果在冷卻時間內已經推播過，就不用再推
+    一次——避免每15分鐘對同一個持續中的事件重複轟炸。訊號變了（例如換一道
+    牆被突破，或多了新的異常大單）一定重新推播，不受冷卻時間限制。
+
+    state_path 預設 None、在函式內才解析成 ALERT_STATE_PATH（而不是直接
+    寫在參數預設值上）——Python 的參數預設值是在函式「定義」當下就綁定，
+    測試裡 monkeypatch 模組層級的 ALERT_STATE_PATH 不會反映到已經綁定的
+    預設值，會在測試環境意外寫到專案裡真正的狀態檔案（實測踩到的真bug）。
+    """
+    if state_path is None:
+        state_path = ALERT_STATE_PATH
+    now = now or datetime.now(timezone.utc)
+    last = _load_alert_state(state_path).get(symbol)
+    if last is None or last.get("signature") != signature:
+        return True
+    last_sent_at = datetime.fromisoformat(last["sent_at"])
+    return (now - last_sent_at) >= timedelta(minutes=cooldown_minutes)
+
+
+def record_alert_sent(
+    symbol: str, signature: str, now: datetime | None = None, state_path: Path | None = None,
+) -> None:
+    if state_path is None:
+        state_path = ALERT_STATE_PATH
+    now = now or datetime.now(timezone.utc)
+    state = _load_alert_state(state_path)
+    state[symbol] = {"signature": signature, "sent_at": now.isoformat()}
+    _save_alert_state(state, state_path)
+
+
 def load_symbols(symbol: str | None, watchlist_path: str | None) -> list[str]:
     if symbol:
         return [symbol]
@@ -169,8 +242,13 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
             logger.warning(alert_text)
             print(alert_text)
             if notify:
-                import telegram_notifier
-                telegram_notifier.send_text_report(alert_text)
+                signature = build_alert_signature(result)
+                if should_send_alert(symbol, signature):
+                    import telegram_notifier
+                    telegram_notifier.send_text_report(alert_text)
+                    record_alert_sent(symbol, signature)
+                else:
+                    logger.info("%s 同一事件仍在冷卻時間內，略過重複推播", symbol)
         else:
             logger.info("%s 目前無異常（現貨 $%.2f）", symbol, result["spot"])
 

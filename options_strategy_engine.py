@@ -213,7 +213,17 @@ def build_iron_condor(
         return None  # 兩側都要能組出價差，任一側不成就不勉強湊一個殘缺的鐵鷹
 
     max_profit = round(put_side.max_profit + call_side.max_profit, 2)
-    max_loss = round(max(put_side.max_loss, call_side.max_loss), 2)  # 到期只會有一側被突破，不會兩側同時虧損
+
+    # 到期只會有一側被突破（不會兩側同時虧損）沒錯，但突破那一側的實際虧損
+    # 不是「那一側單獨的 max_loss」——沒被突破的另一側會完全作廢，你會把
+    # 那一側收到的權利金也整筆留下，等於額外抵掉一部分虧損。正確算法：
+    # 突破較寬那一側時的虧損＝該側履約價寬度－兩側總權利金（不是只扣自己
+    # 那一側的權利金）。用 max_loss+max_profit 反推每一側各自的履約價寬度
+    # （因為 build_credit_spread 算 max_loss 時就是 (width-credit)*倍數，
+    # max_profit 就是 credit*倍數，兩者相加剛好是 width*倍數）。
+    put_width = put_side.max_loss + put_side.max_profit
+    call_width = call_side.max_loss + call_side.max_profit
+    max_loss = round(max(put_width, call_width) - max_profit, 2)
     margin_required = max_loss
 
     put_short_strike = put_side.legs[0].strike_price
@@ -343,9 +353,13 @@ def select_strategy(
                 f"- {strangle.ai_advice}",
             ],
             legs=strangle.legs,
-            net_premium=strangle.total_debit,
+            # strategy_tracker.py 的 score_outcome() 是用「每股/每口」單位算損益
+            # （不乘上 OPTIONS_MULTIPLIER），但 total_debit 是這裡已經乘過100的
+            # 實際美元金額——兩者混用會讓結算時的權利金跟內在價值差100倍，是
+            # 實測抓到的真bug。這裡除回單位一致的「每股」金額才能正確結算。
+            net_premium=strangle.total_debit / OPTIONS_MULTIPLIER,
             strategy_type="debit",
-            max_loss=strangle.total_debit,  # 買方策略最大虧損就是付出的權利金全額
+            max_loss=strangle.total_debit / OPTIONS_MULTIPLIER,  # 買方策略最大虧損就是付出的權利金全額
         )
 
     put_dist_pct = (spot - put_wall) / spot * 100
@@ -389,7 +403,10 @@ def select_strategy(
             f"- {result.ai_advice}",
         ],
         legs=result.legs,
-        net_premium=result.max_profit,  # 賣方策略的最大獲利＝到期兩腳都作廢時，當初收到的淨權利金
+        # 同上：max_profit/max_loss 是已經乘過 OPTIONS_MULTIPLIER 的實際美元金額，
+        # 除回「每股」單位才能跟 strategy_tracker.score_outcome() 的內在價值計算
+        # （直接用履約價差，沒有乘100）對得上單位。
+        net_premium=result.max_profit / OPTIONS_MULTIPLIER,  # 賣方策略的最大獲利＝到期兩腳都作廢時，當初收到的淨權利金
         strategy_type="credit",
-        max_loss=result.max_loss,
+        max_loss=result.max_loss / OPTIONS_MULTIPLIER,
     )

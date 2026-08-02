@@ -6,3 +6,4 @@ __pycache__/
 reports/
 *.db
 .pytest_cache/
+intraday_alert_state.json

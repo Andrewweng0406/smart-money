@@ -36,10 +36,14 @@ def load_watchlist(path: Path) -> list[str]:
 
 def run_one_symbol(
     symbol: str, output_dir: Path, max_expiries: int | None, risk_free_rate: float, use_ai: bool,
-    dashboard_dir: Path | None = None, notify: bool = False,
+    dashboard_dir: Path | None = None, notify: bool = False, is_trading_day: bool | None = None,
 ) -> dict:
     """對單一標的跑完整流程，回傳一筆摘要 dict（成功或失敗都回傳，呼叫端
     不用另外 try/except——這支函式本身就是每個標的獨立失敗、互不影響的邊界）。
+
+    is_trading_day 沒傳（None）時會自己查一次——多標的迴圈情境建議由呼叫端
+    （main()）算好一次傳進來，同一次 watchlist 執行不用每檔標的各打一次
+    SPY 查詢。
     """
     try:
         result = analyze.fetch_and_aggregate(symbol, max_expiries=max_expiries, risk_free_rate=risk_free_rate)
@@ -47,13 +51,23 @@ def run_one_symbol(
         logger.error("分析 %s 失敗，本次 watchlist 略過此標的：%s", symbol, exc)
         return {"symbol": symbol, "error": str(exc)}
 
-    try:
-        db_manager.save_snapshot(result, datetime.now().strftime("%Y-%m-%d"))
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
+    if is_trading_day is None:
+        is_trading_day = data_fetcher.is_market_trading_day()
 
     strategy = analyze.compute_strategy_recommendation(symbol, result)
-    analyze.save_strategy_recommendation_if_trackable(symbol, strategy, datetime.now().strftime("%Y-%m-%d"))
+
+    # 同 analyze.py：只有今天真的是交易日才寫進歷史資料庫/策略追蹤，避免
+    # 平日休市日排程照跑，把舊資料當新快照寫進去汙染 backtester 的統計。
+    if is_trading_day:
+        trading_date_str = data_fetcher.current_trading_date_str()
+        try:
+            db_manager.save_snapshot(result, trading_date_str)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 寫入歷史資料庫失敗：%s", symbol, exc)
+        analyze.save_strategy_recommendation_if_trackable(symbol, strategy, trading_date_str)
+    else:
+        logger.info("今天不是美股交易日，%s 跳過歷史資料庫寫入與策略追蹤紀錄", symbol)
+
     macro_warnings = analyze.get_macro_warnings(symbol)
 
     if notify:
@@ -154,6 +168,7 @@ def main() -> None:
 
     symbols = load_watchlist(Path(args.watchlist))
     max_expiries = None if args.max_expiries == 0 else args.max_expiries
+    is_trading_day = data_fetcher.is_market_trading_day()
 
     summaries = []
     for symbol in symbols:
@@ -161,8 +176,21 @@ def main() -> None:
         summaries.append(run_one_symbol(
             symbol, output_dir=output_dir, max_expiries=max_expiries,
             risk_free_rate=args.risk_free_rate, use_ai=not args.no_ai, dashboard_dir=dashboard_dir,
-            notify=args.notify,
+            notify=args.notify, is_trading_day=is_trading_day,
         ))
+
+    # 結算到期的策略建議（策略追蹤記分板）——這是加分項，跟其他排程步驟一樣
+    # 失敗只記警告，不該讓當天的 watchlist 分析連帶失敗。過去這一步需要
+    # 另外手動執行 strategy_resolver.py，排程從來沒有真的觸發過，這裡補上
+    # 讓它成為每日流程的一部分。
+    try:
+        import strategy_resolver
+        resolved = strategy_resolver.resolve_watchlist(args.watchlist)
+        if resolved and args.notify:
+            import telegram_notifier
+            telegram_notifier.send_text_report(strategy_resolver.build_multi_symbol_summary_text(resolved))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("策略追蹤記分板結算失敗：%s", exc)
 
     # index.html 這個固定路徑（給人直接打開看「目前狀態」用）永遠鏡射清單裡
     # 第一檔標的的儀表板——watchlist 本來就有多檔標的，不可能每檔都對應

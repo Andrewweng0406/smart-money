@@ -8,11 +8,21 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
 import analyze
+import data_fetcher
 import run_watchlist
+
+
+@pytest.fixture(autouse=True)
+def _assume_trading_day(monkeypatch):
+    """跟 test_analyze_resilience.py 同樣理由：預設一律當作是交易日，避免
+    每個既有測試都要各自 mock，也避免測試真的打網路查 SPY。"""
+    monkeypatch.setattr(data_fetcher, "is_market_trading_day", lambda *a, **k: True)
+    monkeypatch.setattr(data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
 
 
 def _fake_result(symbol, spot=100.0):
@@ -82,6 +92,9 @@ def test_main_continues_when_one_symbol_fails_others_succeed(monkeypatch, tmp_pa
     monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
     monkeypatch.setattr(analyze, "build_markdown_report", lambda *a, **k: None)
 
+    import strategy_resolver
+    monkeypatch.setattr(strategy_resolver, "resolve_watchlist", lambda *a, **k: [])
+
     monkeypatch.setattr(sys, "argv", [
         "run_watchlist.py", "--watchlist", str(watchlist_path), "--output-dir", str(tmp_path), "--no-ai",
         "--no-dashboard",  # 避免測試把檔案寫到使用者真實的 ~/Desktop/stock.agent/dashboard/
@@ -96,6 +109,52 @@ def test_main_continues_when_one_symbol_fails_others_succeed(monkeypatch, tmp_pa
     assert "NVDA" in content
 
 
+def test_main_resolves_strategy_scorecard_and_notifies(monkeypatch, tmp_path):
+    """main() 現在會在每日流程裡自動結算策略追蹤記分板（過去需要另外手動
+    執行 strategy_resolver.py，排程從沒真的觸發過這一步）——有結算到東西
+    又帶 --notify 時，應該推播合併摘要。
+    """
+    watchlist_path = tmp_path / "watchlist.json"
+    watchlist_path.write_text(json.dumps({"symbols": ["TSLA"]}), encoding="utf-8")
+
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda symbol, max_expiries, risk_free_rate: _fake_result(symbol))
+    monkeypatch.setattr("db_manager.save_snapshot", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "compute_strategy_recommendation", lambda symbol, result: None)
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda symbol: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "build_markdown_report", lambda *a, **k: None)
+
+    import strategy_resolver
+    fake_resolved = [{
+        "symbol": "TSLA", "strategy_name": "Bull Put Spread", "expiry_date": "2026-08-01",
+        "outcome": "WIN", "realized_pnl": 1.5, "settlement_spot": 310.0, "approximate": False,
+    }]
+    captured_watchlist_arg = {}
+
+    def fake_resolve_watchlist(watchlist_path_arg):
+        captured_watchlist_arg["path"] = watchlist_path_arg
+        return fake_resolved
+
+    monkeypatch.setattr(strategy_resolver, "resolve_watchlist", fake_resolve_watchlist)
+
+    import telegram_notifier
+    send_text_report_mock = MagicMock()
+    monkeypatch.setattr(telegram_notifier, "send_text_report", send_text_report_mock)
+
+    monkeypatch.setattr(sys, "argv", [
+        "run_watchlist.py", "--watchlist", str(watchlist_path), "--output-dir", str(tmp_path), "--no-ai",
+        "--no-dashboard", "--notify",
+    ])
+
+    run_watchlist.main()
+
+    assert captured_watchlist_arg["path"] == str(watchlist_path)
+    # 兩次呼叫：一次是策略記分板結算摘要，一次是每日watchlist綜合摘要
+    assert send_text_report_mock.call_count == 2
+    scorecard_call_text = send_text_report_mock.call_args_list[0].args[0]
+    assert "Bull Put Spread" in scorecard_call_text
+
+
 def test_main_exits_with_error_when_all_symbols_fail(monkeypatch, tmp_path):
     watchlist_path = tmp_path / "watchlist.json"
     watchlist_path.write_text(json.dumps({"symbols": ["TSLA", "NVDA"]}), encoding="utf-8")
@@ -104,8 +163,13 @@ def test_main_exits_with_error_when_all_symbols_fail(monkeypatch, tmp_path):
         raise ConnectionError("Yahoo Finance 整個斷線")
 
     monkeypatch.setattr(analyze, "fetch_and_aggregate", raise_error)
+
+    import strategy_resolver
+    monkeypatch.setattr(strategy_resolver, "resolve_watchlist", lambda *a, **k: [])
+
     monkeypatch.setattr(sys, "argv", [
         "run_watchlist.py", "--watchlist", str(watchlist_path), "--output-dir", str(tmp_path), "--no-ai",
+        "--no-dashboard",
     ])
 
     with pytest.raises(SystemExit):

@@ -8,8 +8,10 @@ import pytest
 
 from gex_engine import (
     OptionLeg,
+    _find_nearest_zero_crossing,
     black_scholes_delta,
     compute_net_gex_by_strike,
+    compute_net_gex_curve,
     find_gamma_flip_point,
     gamma_flip_distance_pct,
     summarize_zero_dte_contribution,
@@ -53,44 +55,99 @@ def test_expired_or_zero_iv_contract_has_zero_gamma_not_nan():
     assert not math.isnan(result[0]["net_gex"])
 
 
-def test_find_gamma_flip_point_interpolates_between_strikes():
-    # 累計 Net GEX：-50 -> 100，在 90~100 之間 1/3 處由負轉正
-    gex_by_strike = [
-        {"strike": 90, "net_gex": -50},
-        {"strike": 100, "net_gex": 150},
-    ]
-    flip = find_gamma_flip_point(gex_by_strike)
-    assert flip == pytest.approx(93.333, abs=0.01)
+def test_find_nearest_zero_crossing_interpolates():
+    # -50 -> 150，在 90~100 之間 1/4 處由負轉正
+    crossing = _find_nearest_zero_crossing([90, 100], [-50, 150], reference_x=90)
+    assert crossing == pytest.approx(92.5, abs=0.01)
 
 
-def test_find_gamma_flip_point_no_sign_change_returns_none():
-    gex_by_strike = [{"strike": 90, "net_gex": 100}, {"strike": 100, "net_gex": 50}]
-    assert find_gamma_flip_point(gex_by_strike) is None
+def test_find_nearest_zero_crossing_no_sign_change_returns_none():
+    assert _find_nearest_zero_crossing([90, 100], [100, 50], reference_x=95) is None
 
 
-def test_find_gamma_flip_point_insufficient_data_returns_none():
-    assert find_gamma_flip_point([{"strike": 100, "net_gex": 100}]) is None
-
-
-def test_find_gamma_flip_point_picks_crossing_nearest_spot_not_first_from_bottom():
-    """實測過的真實案例：彙總多個到期日後，遠低於現貨價的深度價外履約價
-    （LEAPS 留下的稀疏舊倉位）理論 Gamma 幾乎是 0 但不精確等於 0，會在完全
-    不影響避險行為的低履約價附近製造出「假交叉」。曲線上第一個交叉點（在
-    $20 附近）沒有參考價值，離現貨價 $300 最近的交叉點（在 $250 附近）才是
-    業界講的「Gamma 翻轉點」。
+def test_find_nearest_zero_crossing_picks_nearest_to_reference():
+    """曲線上有兩個交叉（10~20附近、250~300附近），要抓離 reference_x 最近
+    的那個，不是掃描到的第一個——這是實測抓到的真實案例（彙總多個到期日
+    後，遠離現貨的稀疏舊倉位在低履約價附近製造出對交易沒有意義的假交叉）
+    背後真正在測的數學邏輯本身，跟 Black-Scholes 完全無關。
     """
-    gex_by_strike = [
-        {"strike": 15, "net_gex": 50},      # 累計：50（假交叉的起點雜訊）
-        {"strike": 20, "net_gex": -100},    # 累計：-50 -> 遠低於現貨的假交叉
-        {"strike": 200, "net_gex": 30},     # 累計：-20（維持負值，直到接近現貨才轉正）
-        {"strike": 250, "net_gex": -60},    # 累計：-80
-        {"strike": 300, "net_gex": 200},    # 累計：120 -> 離現貨最近的真交叉
-    ]
-    flip_near_spot = find_gamma_flip_point(gex_by_strike, spot=300.0)
-    flip_first_from_bottom = find_gamma_flip_point(gex_by_strike)  # 沒傳 spot：舊行為
+    x = [10, 20, 200, 250, 300]
+    y = [50, -100, 30, -60, 200]
 
-    assert flip_first_from_bottom < 20  # 舊行為：抓到低履約價的假交叉
-    assert flip_near_spot > 200  # 新行為：抓到離現貨最近、有意義的交叉
+    nearest_to_300 = _find_nearest_zero_crossing(x, y, reference_x=300)
+    nearest_to_10 = _find_nearest_zero_crossing(x, y, reference_x=10)
+
+    assert nearest_to_300 > 200
+    assert nearest_to_10 < 20
+
+
+def test_compute_net_gex_curve_call_only_is_nonnegative_everywhere():
+    legs = [OptionLeg(strike=100, call_oi=1000, call_iv=0.4, put_oi=0, put_iv=0, time_to_expiry_years=30 / 365)]
+    curve = compute_net_gex_curve(legs, spot=100.0)
+    assert len(curve) > 0
+    assert all(row["net_gex"] >= 0 for row in curve)
+
+
+def test_compute_net_gex_curve_put_only_is_nonpositive_everywhere():
+    legs = [OptionLeg(strike=100, call_oi=0, call_iv=0, put_oi=1000, put_iv=0.4, time_to_expiry_years=30 / 365)]
+    curve = compute_net_gex_curve(legs, spot=100.0)
+    assert all(row["net_gex"] <= 0 for row in curve)
+
+
+def test_compute_net_gex_curve_empty_legs_returns_empty():
+    assert compute_net_gex_curve([], spot=100.0) == []
+
+
+def test_compute_net_gex_curve_spans_price_range_around_spot():
+    legs = [OptionLeg(strike=100, call_oi=100, call_iv=0.4, put_oi=100, put_iv=0.4, time_to_expiry_years=30 / 365)]
+    curve = compute_net_gex_curve(legs, spot=100.0, price_range_pct=0.2, grid_points=21)
+    spots = [row["spot"] for row in curve]
+    assert spots == sorted(spots)
+    assert spots[0] == pytest.approx(80.0)
+    assert spots[-1] == pytest.approx(120.0)
+
+
+def test_find_gamma_flip_point_finds_crossing_between_put_and_call_strikes():
+    """put_oi 集中在低履約價、call_oi 集中在高履約價，現貨介於中間——這是
+    典型會產生 Gamma 翻轉點的部位結構：假設現貨夠低時 Put Gamma 主導（淨空
+    Gamma，避險行為傾向放大波動），假設現貨夠高時 Call Gamma 主導（淨多
+    Gamma，避險行為抑制波動），中間某處交叉，這才是業界定義的 Gamma 翻轉點。
+    """
+    legs = [
+        OptionLeg(strike=90, call_oi=0, call_iv=0.4, put_oi=1000, put_iv=0.4, time_to_expiry_years=30 / 365),
+        OptionLeg(strike=110, call_oi=1000, call_iv=0.4, put_oi=0, put_iv=0.4, time_to_expiry_years=30 / 365),
+    ]
+    flip = find_gamma_flip_point(legs, spot=100.0)
+    assert flip is not None
+    assert 90 < flip < 110
+
+
+def test_find_gamma_flip_point_shifts_lower_when_call_oi_dominates():
+    """call_oi 遠大於 put_oi 時，做市商在更大範圍的假設現貨價都是淨多
+    Gamma，翻轉點應該往下移（更靠近 put 履約價——現貨要非常接近 put 履約價、
+    put gamma 局部飆升，才蓋得過遠大的 call 曝險）。
+    """
+    def _flip_with_call_oi(call_oi: float) -> float:
+        legs = [
+            OptionLeg(strike=90, call_oi=0, call_iv=0.4, put_oi=1000, put_iv=0.4, time_to_expiry_years=30 / 365),
+            OptionLeg(strike=110, call_oi=call_oi, call_iv=0.4, put_oi=0, put_iv=0.4, time_to_expiry_years=30 / 365),
+        ]
+        return find_gamma_flip_point(legs, spot=100.0)
+
+    balanced_flip = _flip_with_call_oi(1000)
+    call_heavy_flip = _flip_with_call_oi(10_000)
+
+    assert call_heavy_flip < balanced_flip
+
+
+def test_find_gamma_flip_point_no_crossing_returns_none():
+    # 只有put、沒有call，Net GEX 在整個網格上都是負值，沒有交叉
+    legs = [OptionLeg(strike=100, call_oi=0, call_iv=0, put_oi=1000, put_iv=0.4, time_to_expiry_years=30 / 365)]
+    assert find_gamma_flip_point(legs, spot=100.0) is None
+
+
+def test_find_gamma_flip_point_empty_legs_returns_none():
+    assert find_gamma_flip_point([], spot=100.0) is None
 
 
 def test_gamma_flip_distance_pct_above_flip_is_positive():

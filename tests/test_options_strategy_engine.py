@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import pytest
 
+import strategy_tracker
 from data_fetcher import StrikeLegRaw
 from options_strategy_engine import (
+    OPTIONS_MULTIPLIER,
     build_credit_spread,
     build_iron_condor,
     build_long_strangle,
@@ -98,6 +100,21 @@ def test_build_iron_condor_combines_both_sides():
     assert "put" in result.leg_win_rates and "call" in result.leg_win_rates
 
 
+def test_build_iron_condor_max_loss_nets_out_the_untouched_sides_premium():
+    """實測抓到的真bug：突破一側時，沒被突破的另一側權利金會整筆留下，
+    要從「較寬那一側的履約價寬度」裡扣掉兩側的總權利金，不是只扣被突破
+    那一側自己的權利金。合成資料兩側都是5塊寬、各收0.40權利金：
+    put_side.max_loss=460、call_side.max_loss=460（各自只扣自己那0.40），
+    但正確答案要扣兩側合計0.80的權利金：500(寬度*100) - 80(總權利金) = 420。
+    """
+    legs = _synthetic_chain()
+    result = build_iron_condor(legs, SPOT, TTE)
+    assert result is not None
+    assert result.max_profit == pytest.approx(80.0)
+    assert result.max_loss == pytest.approx(420.0)
+    assert result.margin_required == pytest.approx(420.0)
+
+
 def test_build_long_strangle_picks_nearest_qualifying_strikes():
     legs = _synthetic_chain()
     result = build_long_strangle(legs, SPOT)
@@ -148,3 +165,57 @@ def test_select_strategy_degrades_gracefully_when_no_valid_strikes():
     rec = select_strategy(legs, SPOT, TTE, put_wall=90.0, call_wall=110.0, alert=None)
     assert "無建議" in rec.strategy_name
     assert rec.detail_lines
+
+
+# ---------- 跨模組整合：select_strategy() 的追蹤欄位單位要跟
+# strategy_tracker.score_outcome() 對得上（實測抓到的真bug：result.max_profit/
+# max_loss 是已經乘過 OPTIONS_MULTIPLIER 的實際美元金額，score_outcome() 卻是
+# 用「每股」單位算內在價值，兩者直接混用會讓結算損益差100倍） ----------
+
+def test_bull_put_spread_tracking_fields_are_per_share_not_per_contract():
+    legs = _synthetic_chain()
+    rec = select_strategy(legs, SPOT, TTE, put_wall=95.0, call_wall=120.0, alert=None)
+
+    assert rec.strategy_type == "credit"
+    # 短腿90/長腿85，credit=1.00-0.60=0.40（每股）；乘過100才是「$40」這種
+    # detail_lines 顯示給人看的金額，net_premium/max_loss 不該是那個乘過的數字。
+    assert rec.net_premium == pytest.approx(0.40)
+    assert rec.max_loss == pytest.approx(4.60)
+
+
+def test_bull_put_spread_recommendation_settles_correctly_via_strategy_tracker():
+    """整條路徑都串起來：select_strategy() 選出的策略，餵進
+    strategy_tracker.score_outcome() 之後，安全結算要是接近滿額獲利、
+    被雙腳穿透要是接近最大虧損——不是被單位不一致污染的離譜數字。
+    """
+    legs = _synthetic_chain()
+    rec = select_strategy(legs, SPOT, TTE, put_wall=95.0, call_wall=120.0, alert=None)
+    tracked_legs = [
+        {"action": leg.action, "option_type": leg.option_type, "strike_price": leg.strike_price}
+        for leg in rec.legs
+    ]
+
+    safe = strategy_tracker.score_outcome(
+        legs=tracked_legs, net_premium=rec.net_premium, strategy_type=rec.strategy_type,
+        settlement_spot=95.0, max_loss=rec.max_loss,
+    )
+    assert safe.outcome == "WIN"
+    assert safe.realized_pnl == pytest.approx(rec.net_premium)
+
+    breached = strategy_tracker.score_outcome(
+        legs=tracked_legs, net_premium=rec.net_premium, strategy_type=rec.strategy_type,
+        settlement_spot=80.0, max_loss=rec.max_loss,
+    )
+    assert breached.outcome == "LOSS"
+    assert breached.realized_pnl == pytest.approx(-rec.max_loss)
+    assert breached.max_loss_hit is True
+
+
+def test_long_strangle_tracking_fields_are_per_share_not_per_contract():
+    legs = _synthetic_chain()
+    rec = select_strategy(legs, SPOT, TTE, put_wall=90.0, call_wall=110.0, alert="⚠️ 做市商對沖賣壓風險高")
+
+    assert rec.strategy_type == "debit"
+    detail_text = " ".join(rec.detail_lines)
+    displayed_total_cost = rec.net_premium * OPTIONS_MULTIPLIER
+    assert f"${displayed_total_cost:,.0f}" in detail_text

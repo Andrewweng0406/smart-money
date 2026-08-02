@@ -16,18 +16,65 @@
     <key>WorkingDirectory</key>
     <string>/Users/andrewweng/Desktop/stock.agent</string>
 
-    <!-- 美股收盤是美東 16:00。夏令時間（3月中~11月初）美東比台灣慢12小時，
-         台灣時間 04:00 對應美東前一日 16:00；冬令時間（11月初~3月中）
-         時差變13小時，要改成台灣時間 05:00。台灣不跟著美國調時間，所以
-         每年這兩個切換日要手動改一次下面的 Hour（或乾脆設兩個 plist，
-         切換日到了再手動 load/unload 對應那個）。 -->
+    <!-- 主機系統時區是美國太平洋時間（Pacific），不是台灣時間——這是實測
+         抓到的真bug：先前這裡寫的是「換算成台灣時間」的 04:30，但主機
+         實際上是 PDT，04:30 PDT 換算成美東時間是 07:30，屬於美股盤前，
+         不是收盤後，導致排程長期在錯誤的時間點跑。
+
+         美東(ET)跟太平洋(PT)全年都固定差3小時（兩者同步隨美國夏/冬令
+         時間切換，不像台灣跟美國的時差每年會變），所以美股收盤 16:00 ET
+         永遠對應 13:00 PT，不用像台灣時間那樣每年手動調整。這裡設
+         13:30（收盤後30分鐘緩衝，讓yfinance資料更新穩定）。
+
+         Weekday 1~5 = 週一~週五（美股沒有週末盤），用陣列列出5天、每天
+         同一個時間點觸發——launchd 的 StartCalendarInterval 不支援單一
+         dict 裡塞多天，要嘛用陣列列出多個 dict，要嘛乾脆不限定 Weekday
+         靠腳本自己判斷（run.sh/analyze.py 內部的 is_market_trading_day()
+         已經會在非交易日自動跳過歷史資料庫寫入，這裡限定平日純粹是避免
+         浪費非必要的排程觸發，不是唯一防線）。 -->
     <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>4</integer>
-        <key>Minute</key>
-        <integer>30</integer>
-    </dict>
+    <array>
+        <dict>
+            <key>Weekday</key>
+            <integer>1</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>2</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>3</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>4</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key>
+            <integer>5</integer>
+            <key>Hour</key>
+            <integer>13</integer>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+    </array>
 
     <key>StandardOutPath</key>
     <string>/Users/andrewweng/Library/Logs/stockgex/stockgex.log</string>

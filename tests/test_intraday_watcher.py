@@ -7,8 +7,8 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
-from datetime import datetime
-from unittest.mock import patch
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 from zoneinfo import ZoneInfo
 
 import data_fetcher
@@ -164,6 +164,98 @@ def test_build_alert_text_shows_infinity_symbol_not_python_inf():
     text = intraday_watcher.build_alert_text(result)
     assert "∞" in text
     assert "inf" not in text.lower()
+
+
+# ---------- 警示去重/冷卻機制 ----------
+
+def _wall_breach_result(symbol="TSLA", spot=280.0):
+    return {
+        "symbol": symbol, "spot": spot, "error": None,
+        "wall_breach": f"{symbol} 現貨 ${spot:.2f} 已跌破 Put Wall $300（潛在支撐位失守）",
+        "unusual_activity": [],
+    }
+
+
+def test_build_alert_signature_ignores_spot_price_changes():
+    """同一個持續中的突破，現貨價格每次檢查都會變，但簽章應該保持一致
+    ——不然去重機制會把同一個事件每次都當成新事件。
+    """
+    sig1 = intraday_watcher.build_alert_signature(_wall_breach_result(spot=280.0))
+    sig2 = intraday_watcher.build_alert_signature(_wall_breach_result(spot=275.0))
+    assert sig1 == sig2
+
+
+def test_build_alert_signature_differs_for_different_wall():
+    call_breach = {
+        "symbol": "TSLA", "spot": 320.0, "error": None,
+        "wall_breach": "TSLA 現貨 $320.00 已突破 Call Wall $310（潛在壓力位失守）",
+        "unusual_activity": [],
+    }
+    put_breach = _wall_breach_result()
+    assert intraday_watcher.build_alert_signature(call_breach) != intraday_watcher.build_alert_signature(put_breach)
+
+
+def test_should_send_alert_true_when_no_prior_state(tmp_path):
+    state_path = tmp_path / "state.json"
+    assert intraday_watcher.should_send_alert("TSLA", "put_wall", state_path=state_path) is True
+
+
+def test_should_send_alert_false_within_cooldown_for_same_signature(tmp_path):
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+
+    still_cooling = now + timedelta(minutes=30)
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "put_wall", now=still_cooling, state_path=state_path, cooldown_minutes=60,
+    ) is False
+
+
+def test_should_send_alert_true_after_cooldown_expires(tmp_path):
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+
+    after_cooldown = now + timedelta(minutes=61)
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "put_wall", now=after_cooldown, state_path=state_path, cooldown_minutes=60,
+    ) is True
+
+
+def test_should_send_alert_true_when_signature_changes_even_within_cooldown(tmp_path):
+    """訊號變了（例如換一道牆被突破）不受冷卻時間限制，一定要重新推播。"""
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+
+    moments_later = now + timedelta(minutes=1)
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "call_wall", now=moments_later, state_path=state_path, cooldown_minutes=60,
+    ) is True
+
+
+def test_should_send_alert_survives_corrupted_state_file(tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text("不是合法的JSON{{{", encoding="utf-8")
+    assert intraday_watcher.should_send_alert("TSLA", "put_wall", state_path=state_path) is True
+
+
+def test_run_watch_cycle_suppresses_duplicate_notification_within_cooldown(monkeypatch, tmp_path):
+    """整合測試：同一個突破事件連續兩次檢查週期，第二次在冷卻時間內應該
+    只印出/記log，不該真的再推播一次 Telegram。
+    """
+    state_path = tmp_path / "state.json"
+    monkeypatch.setattr(intraday_watcher, "ALERT_STATE_PATH", state_path)
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol: _wall_breach_result(symbol))
+
+    import telegram_notifier
+    send_mock = MagicMock()
+    monkeypatch.setattr(telegram_notifier, "send_text_report", send_mock)
+
+    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True)
+    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True)
+
+    send_mock.assert_called_once()
 
 
 # ---------- load_symbols ----------

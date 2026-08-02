@@ -56,6 +56,32 @@ def test_compute_iv_skew_returns_none_when_either_side_has_no_sample():
     assert compute_iv_skew(legs, spot=100) is None
 
 
+def test_compute_iv_skew_excludes_zero_iv_noise_from_average():
+    """IV=0 是 data_fetcher.py 清洗掉異常值後留下的缺值標記（真實選擇權的
+    IV不可能是0），不是「這檔真的零波動」——混進平均會把 IV Skew 拉向
+    錯誤方向，製造出假的偏斜訊號，這是實測抓到的真bug。
+    """
+    legs = [
+        FakeLeg(strike=90, put_iv=0.30),
+        FakeLeg(strike=88, put_iv=0.0),  # 缺值，應該被排除，不是「0波動的put」
+        FakeLeg(strike=105, call_iv=0.20),
+    ]
+
+    assert compute_iv_skew(legs, spot=100) == pytest.approx(0.10)  # 0.30 - 0.20，不受put_iv=0污染
+
+
+def test_compute_iv_skew_returns_none_when_only_zero_iv_samples_on_one_side():
+    """一側全部都是缺值（IV<=0）時，等同那一側沒有任何有效樣本，應該回傳
+    None，不是拿缺值硬湊出一個看起來有效但其實沒意義的平均。
+    """
+    legs = [
+        FakeLeg(strike=90, put_iv=0.0),
+        FakeLeg(strike=105, call_iv=0.20),
+    ]
+
+    assert compute_iv_skew(legs, spot=100) is None
+
+
 def test_compute_put_call_ratio_normal_case():
     legs = [
         FakeLeg(strike=95, call_volume=100, put_volume=150, call_oi=200, put_oi=300),
