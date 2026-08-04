@@ -49,10 +49,13 @@ STRATEGY_TARGET_DTE = 35
 # ratio 會被算成無限大，把真正靠近現價、有參考價值的異常大單擠出前5名。
 UNUSUAL_ACTIVITY_MAX_DISTANCE_PCT = 0.20
 
-# 用 Path.home() 展開而不是寫死 /Users/andrewweng——效果跟使用者指定的
-# ~/Desktop/stock.agent/dashboard/index.html 完全一樣，但不會在專案搬家或
-# 換一台機器時整個路徑失效。
-DEFAULT_DASHBOARD_PATH = Path.home() / "Desktop" / "stock.agent" / "dashboard" / "index.html"
+# 用 Path(__file__).parent 而不是寫死 ~/Desktop/stock.agent——舊版用
+# Path.home()/"Desktop"/"stock.agent" 展開，只解決了「換一台機器、換使用者
+# 帳號」的可攜性，卻在「同一台機器上把專案資料夾搬到別的地方」時整個失效
+# （實測踩到：專案搬出 ~/Desktop 以解決 macOS TCC 權限問題後，這個常數還是
+# 指向已經不存在的舊路徑）。跟 db_manager.DEFAULT_DB_PATH 用同一個慣例，
+# 才是真正不受專案位置影響的寫法。
+DEFAULT_DASHBOARD_PATH = Path(__file__).parent / "dashboard" / "index.html"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("options_gex")
@@ -530,7 +533,7 @@ def main() -> None:
     parser.add_argument("--output-dir", default="reports", help="報告與圖表輸出目錄，預設 ./reports")
     parser.add_argument("--notify", action="store_true", help="產出後推播 Markdown 摘要與圖表 PNG 到 Telegram")
     parser.add_argument("--no-ai", action="store_true", help="跳過 Claude AI 綜合評語（即使有設定 ANTHROPIC_API_KEY）")
-    parser.add_argument("--dashboard-path", default=str(DEFAULT_DASHBOARD_PATH), help="HTML儀表板輸出路徑，預設 ~/Desktop/stock.agent/dashboard/index.html")
+    parser.add_argument("--dashboard-path", default=str(DEFAULT_DASHBOARD_PATH), help="HTML儀表板輸出路徑，預設專案目錄下的 dashboard/index.html")
     parser.add_argument("--no-dashboard", action="store_true", help="跳過 HTML 儀表板產生")
     parser.add_argument(
         "--watch", action="store_true",

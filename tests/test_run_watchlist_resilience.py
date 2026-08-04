@@ -97,7 +97,7 @@ def test_main_continues_when_one_symbol_fails_others_succeed(monkeypatch, tmp_pa
 
     monkeypatch.setattr(sys, "argv", [
         "run_watchlist.py", "--watchlist", str(watchlist_path), "--output-dir", str(tmp_path), "--no-ai",
-        "--no-dashboard",  # 避免測試把檔案寫到使用者真實的 ~/Desktop/stock.agent/dashboard/
+        "--no-dashboard",  # 避免測試把檔案寫到使用者真實的專案 dashboard/ 目錄
     ])
 
     run_watchlist.main()  # 不應該拋出例外（不是全部標的都失敗）

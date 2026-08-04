@@ -12,12 +12,12 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/andrewweng/Desktop/stock.agent/run.sh</string>
+        <string>/Users/andrewweng/stock.agent/run.sh</string>
         <string>--watch</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/andrewweng/Desktop/stock.agent</string>
+    <string>/Users/andrewweng/stock.agent</string>
 
     <!-- 每15分鐘觸發一次（900秒），全天候都會觸發，但 intraday_watcher.py
          內部的 is_market_hours() 會在非美股盤前/盤中時間直接跳過、不打任何

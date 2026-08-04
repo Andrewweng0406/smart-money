@@ -10,11 +10,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/andrewweng/Desktop/stock.agent/run.sh</string>
+        <string>/Users/andrewweng/stock.agent/run.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/andrewweng/Desktop/stock.agent</string>
+    <string>/Users/andrewweng/stock.agent</string>
 
     <!-- 主機系統時區是美國太平洋時間（Pacific），不是台灣時間——這是實測
          抓到的真bug：先前這裡寫的是「換算成台灣時間」的 04:30，但主機

@@ -13,12 +13,12 @@
          「整個process本身掛掉了（例如收到SIGKILL、機器重開機）」。 -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/andrewweng/Desktop/stock.agent/.venv/bin/python3</string>
-        <string>/Users/andrewweng/Desktop/stock.agent/telegram_bot_listener.py</string>
+        <string>/Users/andrewweng/stock.agent/.venv/bin/python3</string>
+        <string>/Users/andrewweng/stock.agent/telegram_bot_listener.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/andrewweng/Desktop/stock.agent</string>
+    <string>/Users/andrewweng/stock.agent</string>
 
     <key>RunAtLoad</key>
     <true/>

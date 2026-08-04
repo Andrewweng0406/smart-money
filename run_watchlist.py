@@ -159,7 +159,7 @@ def main() -> None:
     parser.add_argument("--output-dir", default="reports", help="報告與圖表輸出目錄，預設 ./reports")
     parser.add_argument("--notify", action="store_true", help="推播多標的綜合摘要到 Telegram")
     parser.add_argument("--no-ai", action="store_true", help="跳過每檔標的的 Claude AI 綜合評語")
-    parser.add_argument("--dashboard-dir", default=str(analyze.DEFAULT_DASHBOARD_PATH.parent), help="HTML儀表板輸出目錄，預設 ~/Desktop/stock.agent/dashboard")
+    parser.add_argument("--dashboard-dir", default=str(analyze.DEFAULT_DASHBOARD_PATH.parent), help="HTML儀表板輸出目錄，預設專案目錄下的 dashboard/")
     parser.add_argument("--no-dashboard", action="store_true", help="跳過 HTML 儀表板產生")
     args = parser.parse_args()
 

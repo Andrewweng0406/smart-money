@@ -3,7 +3,7 @@
 ## 1. 安裝與初次測試
 
 ```bash
-cd /Users/andrewweng/Desktop/stock.agent
+cd /Users/andrewweng/stock.agent
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt   # 含 requirements.txt + pytest
@@ -51,7 +51,7 @@ Watchlist 模式裡某一檔標的分析失敗（例如代號打錯、下市）�
 
 ### HTML 儀表板
 
-每次分析完會自動在 `~/Desktop/stock.agent/dashboard/index.html` 產生一份
+每次分析完會自動在 `~/stock.agent/dashboard/index.html` 產生一份
 暗黑風格的互動式儀表板（KPI卡片、GEX圖表、Smart Money風險評級、異常大單、
 AI研報），直接用瀏覽器打開即可。Watchlist 模式下每檔標的另外存一份
 `dashboard/{symbol}.html`，`index.html` 固定鏡射清單裡第一檔標的。加
@@ -161,16 +161,16 @@ Mac Mini 上蘋果官方建議用 **launchd** 而非 crontab——crontab 在 ma
 launchd 對「電腦剛好在跑排程時間點睡著」的行為處理較好，且是 macOS 現行
 的標準機制。
 
-### ⚠️ 先看這個：專案放在 `~/Desktop` 下，launchd/crontab 會被 macOS 擋權限
+### ⚠️ 已修復：專案原本放在 `~/Desktop` 下，launchd/crontab 會被 macOS 擋權限
 
-**這是實測抓到的真實問題，不是理論上的提醒。** macOS（Mojave 之後）對
-`~/Desktop`、`~/Documents`、`~/Downloads` 這幾個資料夾有額外的隱私保護
-（TCC，Transparency Consent and Control）——不是一般的 Unix 檔案權限
-（`chmod`/`chown` 都沒用），而是「這個程式有沒有被系統明確授權讀取這個
-資料夾」。你在終端機手動執行 `python analyze.py` 之所以正常，是因為
-Terminal.app（或你用的終端機/IDE）早就被你自己（或系統）授權過。但
-launchd 或 crontab 啟動的背景程式是「全新的、沒被授權過的行程」，一碰到
-`~/Desktop/stock.agent` 底下的檔案就會被擋下來，錯誤長這樣：
+**這是實測抓到的真實問題（2026-08），已經修復，這裡記錄原因跟修復方式，
+方便之後回頭查。** macOS（Mojave 之後）對 `~/Desktop`、`~/Documents`、
+`~/Downloads` 這幾個資料夾有額外的隱私保護（TCC，Transparency Consent
+and Control）——不是一般的 Unix 檔案權限（`chmod`/`chown` 都沒用），而是
+「這個程式有沒有被系統明確授權讀取這個資料夾」。手動在終端機執行
+`python analyze.py` 之所以正常，是因為 Terminal.app（或你用的終端機/IDE）
+早就被系統授權過。但 launchd 或 crontab 啟動的背景程式是「全新的、沒被
+授權過的行程」，一碰到 `~/Desktop` 底下的檔案就會被擋下來，錯誤長這樣：
 
 ```
 PermissionError: [Errno 1] Operation not permitted: '.../stock.agent/.venv/pyvenv.cfg'
@@ -178,30 +178,34 @@ PermissionError: [Errno 1] Operation not permitted: '.../stock.agent/.venv/pyven
 shell-init: error retrieving current directory: getcwd: cannot access parent directories: Operation not permitted
 ```
 
-修復方式二選一：
+**修復方式：把整個專案搬出 `~/Desktop`，改放在 `~/stock.agent`**（一般
+家目錄底下的資料夾，只有 Desktop/Documents/Downloads/iCloud Drive 這幾個
+特殊資料夾有 TCC 這層保護，一般資料夾不受影響）。搬移時做了這幾件事：
+1. `mv ~/Desktop/stock.agent ~/stock.agent`
+2. `.venv` 重新建立（不是直接搬移）——venv 裡的 `bin/activate`、
+   `bin/pip` 等腳本會寫死建立當下的絕對路徑，直接搬移資料夾會讓這些
+   路徑失效，乾脆刪掉重建、重新 `pip install -r requirements-dev.txt`
+   比較乾淨
+3. 更新三支 `scripts/*.plist` 裡所有寫死的舊路徑（`ProgramArguments`、
+   `WorkingDirectory`）
+4. `analyze.py` 的 `DEFAULT_DASHBOARD_PATH` 原本用
+   `Path.home()/"Desktop"/"stock.agent"/...` 寫死展開，專案搬家後這個
+   常數還是會指向已經不存在的舊路徑——改成 `Path(__file__).parent`，
+   跟 `db_manager.DEFAULT_DB_PATH` 用同一個「相對於程式碼本身位置」的
+   慣例，才是真正不受專案搬家影響的寫法
+5. 重新 `cp` plist 到 `~/Library/LaunchAgents/`，`launchctl unload` 舊的
+   （如果有載入過）、`load` 新的
+6. Desktop 上少了一個資料夾圖示是預期的，不影響 git remote／功能
 
-**方式一：把整個專案搬出 `~/Desktop`（推薦，一勞永逸）**
-搬到 `~/stock.agent` 或 `~/Projects/stock.agent` 這種一般家目錄底下的
-資料夾——只有 Desktop/Documents/Downloads/iCloud Drive 這幾個特殊資料夾
-有這層保護，一般資料夾不受影響。搬移後要記得：
-1. 更新三支 `scripts/*.plist` 裡所有寫死 `/Users/andrewweng/Desktop/stock.agent`
-   的路徑（`ProgramArguments`、`WorkingDirectory`）
-2. 重新 `cp` 到 `~/Library/LaunchAgents/` 並 `launchctl unload` 舊的、
-   `load` 新的
-3. Desktop 上少了一個資料夾圖示是預期的，不影響 git remote／功能
+如果你之後又想搬回 Desktop 或搬到其他 Desktop/Documents/Downloads 底下
+的資料夾，一樣會踩到這個問題；或者可以改用「完整磁碟取用權限」的替代
+方案——系統設定 → 隱私權與安全性 → 完整磁碟取用權限 → 把 `/bin/bash`
+（launchd/crontab 排程走的）跟 `.venv/bin/python3` 實際指向的執行檔
+（互動機器人走的）加進去。這個替代方案授權範圍較廣（那個執行檔對整台
+電腦的檔案都有讀寫權限），安全性不如搬出 Desktop 乾淨，所以這次選擇
+搬家而不是這個方式。
 
-**方式二：手動幫特定執行檔授予「完整磁碟取用權限」**
-系統設定 → 隱私權與安全性 → 完整磁碟取用權限 → 加入：
-- `crontab`/launchd 排程走 `/bin/bash`（`com.andrewweng.stockgex.plist`、
-  `com.andrewweng.stockgex-intraday.plist` 都是）→ 加入 `/bin/bash`
-- 互動機器人走 `.venv/bin/python3`（實際上是個 symlink，指向
-  `/Library/Developer/CommandLineTools/usr/bin/python3`）→ 把這個真正的
-  Python 執行檔路徑加進去
-授權後不用重開機，但要 `launchctl unload` 再 `load` 一次該 plist 才會
-生效。這個方式的缺點是「完整磁碟取用權限」授權範圍很廣（那個執行檔對
-你整台電腦的檔案都有讀寫權限），安全性不如方式一乾淨。
-
-不管選哪個方式，改完都建議先用 `launchctl start <Label>`（或直接跑
+不管用哪個方式，改完都建議先用 `launchctl start <Label>`（或直接跑
 `telegram_bot_listener.py`）手動觸發一次、看 log 確認真的不再出現
 `Operation not permitted`，再放著讓它自動排程。
 
@@ -264,7 +268,7 @@ crontab -e
 `30 5`）：
 
 ```
-30 4 * * 2-6 /bin/bash /Users/andrewweng/Desktop/stock.agent/run.sh >> /Users/andrewweng/Library/Logs/stockgex/stockgex.log 2>&1
+30 4 * * 2-6 /bin/bash /Users/andrewweng/stock.agent/run.sh >> /Users/andrewweng/Library/Logs/stockgex/stockgex.log 2>&1
 ```
 
 不帶參數執行 `run.sh` 就是 watchlist 模式（讀 `watchlist.json`）；只想排程
@@ -348,9 +352,10 @@ launchd 就會自動重啟。這是跟 `telegram_bot_listener.py` 內部自己�
 supervisor while迴圈互補的**第二層防護**：內部迴圈處理「同一個process裡
 發生例外，重建Application再試」，launchd 處理「整個process本身掛掉了」。
 
-⚠️ 這支也一樣會踩到上面「## 4a」提到的 `~/Desktop` 權限問題（症狀是
-`bot.err.log` 出現 `PermissionError` 或 `Fatal Python error:
-init_import_site`），請先照那節的兩個方式之一處理好，再 load 這支 plist。
+⚠️ 專案還放在 `~/Desktop` 底下的話，這支也一樣會踩到「## 4」開頭那個
+`~/Desktop` 權限問題（症狀是 `bot.err.log` 出現 `PermissionError` 或
+`Fatal Python error: init_import_site`）——目前專案已經搬到 `~/stock.agent`
+不受影響，這裡留著提醒是因為之後如果又搬回 Desktop 底下的資料夾會再踩到。
 
 停用：
 ```bash
