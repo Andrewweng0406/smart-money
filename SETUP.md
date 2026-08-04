@@ -387,3 +387,83 @@ python strategy_resolver.py --symbol TSLA --notify
 安靜跳過，不會每天洗版。用結算日當天的**收盤價**當結算價的近似值，不是
 選擇權到期當天官方公告的精確結算價——兩者可能有小落差，`/scorecard` 的
 輸出裡有註明這點。
+
+## 8. 雲端部署（Railway，取代本機 launchd 常駐）
+
+不想依賴 Mac Mini 一直開機的話，可以把整個服務丟到 Railway 常駐執行。
+2026-08 部署過一次，記錄在這裡方便之後回頭查或重建。
+
+### 為什麼是「一個 service 跑三件事」，不是拆三個 service
+
+本機用三支獨立的 launchd plist（每日排程／盤中監控／常駐機器人）各自跑，
+互不相干。Railway 上如果比照辦理拆成三個獨立 service，會撞到一個限制：
+**Railway 的 Volume 沒辦法跨 service 共用**，每個 service 只能掛自己的
+Volume。三個 service 各自一份 `history.db` 的話，機器人的 `/scorecard`
+會讀不到排程寫入的資料——核心功能直接壞掉。
+
+所以改成單一 service、單一容器常駐，容器裡跑：
+1. `telegram_bot_listener.py`（背景 subprocess，常駐機器人）
+2. 一個內部排程迴圈（`cloud_scheduler.py`），每30秒檢查一次美東時間，
+   時間到了就用 subprocess 觸發 `run_watchlist.py --notify`（收盤後30分鐘）
+   或 `intraday_watcher.py --watchlist watchlist.json --notify`（每15分鐘）
+
+三件事共用同一個容器檔案系統，也就是同一個掛載的 Volume，`history.db`
+自然就是同一份。時區判斷用 `zoneinfo`（`America/New_York`）換算，不是
+寫死 UTC 時間——這樣才會自動處理美國夏令/冬令時間切換，不用像本機 plist
+的註解那樣每年手動核對 PT/ET 換算。
+
+### 部署步驟
+
+```bash
+# 1. 建立新專案（跟其他 Railway 專案分開，避免互相干擾）
+railway init --name stock-agent
+
+# 2. 第一次部署，建立 service（此時還沒設環境變數，容器會啟動但機器人
+#    可能因為缺 TOKEN 而無法正常運作，這是預期的，後面補齊）
+railway up -y --detach
+
+# 3. service 建立後，明確 link 起來再操作 volume/variables，不然
+#    railway CLI（5.30.4 版）在 service 沒 link 時對 volume 相關指令
+#    會直接 panic（crash），這是實測踩到的 CLI bug，不是設定錯誤
+railway service link stock-agent
+
+# 4. 掛 Volume，路徑跟 DB_PATH / ALERT_STATE_PATH 環境變數對應
+railway volume add --mount-path /app/data
+
+# 5. 設環境變數（跟本機 .env 內容一樣，另外多兩個雲端專用的路徑變數）
+railway variable set \
+  "TELEGRAM_BOT_TOKEN=..." \
+  "TELEGRAM_CHAT_ID=..." \
+  "ANTHROPIC_API_KEY=..." \
+  "LINE_CHANNEL_ACCESS_TOKEN=..." \
+  "DB_PATH=/app/data/history.db" \
+  "ALERT_STATE_PATH=/app/data/intraday_alert_state.json"
+
+# 6. 套用新設定
+railway redeploy --service stock-agent --yes
+```
+
+`DB_PATH` / `ALERT_STATE_PATH` 這兩個環境變數是雲端部署專用的路徑覆寫，
+本機開發不用設定（`db_manager.DEFAULT_DB_PATH` /
+`intraday_watcher.ALERT_STATE_PATH` 沒讀到這兩個環境變數時，行為跟以前
+完全一樣，指向專案目錄下的檔案）。
+
+### 相依的雲端專屬檔案
+
+- `Dockerfile`：`python:3.11-slim` 加上 plotly/kaleido 產圖需要的
+  headless Chromium 系統相依套件（本機 macOS 沒這個問題，是因為系統本來
+  就有這些函式庫）。啟動時會先跑一次 `pytest`，沒過直接 `exit 1`，呼應
+  `run.sh` 「測試沒過就中止」的慣例。
+- `railway.json`：指定用 Dockerfile 建置、啟動指令、失敗自動重啟策略。
+- `cloud_scheduler.py`：容器的進入點，取代 launchd 的排程判斷邏輯，
+  純函式（`should_trigger_daily` / `should_trigger_intraday`）有對應的
+  `tests/test_cloud_scheduler.py`。
+
+### ⚠️ 同一個 Bot Token 只能有一個地方在長輪詢
+
+Telegram Bot API 的 `getUpdates` 長輪詢同一時間只允許一個實例連線，
+Railway 跟本機同時跑 `telegram_bot_listener.py` 會互相衝突（間歇性收到
+409 Conflict、訊息漏接或重複）。部署到 Railway 後記得停用本機三支
+launchd 服務（`launchctl unload ~/Library/LaunchAgents/com.andrewweng.stockgex*.plist`），
+不要兩邊同時開著。plist 檔案不用刪，之後想改回本機執行隨時可以重新
+`launchctl load`。

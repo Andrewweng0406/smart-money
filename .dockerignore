@@ -1,0 +1,16 @@
+.venv/
+venv/
+.git/
+.github/
+.claude/
+__pycache__/
+*.pyc
+.pytest_cache/
+reports/
+*.db
+intraday_alert_state.json
+.env
+.env.example
+dashboard/*.html
+SETUP.md
+scripts/

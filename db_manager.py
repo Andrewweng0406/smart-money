@@ -9,12 +9,16 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
 
-DEFAULT_DB_PATH = Path(__file__).parent / "history.db"
+# 本機跑就用專案目錄下的 history.db；雲端部署（例如 Railway）沒有固定的
+# 「專案目錄」概念，資料庫要放在掛載的 Volume 裡才能在重新部署後還留著，
+# 所以留一個 DB_PATH 環境變數可以覆蓋——本機開發沒設這個變數，行為完全不變。
+DEFAULT_DB_PATH = Path(os.environ["DB_PATH"]) if os.environ.get("DB_PATH") else Path(__file__).parent / "history.db"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS daily_snapshots (

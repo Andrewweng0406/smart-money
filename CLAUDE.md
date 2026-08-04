@@ -114,10 +114,14 @@ python check_env.py
 | `intraday_watcher.py` | 盤中即時異常監控（單次檢查，排程交給 launchd StartInterval；同一事件有冷卻機制避免重複推播） |
 | `telegram_bot_listener.py` | 常駐互動機器人（/report /watchlist /backtest /scorecard /status + 自然語言） |
 | `run.sh` | 排程統一入口，launchd/cron 都呼叫這支 |
+| `cloud_scheduler.py` | Railway 雲端部署的進入點，取代 launchd 排程判斷（見下方） |
 | `watchlist.json` | 使用者維護的標的清單 |
 | `macro_events.json` | 使用者維護的 FOMC/CPI 等總經事件日期（**佔位範例，需自行更新**） |
 
-部署與排程設定見 `SETUP.md`。
+部署與排程設定見 `SETUP.md`。**2026-08 起改跑在 Railway 雲端**（`stock-agent`
+專案，單一 service 常駐容器同時跑機器人 + 內部排程迴圈，`history.db` 存在
+掛載的 Volume），本機 Mac Mini 的三支 launchd 服務已停用（plist 檔案還在，
+需要的話可以重新 `launchctl load`）。細節見 `SETUP.md` 第8節。
 
 ## 已知風險
 

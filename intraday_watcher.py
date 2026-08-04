@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -47,7 +48,13 @@ INTRADAY_ALERT_PREFIX = "🚨 盤中緊急警報"
 # 沒有這層冷卻機制的話，一個持續好幾小時的突破會每15分鐘（一次排程觸發
 # 間隔）就轟炸一次 Telegram，這是實測抓到的真問題。
 ALERT_COOLDOWN_MINUTES = 60
-ALERT_STATE_PATH = Path(__file__).parent / "intraday_alert_state.json"
+# 跟 db_manager.DEFAULT_DB_PATH 同一個道理：雲端部署時這個檔案要放進掛載的
+# Volume，冷卻狀態才不會因為容器重新部署就重置（重置的後果是短時間內對同一
+# 事件重複推播）。
+ALERT_STATE_PATH = (
+    Path(os.environ["ALERT_STATE_PATH"]) if os.environ.get("ALERT_STATE_PATH")
+    else Path(__file__).parent / "intraday_alert_state.json"
+)
 
 
 def is_market_hours(now: datetime | None = None) -> bool:
