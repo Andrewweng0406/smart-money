@@ -27,6 +27,17 @@ def make_data() -> dict:
             "is_death_loop_alert": True,
             "alert_text": "死亡 Loop 警示",
         },
+        "pinning": {
+            "pin_strike": 250.0,
+            "pin_strike_matches_max_pain": False,
+            "distance_pct": 0.4,
+            "oi_concentration_pct": 18.5,
+            "in_positive_gamma": True,
+            "has_broken_wall": False,
+            "score": 78,
+            "label": "高",
+            "regime": "PINNING",
+        },
         "ai_commentary": "市場處於負 Gamma 區域。",
         "strategy_name": "保守價差策略",
         "macro_warnings": ["FOMC 即將公布"],
@@ -46,6 +57,8 @@ def test_generate_dashboard_writes_normal_html(tmp_path: Path):
     assert "plotly-2.35.2.min.js" in content
     assert "#2a78d6" in content
     assert "#e34948" in content
+    assert "Pinning · 磁吸區間" in content
+    assert "與 Max Pain 不同" in content
 
 
 def test_generate_dashboard_creates_missing_parent_directories(tmp_path: Path):
@@ -69,6 +82,32 @@ def test_generate_dashboard_handles_empty_gex_and_none_pressure(tmp_path: Path):
     assert "資料不足" in content
     assert "x: []" in content
     assert "y: []" in content
+
+
+def test_generate_dashboard_handles_none_pinning(tmp_path: Path):
+    """pinning 是加分項，analyze.py 的 fetch_and_aggregate 計算失敗或期權
+    鏈為空時會傳 None——儀表板不該連帶壞掉，KPI 顯示 N/A、面板整段消失。
+    """
+    data = make_data()
+    data["pinning"] = None
+    output = tmp_path / "no-pinning.html"
+
+    generate_dashboard(data, output)
+    content = output.read_text(encoding="utf-8")
+
+    assert 'class="panel pinning-panel"' not in content
+    assert "N/A" in content
+
+
+def test_generate_dashboard_shows_breakout_regime(tmp_path: Path):
+    data = make_data()
+    data["pinning"]["regime"] = "BREAKOUT"
+    output = tmp_path / "breakout.html"
+
+    generate_dashboard(data, output)
+    content = output.read_text(encoding="utf-8")
+
+    assert "Breakout · 突破區間" in content
 
 
 def test_generate_dashboard_escapes_all_user_facing_special_strings(tmp_path: Path):

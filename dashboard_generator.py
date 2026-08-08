@@ -44,6 +44,7 @@ def generate_dashboard(data: dict, output_path: Path) -> None:
     macro_warnings = data["macro_warnings"] or []
     put_call_ratio = data["put_call_ratio"] or {}
     mm_pressure = data["mm_pressure"]
+    pinning = data["pinning"]
 
     # 莊家做盤視角：總 GEX 正負決定對沖偏向抑制波動或順勢放大波動。
     total_gex = sum((row["net_gex"] or 0) for row in gex_rows)
@@ -86,6 +87,39 @@ def generate_dashboard(data: dict, output_path: Path) -> None:
     alert_block = ""
     if data["alert"] is not None:
         alert_block = f'<div class="page-alert">{_escape(data["alert"])}</div>'
+
+    # Regime -> (顯示文字, CSS class)。PINNING 用正面色（磁吸抑制波動，
+    # 跟 .positive 同一套語意）；BREAKOUT 用負面色（防線失守，跟現有的
+    # page-alert/negative 警示色一致）；NEUTRAL 用中性色，不誇大訊號強度。
+    _PINNING_REGIME_DISPLAY = {
+        "PINNING": ("🧲 Pinning · 磁吸區間", "positive"),
+        "BREAKOUT": ("🚀 Breakout · 突破區間", "negative"),
+        "NEUTRAL": ("🔄 Neutral · 中性觀望", "muted"),
+    }
+
+    if pinning is None:
+        pinning_kpi_value = '<span class="muted">N/A</span>'
+        pinning_block = ""
+    else:
+        regime_text, regime_class = _PINNING_REGIME_DISPLAY.get(
+            pinning["regime"], (pinning["regime"], "muted")
+        )
+        pinning_kpi_value = f'<span class="{regime_class}">{_escape(regime_text)}</span>'
+        pin_match_note = (
+            "與 Max Pain 重合" if pinning["pin_strike_matches_max_pain"] else "與 Max Pain 不同"
+        )
+        pinning_block = f"""
+        <section class="panel pinning-panel">
+          <h2>Pinning 釘價效應判斷</h2>
+          <div class="pinning-regime {regime_class}">{_escape(regime_text)}</div>
+          <div class="pinning-grid">
+            <div class="ratio"><span>Pin Strike</span>${_escape(_format_number(pinning["pin_strike"], 0))}（{_escape(pin_match_note)}）</div>
+            <div class="ratio"><span>距離 Pin Strike</span>{_escape(_format_number(pinning["distance_pct"], 1))}%</div>
+            <div class="ratio"><span>未平倉量集中度</span>{_escape(_format_number(pinning["oi_concentration_pct"], 1))}%</div>
+            <div class="ratio"><span>Pinning 分數</span>{_escape(_format_number(pinning["score"], 0))} / 100（{_escape(pinning["label"])}）</div>
+          </div>
+        </section>
+        """
 
     warning_block = ""
     if macro_warnings:
@@ -161,7 +195,7 @@ def generate_dashboard(data: dict, output_path: Path) -> None:
     main {{ width: min(1440px, 94vw); margin: 0 auto; padding: 30px 0 50px; }}
     h1 {{ margin: 0 0 22px; font-size: clamp(1.6rem, 3vw, 2.4rem); }}
     h2 {{ margin: 0 0 18px; font-size: 1.05rem; }}
-    .kpi-grid {{ display: grid; grid-template-columns: repeat(5, minmax(145px, 1fr)); gap: 12px; }}
+    .kpi-grid {{ display: grid; grid-template-columns: repeat(6, minmax(145px, 1fr)); gap: 12px; }}
     .kpi, .panel {{ background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }}
     .kpi {{ padding: 16px; }}
     .kpi-label {{ color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }}
@@ -190,7 +224,10 @@ def generate_dashboard(data: dict, output_path: Path) -> None:
     .macro-panel li {{ margin: 8px 0; }}
     .strategy {{ color: #79aef2; font-weight: 700; margin-bottom: 14px; }}
     .commentary {{ color: #d5d8de; line-height: 1.75; white-space: pre-wrap; }}
-    @media (max-width: 900px) {{ .kpi-grid {{ grid-template-columns: repeat(2, 1fr); }} .layout {{ grid-template-columns: 1fr; }} }}
+    .pinning-panel {{ margin-top: 14px; }}
+    .pinning-regime {{ font-size: 1.4rem; font-weight: 800; margin-bottom: 16px; }}
+    .pinning-grid {{ display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; }}
+    @media (max-width: 900px) {{ .kpi-grid {{ grid-template-columns: repeat(2, 1fr); }} .layout {{ grid-template-columns: 1fr; }} .pinning-grid {{ grid-template-columns: 1fr 1fr; }} }}
     @media (max-width: 520px) {{ .kpi-grid {{ grid-template-columns: 1fr; }} main {{ width: 92vw; }} }}
   </style>
 </head>
@@ -203,8 +240,10 @@ def generate_dashboard(data: dict, output_path: Path) -> None:
       <div class="kpi"><div class="kpi-label">Max Pain</div><div class="kpi-value">{_escape(_format_number(data["max_pain"]))}</div></div>
       <div class="kpi"><div class="kpi-label">Gamma Flip 距離</div><div class="kpi-value">{_escape(_format_signed_percent(data["gamma_flip_distance_pct"]))}</div></div>
       <div class="kpi"><div class="kpi-label">IV Skew</div><div class="kpi-value">{_escape(_format_signed_percent(data["iv_skew"], scale=100))}</div></div>
+      <div class="kpi"><div class="kpi-label">Pinning 狀態</div><div class="kpi-value">{pinning_kpi_value}</div></div>
     </section>
     {alert_block}
+    {pinning_block}
 
     <div class="layout">
       <section class="panel">

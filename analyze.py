@@ -29,6 +29,7 @@ import line_formatter
 import line_notifier
 import macro_calendar
 import options_strategy_engine
+import pinning_engine
 import smart_money
 from gex_engine import (
     OptionLeg,
@@ -85,6 +86,7 @@ class AnalysisResult:
     put_call_ratio: dict = field(default_factory=dict)
     unusual_activity: list = field(default_factory=list)
     mm_pressure: dict | None = None
+    pinning: dict | None = None
 
 
 def _load_previous_oi_snapshot(symbol: str, db_path: Path | str) -> dict[float, dict] | None:
@@ -201,13 +203,28 @@ def fetch_and_aggregate(
         logger.warning("%s Smart Money 指標計算失敗：%s", symbol, exc)
         iv_skew, put_call_ratio, unusual_activity, mm_pressure = None, {}, [], None
 
+    try:
+        # 只有確認 gamma_flip 存在且現貨真的在其之上，才算「確認正Gamma」——
+        # gamma_flip 算不出來時保守回傳 False（未確認），不要沿用
+        # in_negative_gamma 的預設值（那個變數在 gamma_flip 為 None 時預設
+        # False，若直接取反會誤把「無法判斷」當成「確認正Gamma」，讓
+        # Pinning 的必要條件在資料不足時被錯誤地判定成立）。
+        in_positive_gamma = gamma_flip is not None and spot >= gamma_flip
+        pinning = pinning_engine.compute_pinning_analysis(
+            gex_by_strike, spot, max_pain, call_wall, put_wall, in_positive_gamma,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # Pinning 判斷是報告的加分項，計算失敗不該影響核心的 GEX/Wall/Max Pain 結果。
+        logger.warning("%s Pinning 判斷計算失敗：%s", symbol, exc)
+        pinning = None
+
     return AnalysisResult(
         symbol=symbol, spot=spot, expiries_used=expiries, gex_by_strike=gex_by_strike,
         volume_by_strike=dict(volume_by_strike), max_pain=max_pain, call_wall=call_wall,
         put_wall=put_wall, gamma_flip=gamma_flip, gamma_flip_distance_pct=flip_distance_pct,
         zero_dte_summary=zero_dte_summary, alert=alert,
         iv_skew=iv_skew, put_call_ratio=put_call_ratio,
-        unusual_activity=unusual_activity, mm_pressure=mm_pressure,
+        unusual_activity=unusual_activity, mm_pressure=mm_pressure, pinning=pinning,
     )
 
 
@@ -401,6 +418,36 @@ def _fmt_ratio(value: float | None) -> str:
     return f"{value:.2f}" if value is not None else "N/A"
 
 
+_PINNING_REGIME_LABEL = {
+    "PINNING": "🧲 Pinning（磁吸區間）",
+    "BREAKOUT": "🚀 Breakout（突破區間）",
+    "NEUTRAL": "🔄 Neutral（中性觀望）",
+}
+
+
+def _build_pinning_lines(pinning: dict | None) -> list[str]:
+    """把 pinning_engine.compute_pinning_analysis() 的結果轉成 Markdown
+    區塊。pinning 為 None（加分項計算失敗或期權鏈為空）時回傳空列表，
+    整段直接從報告消失，不留下半殘的標題或 N/A 表格。
+    """
+    if pinning is None:
+        return []
+
+    regime_text = _PINNING_REGIME_LABEL.get(pinning["regime"], pinning["regime"])
+    max_pain_note = "（與 Max Pain 重合，訊號較一致）" if pinning["pin_strike_matches_max_pain"] else "（與 Max Pain 不同，兩個訊號互相參考）"
+
+    return [
+        "## Pinning 釘價效應判斷", "",
+        f"- 目前狀態：**{regime_text}**",
+        f"- Pin Strike（未平倉量最集中的履約價）：${pinning['pin_strike']:.0f}{max_pain_note}",
+        f"- 現貨距離 Pin Strike：{pinning['distance_pct']:.2f}%",
+        f"- Pin Strike 未平倉量集中度：{pinning['oi_concentration_pct']:.1f}%（占全鏈總未平倉量）",
+        f"- 正 Gamma 區（Pinning 的必要條件）：{'是' if pinning['in_positive_gamma'] else '否'}",
+        f"- Pinning 分數：{pinning['score']} / 100（{pinning['label']}）",
+        "",
+    ]
+
+
 def build_markdown_report(
     result: AnalysisResult, report_path: Path, ai_commentary: str | None = None,
     strategy: options_strategy_engine.StrategyRecommendation | None = None,
@@ -428,6 +475,11 @@ def build_markdown_report(
         f"- Gamma 翻轉點：{'$' + format(result.gamma_flip, '.0f') if result.gamma_flip is not None else 'N/A'}{flip_pct_text}",
         f"- 使用到期日：{', '.join(result.expiries_used)}",
         "",
+    ]
+
+    lines += _build_pinning_lines(result.pinning)
+
+    lines += [
         "## 0DTE 與整體 GEX 差異",
         "",
         f"- 全部到期日 Net GEX 總和：{zdte['total_net_gex']:,.0f}",
@@ -520,6 +572,7 @@ def build_dashboard_data(
         "gamma_flip": result.gamma_flip, "gamma_flip_distance_pct": result.gamma_flip_distance_pct,
         "iv_skew": result.iv_skew, "put_call_ratio": result.put_call_ratio,
         "unusual_activity": result.unusual_activity, "mm_pressure": result.mm_pressure,
+        "pinning": result.pinning,
         "ai_commentary": ai_commentary, "strategy_name": strategy.strategy_name if strategy else None,
         "macro_warnings": macro_warnings, "alert": result.alert,
     }

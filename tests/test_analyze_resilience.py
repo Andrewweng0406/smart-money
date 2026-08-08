@@ -16,6 +16,7 @@ import data_fetcher
 import db_manager
 import dashboard_generator
 import line_notifier
+import pinning_engine
 import smart_money
 from data_fetcher import StrikeLegRaw
 
@@ -190,6 +191,53 @@ def test_fetch_and_aggregate_survives_smart_money_failure(monkeypatch):
     assert result.iv_skew is None
     assert result.put_call_ratio == {}
     assert result.unusual_activity == []
+
+
+def test_fetch_and_aggregate_survives_pinning_failure(monkeypatch):
+    """Pinning 判斷是報告的加分項，計算過程出例外不該連累核心的
+    GEX/Wall/Max Pain 結果算不出來（跟 Smart Money 指標同一套防禦慣例）。
+    """
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-01-02"])
+    monkeypatch.setattr(data_fetcher, "time_to_expiry_years", lambda expiry: 7 / 365)
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [StrikeLegRaw(
+        expiry=expiry, strike=100.0, call_oi=1000.0, call_iv=0.5, call_volume=10.0,
+        put_oi=500.0, put_iv=0.5, put_volume=5.0,
+    )])
+
+    def raise_error(*a, **k):
+        raise ValueError("unexpected pinning bug")
+
+    monkeypatch.setattr(pinning_engine, "compute_pinning_analysis", raise_error)
+
+    result = analyze.fetch_and_aggregate("TSLA", max_expiries=None, risk_free_rate=0.045)
+
+    assert result.spot == 100.0  # 核心結果照樣算出來
+    assert result.max_pain == 100.0
+    assert result.pinning is None
+
+
+def test_fetch_and_aggregate_pinning_uses_confirmed_positive_gamma_only(monkeypatch):
+    """gamma_flip 算不出來（回傳 None）時，正 Gamma 條件必須保守判定為
+    False（未確認），不能直接沿用 in_negative_gamma 取反——那個變數在
+    gamma_flip 是 None 時預設 False，取反會誤把「無法判斷」當成
+    「確認正Gamma」，讓 Pinning 在資料不足時被錯誤地判定為可能成立。
+    """
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(data_fetcher, "get_all_expiries", lambda symbol, max_expiries=None: ["2026-01-02"])
+    monkeypatch.setattr(data_fetcher, "time_to_expiry_years", lambda expiry: 7 / 365)
+    monkeypatch.setattr(data_fetcher, "get_option_chain_legs", lambda symbol, expiry: [StrikeLegRaw(
+        expiry=expiry, strike=100.0, call_oi=1000.0, call_iv=0.5, call_volume=10.0,
+        put_oi=500.0, put_iv=0.5, put_volume=5.0,
+    )])
+    # gamma_flip 找不到交叉點（例如整條曲線都同號），find_gamma_flip_point 回傳 None。
+    monkeypatch.setattr(analyze, "find_gamma_flip_point", lambda *a, **k: None)
+
+    result = analyze.fetch_and_aggregate("TSLA", max_expiries=None, risk_free_rate=0.045)
+
+    assert result.gamma_flip is None
+    assert result.pinning is not None
+    assert result.pinning["in_positive_gamma"] is False
 
 
 def test_fetch_and_aggregate_enriches_unusual_activity_with_previous_day_oi(monkeypatch, tmp_path):
