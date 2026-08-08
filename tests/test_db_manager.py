@@ -21,15 +21,16 @@ class _FakeResult:
     gamma_flip_distance_pct: float | None
     zero_dte_summary: dict
     alert: str | None
+    pinning: dict | None = None
 
 
-def _make_result(symbol="TSLA", spot=311.21, alert=None) -> _FakeResult:
+def _make_result(symbol="TSLA", spot=311.21, alert=None, pinning=None) -> _FakeResult:
     return _FakeResult(
         symbol=symbol, spot=spot, max_pain=315.0, call_wall=330.0, put_wall=300.0,
         gamma_flip=317.0, gamma_flip_distance_pct=-1.9,
         zero_dte_summary={"total_net_gex": 1_000_000.0, "zero_dte_net_gex": 0.0,
                            "ex_zero_dte_net_gex": 1_000_000.0, "zero_dte_share_pct": 0.0},
-        alert=alert,
+        alert=alert, pinning=pinning,
     )
 
 
@@ -260,3 +261,70 @@ def test_get_most_recent_oi_snapshot_date_skips_gap_days(tmp_path):
     db_manager.save_oi_snapshot("TSLA", "2026-07-20", _make_oi_legs(), db_path=db_path)
 
     assert db_manager.get_most_recent_oi_snapshot_date("TSLA", "2026-08-01", db_path=db_path) == "2026-07-20"
+
+
+def test_save_snapshot_stores_pinning_fields(tmp_path):
+    db_path = tmp_path / "history.db"
+    pinning = {
+        "pin_strike": 320.0, "oi_concentration_pct": 18.5, "in_positive_gamma": True,
+        "score": 78, "regime": "PINNING",
+    }
+    db_manager.save_snapshot(_make_result(pinning=pinning), "2026-08-01", db_path=db_path)
+
+    rows = db_manager.get_recent_snapshots("TSLA", db_path=db_path)
+    assert rows[0]["pin_strike"] == 320.0
+    assert rows[0]["pinning_oi_concentration_pct"] == 18.5
+    assert rows[0]["pinning_in_positive_gamma"] == 1
+    assert rows[0]["pinning_score"] == 78
+    assert rows[0]["pinning_regime"] == "PINNING"
+
+
+def test_save_snapshot_stores_null_pinning_when_none(tmp_path):
+    """result.pinning 是加分項，可能因為計算失敗或期權鏈為空而是 None——
+    要存成 NULL，不是硬塞一個假分數，呼叫端才能正確分辨『沒資料』跟
+    『確認算出某個分數』。
+    """
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_make_result(pinning=None), "2026-08-01", db_path=db_path)
+
+    rows = db_manager.get_recent_snapshots("TSLA", db_path=db_path)
+    assert rows[0]["pin_strike"] is None
+    assert rows[0]["pinning_score"] is None
+    assert rows[0]["pinning_regime"] is None
+
+
+def test_save_snapshot_migrates_pre_pinning_schema_database(tmp_path):
+    """模擬 Railway Volume 上『加入 pinning 欄位之前』就已經存在的舊
+    daily_snapshots 表——沒有這幾個欄位，插入舊格式的一筆資料，確認接著
+    呼叫 save_snapshot() 不會因為『no such column』而炸掉，是安全的
+    自我修復遷移，而不是需要手動介入的斷線問題。
+    """
+    import sqlite3
+
+    db_path = tmp_path / "history.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        """
+        CREATE TABLE daily_snapshots (
+            symbol TEXT NOT NULL, date TEXT NOT NULL, spot REAL NOT NULL,
+            max_pain REAL NOT NULL, call_wall REAL NOT NULL, put_wall REAL NOT NULL,
+            gamma_flip REAL, gamma_flip_distance_pct REAL, total_net_gex REAL NOT NULL,
+            zero_dte_net_gex REAL NOT NULL, zero_dte_share_pct REAL, alert TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (symbol, date)
+        )
+        """
+    )
+    conn.execute(
+        "INSERT INTO daily_snapshots (symbol, date, spot, max_pain, call_wall, put_wall, "
+        "total_net_gex, zero_dte_net_gex) VALUES ('TSLA', '2026-07-31', 300.0, 300.0, 320.0, 280.0, 1.0, 0.0)"
+    )
+    conn.commit()
+    conn.close()
+
+    db_manager.save_snapshot(_make_result(spot=311.21), "2026-08-01", db_path=db_path)
+
+    rows = db_manager.get_recent_snapshots("TSLA", db_path=db_path)
+    assert len(rows) == 2
+    old_row = next(r for r in rows if r["date"] == "2026-07-31")
+    assert old_row["pin_strike"] is None  # 舊資料補上的新欄位是 NULL，不是報錯

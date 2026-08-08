@@ -34,10 +34,35 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
     zero_dte_net_gex REAL NOT NULL,
     zero_dte_share_pct REAL,
     alert TEXT,
+    pin_strike REAL,
+    pinning_oi_concentration_pct REAL,
+    pinning_in_positive_gamma INTEGER,
+    pinning_score INTEGER,
+    pinning_regime TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, date)
 )
 """
+
+# Railway 掛載的 Volume 上，daily_snapshots 表在加入 pinning 欄位之前就已經
+# 存在且有資料——CREATE TABLE IF NOT EXISTS 對已存在的表完全不會補欄位，
+# 直接照舊 schema 插入會在正式環境炸出「no such column」，這是實測會踩到
+# 的真問題（不是本機新 clone 才會看到的假設情境）。用 PRAGMA table_info
+# 檢查、缺什麼就 ALTER TABLE 補上去，新舊資料庫都能安全跑。
+_DAILY_SNAPSHOTS_NEW_COLUMNS = [
+    ("pin_strike", "REAL"),
+    ("pinning_oi_concentration_pct", "REAL"),
+    ("pinning_in_positive_gamma", "INTEGER"),
+    ("pinning_score", "INTEGER"),
+    ("pinning_regime", "TEXT"),
+]
+
+
+def _migrate_daily_snapshots(conn: sqlite3.Connection) -> None:
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(daily_snapshots)")}
+    for column, coltype in _DAILY_SNAPSHOTS_NEW_COLUMNS:
+        if column not in existing:
+            conn.execute(f"ALTER TABLE daily_snapshots ADD COLUMN {column} {coltype}")
 
 # 策略追蹤記分板——每次 analyze.py 產生一個「有結構化履約價」的策略建議
 # 就存一筆，到期後由 strategy_resolver.py 結算，回填 outcome/realized_pnl。
@@ -88,6 +113,7 @@ def _connect(db_path: Path | str = DEFAULT_DB_PATH):
         conn.execute(_SCHEMA)
         conn.execute(_STRATEGY_SCHEMA)
         conn.execute(_OI_SNAPSHOT_SCHEMA)
+        _migrate_daily_snapshots(conn)
         yield conn
         conn.commit()
     finally:
@@ -100,22 +126,34 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
 
     result 是 analyze.AnalysisResult（鴨子定型，只要求有這些屬性，不強制
     import analyze.py 造成循環依賴）。
+
+    result.pinning 是加分項（可能是 None，計算失敗或期權鏈為空時）——存成
+    NULL，不是硬塞一個假的 0 分或 "NEUTRAL"，讓
+    intraday_watcher.check_pinning_alert() 讀到 NULL 時能正確判斷「沒有
+    前一天的 Pinning 資料可用」而優雅跳過，不是誤判成「確認中性」。
     """
     zdte = result.zero_dte_summary
+    pinning = result.pinning
     with _connect(db_path) as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO daily_snapshots
             (symbol, date, spot, max_pain, call_wall, put_wall, gamma_flip,
              gamma_flip_distance_pct, total_net_gex, zero_dte_net_gex,
-             zero_dte_share_pct, alert)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             zero_dte_share_pct, alert, pin_strike, pinning_oi_concentration_pct,
+             pinning_in_positive_gamma, pinning_score, pinning_regime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 result.symbol, date_str, result.spot, result.max_pain,
                 result.call_wall, result.put_wall, result.gamma_flip,
                 result.gamma_flip_distance_pct, zdte["total_net_gex"],
                 zdte["zero_dte_net_gex"], zdte["zero_dte_share_pct"], result.alert,
+                pinning["pin_strike"] if pinning else None,
+                pinning["oi_concentration_pct"] if pinning else None,
+                (int(pinning["in_positive_gamma"]) if pinning else None),
+                pinning["score"] if pinning else None,
+                pinning["regime"] if pinning else None,
             ),
         )
 

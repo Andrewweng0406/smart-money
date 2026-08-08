@@ -117,6 +117,59 @@ def run_one_symbol(
     }
 
 
+_INTRADAY_PINNING_REGIME_LABEL = {
+    "PINNING": "🧲 Pinning 磁吸區間",
+    "BREAKOUT": "🚀 Breakout 突破區間",
+    "NEUTRAL": "🔄 Neutral 中性觀望",
+}
+
+
+def build_intraday_summary_line(symbol: str, result: analyze.AnalysisResult) -> str:
+    """條列單一標的的盤中 GEX + Pinning 結構重點，給開盤後30分鐘（美東
+    10:00）摘要用——只挑最關鍵的幾個數字，完整版留給收盤後那份 Markdown
+    報告，這份純粹是「開盤後第一眼快照」。
+    """
+    lines = [f"◆ {symbol}　現貨 ${result.spot:.2f}"]
+    lines.append(
+        f"  Max Pain ${result.max_pain:.0f}　Call Wall ${result.call_wall:.0f}　"
+        f"Put Wall ${result.put_wall:.0f}"
+    )
+    if result.pinning:
+        regime_text = _INTRADAY_PINNING_REGIME_LABEL.get(
+            result.pinning["regime"], result.pinning["regime"]
+        )
+        lines.append(f"  Pinning：{regime_text}（{result.pinning['score']}/100）")
+    if result.alert:
+        lines.append(f"  {result.alert}")
+    return "\n".join(lines)
+
+
+def run_intraday_summary(
+    symbols: list[str], max_expiries: int | None, risk_free_rate: float, notify: bool = False,
+) -> str:
+    """開盤後30分鐘（美東 10:00）觸發的輕量盤中摘要——重新跑一次完整的
+    GEX/Pinning 分析（不是重用前一天的快照，開盤後的籌碼結構才是「今天」
+    真正的樣子），但刻意跳過歷史資料庫寫入、策略建議、AI評語、圖表/報告
+    檔案——那些是收盤後那份「正式」每日紀錄的責任，這裡只是要一份文字
+    摘要，避免跟 16:30 的每日流程重複做兩次同樣的昂貴寫入動作。
+    """
+    lines = [f"🕐 開盤盤中摘要 — {datetime.now():%Y-%m-%d} 10:00 ET", ""]
+    for symbol in symbols:
+        try:
+            result = analyze.fetch_and_aggregate(symbol, max_expiries=max_expiries, risk_free_rate=risk_free_rate)
+            lines.append(build_intraday_summary_line(symbol, result))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 盤中摘要分析失敗：%s", symbol, exc)
+            lines.append(f"❌ {symbol}：分析失敗（{exc}）")
+        lines.append("")
+
+    text = "\n".join(lines).strip()
+    if notify:
+        import telegram_notifier
+        telegram_notifier.send_text_report(text)
+    return text
+
+
 def build_watchlist_summary(summaries: list[dict]) -> str:
     """把每檔標的的摘要組成一份文字報告——這是唯一會推播到 Telegram 的內容，
     細節（AI評語、完整策略說明、圖表）留在各自的 daily_report_*.md 裡，
@@ -161,13 +214,30 @@ def main() -> None:
     parser.add_argument("--no-ai", action="store_true", help="跳過每檔標的的 Claude AI 綜合評語")
     parser.add_argument("--dashboard-dir", default=str(analyze.DEFAULT_DASHBOARD_PATH.parent), help="HTML儀表板輸出目錄，預設專案目錄下的 dashboard/")
     parser.add_argument("--no-dashboard", action="store_true", help="跳過 HTML 儀表板產生")
+    parser.add_argument(
+        "--intraday-summary", action="store_true",
+        help="只執行開盤後30分鐘（美東10:00）的輕量 GEX+Pinning 摘要就結束，不跑完整每日流程",
+    )
+    parser.add_argument(
+        "--intraday-max-expiries", type=int, default=4,
+        help="開盤盤中摘要每檔標的最多抓取幾個到期日（預設 4，比完整每日流程的 8 少，降低開盤尖峰時段的 API 負載）",
+    )
     args = parser.parse_args()
+
+    symbols = load_watchlist(Path(args.watchlist))
+
+    if args.intraday_summary:
+        intraday_max_expiries = None if args.intraday_max_expiries == 0 else args.intraday_max_expiries
+        text = run_intraday_summary(
+            symbols, max_expiries=intraday_max_expiries, risk_free_rate=args.risk_free_rate, notify=args.notify,
+        )
+        print(text)
+        return
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     dashboard_dir = None if args.no_dashboard else Path(args.dashboard_dir)
 
-    symbols = load_watchlist(Path(args.watchlist))
     max_expiries = None if args.max_expiries == 0 else args.max_expiries
     is_trading_day = data_fetcher.is_market_trading_day()
 

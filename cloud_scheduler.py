@@ -29,6 +29,11 @@ US_EASTERN = ZoneInfo("America/New_York")
 DAILY_RUN_HOUR = 16
 DAILY_RUN_MINUTE = 30
 
+# 開盤 09:30 ET，緩衝30分鐘讓開盤初期的價格/成交量雜訊沉澱一些，觸發一次
+# 輕量的盤中 GEX+Pinning 摘要（run_watchlist.py --intraday-summary）。
+INTRADAY_SUMMARY_HOUR = 10
+INTRADAY_SUMMARY_MINUTE = 0
+
 # 每15分鐘觸發一次盤中檢查，等同本機 com.andrewweng.stockgex-intraday.plist
 # 的 StartInterval=900；是否真的要做檢查交給 intraday_watcher.py 內部的
 # is_market_hours() 判斷（盤外時間會直接跳過，不會打任何 API），這裡只負責
@@ -47,6 +52,18 @@ def should_trigger_daily(now_et: datetime, last_run_date: date | None) -> bool:
         now_et.weekday() < 5
         and now_et.hour == DAILY_RUN_HOUR
         and now_et.minute == DAILY_RUN_MINUTE
+        and last_run_date != now_et.date()
+    )
+
+
+def should_trigger_intraday_summary(now_et: datetime, last_run_date: date | None) -> bool:
+    """判斷現在是否該觸發開盤盤中摘要——跟 should_trigger_daily 同一個
+    形狀（平日、時間點吻合、當天還沒跑過），只是時間點跟對應的任務不同。
+    """
+    return (
+        now_et.weekday() < 5
+        and now_et.hour == INTRADAY_SUMMARY_HOUR
+        and now_et.minute == INTRADAY_SUMMARY_MINUTE
         and last_run_date != now_et.date()
     )
 
@@ -84,6 +101,7 @@ def main() -> None:
 
     bot_process = _start_bot()
     last_daily_run_date: date | None = None
+    last_intraday_summary_run_date: date | None = None
     last_intraday_bucket: tuple | None = None
 
     while True:
@@ -96,6 +114,10 @@ def main() -> None:
         if should_trigger_daily(now_et, last_daily_run_date):
             last_daily_run_date = now_et.date()
             _run_job(["run_watchlist.py", "--notify"])
+
+        if should_trigger_intraday_summary(now_et, last_intraday_summary_run_date):
+            last_intraday_summary_run_date = now_et.date()
+            _run_job(["run_watchlist.py", "--intraday-summary", "--notify"])
 
         if should_trigger_intraday(now_et, last_intraday_bucket):
             last_intraday_bucket = (now_et.date(), now_et.hour, now_et.minute // INTRADAY_INTERVAL_MINUTES)

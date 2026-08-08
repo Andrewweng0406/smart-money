@@ -162,3 +162,64 @@ def test_get_option_chain_legs_sanitizes_nan_and_insane_values():
     assert by_strike[100.0].put_iv == 0.0  # inf -> 0
     assert not math.isnan(by_strike[100.0].call_oi)
     assert by_strike[105.0].call_oi == 50.0
+
+
+# ---------- _throttle (rate limiting) ----------
+
+def test_throttle_sleeps_when_called_too_soon_after_previous(monkeypatch):
+    """兩次呼叫間隔小於 MIN_REQUEST_INTERVAL_SECONDS 時，應該補足睡眠時間
+    到剛好滿足間隔——用假的 time.monotonic()/time.sleep() 驗證邏輯本身，
+    不需要真的等待。
+    """
+    monkeypatch.setattr(data_fetcher, "MIN_REQUEST_INTERVAL_SECONDS", 0.5)
+    monkeypatch.setattr(data_fetcher, "_last_request_at", 100.0)
+
+    fake_now = [100.1]  # 距上次呼叫只過了 0.1 秒，小於 0.5 秒門檻
+    monkeypatch.setattr(data_fetcher.time, "monotonic", lambda: fake_now[0])
+    sleep_calls = []
+    monkeypatch.setattr(data_fetcher.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    data_fetcher._throttle()
+
+    assert len(sleep_calls) == 1
+    assert sleep_calls[0] == pytest.approx(0.4, abs=1e-9)
+
+
+def test_throttle_does_not_sleep_when_interval_already_satisfied(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "MIN_REQUEST_INTERVAL_SECONDS", 0.5)
+    monkeypatch.setattr(data_fetcher, "_last_request_at", 100.0)
+
+    fake_now = [100.9]  # 距上次呼叫已經過了 0.9 秒，超過 0.5 秒門檻
+    monkeypatch.setattr(data_fetcher.time, "monotonic", lambda: fake_now[0])
+    sleep_calls = []
+    monkeypatch.setattr(data_fetcher.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    data_fetcher._throttle()
+
+    assert sleep_calls == []
+
+
+def test_throttle_updates_last_request_timestamp(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "MIN_REQUEST_INTERVAL_SECONDS", 0.5)
+    monkeypatch.setattr(data_fetcher, "_last_request_at", 0.0)
+    monkeypatch.setattr(data_fetcher.time, "monotonic", lambda: 42.0)
+    monkeypatch.setattr(data_fetcher.time, "sleep", lambda seconds: None)
+
+    data_fetcher._throttle()
+
+    assert data_fetcher._last_request_at == 42.0
+
+
+def test_get_spot_price_calls_throttle(monkeypatch):
+    """確認節流真的接進實際會打 yfinance 的函式，不是只有 _throttle() 自己
+    測過就沒接上——這是實測會踩到的整合缺口，光測 _throttle() 本身測不出來。
+    """
+    fake_ticker = MagicMock()
+    fake_ticker.history.return_value = pd.DataFrame({"Close": [123.45]})
+    calls = []
+    monkeypatch.setattr(data_fetcher, "_throttle", lambda: calls.append(1))
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        data_fetcher.get_spot_price("TSLA")
+
+    assert calls == [1]

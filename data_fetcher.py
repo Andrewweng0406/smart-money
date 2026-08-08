@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
+import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -20,6 +22,36 @@ logger = logging.getLogger("options_gex")
 # 捨棄不用 —— 這是真實市場資料現象，不是程式錯誤。
 IV_SANE_MIN = 0.05
 IV_SANE_MAX = 5.0
+
+# 連續兩次 yfinance 呼叫之間至少間隔這麼多秒——彙總多個到期日（一個標的
+# 常常要連續打好幾次 get_option_chain_legs）或多標的 watchlist 迴圈，之前
+# 完全沒有節流，緊接著的一長串請求容易被 Yahoo 判定為濫用而暫時封鎖來源
+# IP（尤其現在同一個 Railway 容器又多了開盤10:00摘要、Pinning盤中警報這些
+# 新增的排程觸發點，整體請求量比之前更密）。只做同一個 process 內的節流
+# （沒有跨 process/跨 subprocess 協調）——cloud_scheduler.py 常駐主迴圈跟
+# 它為每個排程任務另外開的 subprocess 是不同的 Python process，彼此不共用
+# 這個模組層級的狀態，但同一個 process 內部緊接著發生的多次呼叫（例如
+# fetch_and_aggregate 逐到期日迴圈）才是最容易連續轟炸的情境，這裡先解決
+# 這個最主要的風險，不是要做到完美的全域限流。
+MIN_REQUEST_INTERVAL_SECONDS = 0.5
+
+_throttle_lock = threading.Lock()
+_last_request_at: float = 0.0
+
+
+def _throttle() -> None:
+    """在每個實際會打 yfinance 的函式最前面呼叫，確保跟上一次呼叫至少
+    間隔 MIN_REQUEST_INTERVAL_SECONDS。用 time.monotonic() 而不是
+    time.time()——不受系統時鐘被 NTP 校正或手動調整影響，適合量測經過的
+    間隔時間而不是量測「現在幾點」。
+    """
+    global _last_request_at
+    with _throttle_lock:
+        now = time.monotonic()
+        wait = MIN_REQUEST_INTERVAL_SECONDS - (now - _last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at = time.monotonic()
 
 
 @dataclass
@@ -61,6 +93,7 @@ def _clean(value, *, sane_min: float | None = None, sane_max: float | None = Non
 
 def get_spot_price(symbol: str) -> float:
     """優先用最近一根日K的收盤價（『當日收盤價』的定義），抓不到才退回即時報價。"""
+    _throttle()
     ticker = yf.Ticker(symbol)
     try:
         hist = ticker.history(period="5d", interval="1d")
@@ -69,6 +102,7 @@ def get_spot_price(symbol: str) -> float:
     except Exception as exc:  # noqa: BLE001
         logger.warning("抓取 %s 日K收盤價失敗：%s", symbol, exc)
 
+    _throttle()  # 上面那次失敗才會走到這裡的第二次呼叫，一樣要節流
     try:
         price = ticker.fast_info.get("lastPrice")
         if price:
@@ -90,6 +124,7 @@ def get_close_price_on_date(symbol: str, date_str: str) -> float | None:
     try:
         target = datetime.strptime(date_str, "%Y-%m-%d").date()
         next_day = target + timedelta(days=1)
+        _throttle()
         hist = yf.Ticker(symbol).history(start=target.isoformat(), end=next_day.isoformat())
         if hist.empty:
             return None
@@ -122,6 +157,7 @@ def is_market_trading_day(reference_date: date | None = None) -> bool:
     if reference_date is None:
         reference_date = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).date()
     try:
+        _throttle()
         hist = yf.Ticker("SPY").history(period="5d", interval="1d")
         if hist.empty:
             return False
@@ -136,6 +172,7 @@ def get_all_expiries(symbol: str, max_expiries: int | None = None) -> list[str]:
     """回傳所有未來到期日（yyyy-MM-dd），依時間排序；max_expiries 可限制只取
     最近的 N 個到期日（避免像 SPY 這種標的到期日太多、抓一次要打幾十次 API）。
     """
+    _throttle()
     ticker = yf.Ticker(symbol)
     try:
         expiries = list(ticker.options)
@@ -159,6 +196,7 @@ def get_expiry_by_dte(symbol: str, min_days: int, max_days: int, target_days: in
     的話，退而求其次選整個未來到期日清單裡最接近 target_days 的那個（例如
     小型股常常只有月選擇權，剛好卡在範圍外一點點），完全沒有到期日回傳 None。
     """
+    _throttle()
     ticker = yf.Ticker(symbol)
     try:
         expiries = list(ticker.options)
@@ -190,6 +228,7 @@ def get_expiry_by_dte(symbol: str, min_days: int, max_days: int, target_days: in
 
 def get_option_chain_legs(symbol: str, expiry: str) -> list[StrikeLegRaw]:
     """取得單一到期日的完整期權鏈，依履約價彙整成 Call/Put 成對的資料列。"""
+    _throttle()
     ticker = yf.Ticker(symbol)
     try:
         chain = ticker.option_chain(expiry)

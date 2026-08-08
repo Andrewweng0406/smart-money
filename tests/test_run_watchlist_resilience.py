@@ -25,13 +25,13 @@ def _assume_trading_day(monkeypatch):
     monkeypatch.setattr(data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
 
 
-def _fake_result(symbol, spot=100.0):
+def _fake_result(symbol, spot=100.0, pinning=None):
     return analyze.AnalysisResult(
         symbol=symbol, spot=spot, expiries_used=["2026-09-04"], gex_by_strike=[{"strike": 100, "net_gex": 1}],
         volume_by_strike={}, max_pain=100.0, call_wall=110.0, put_wall=90.0,
         gamma_flip=105.0, gamma_flip_distance_pct=-4.8,
         zero_dte_summary={"total_net_gex": 1, "zero_dte_net_gex": 0, "ex_zero_dte_net_gex": 1, "zero_dte_share_pct": 0.0},
-        alert=None,
+        alert=None, pinning=pinning,
     )
 
 
@@ -174,3 +174,90 @@ def test_main_exits_with_error_when_all_symbols_fail(monkeypatch, tmp_path):
 
     with pytest.raises(SystemExit):
         run_watchlist.main()
+
+
+# ---------- 開盤盤中摘要（--intraday-summary） ----------
+
+def test_build_intraday_summary_line_includes_pinning():
+    result = _fake_result("TSLA", spot=328.58, pinning={
+        "pin_strike": 350.0, "oi_concentration_pct": 4.5, "in_positive_gamma": True,
+        "score": 35, "regime": "NEUTRAL",
+    })
+    line = run_watchlist.build_intraday_summary_line("TSLA", result)
+    assert "TSLA" in line
+    assert "328.58" in line
+    assert "Pinning" in line
+    assert "35/100" in line
+
+
+def test_build_intraday_summary_line_without_pinning_omits_pinning_line():
+    """pinning 是加分項，None 時整行 Pinning 資訊消失，不留 N/A 佔位。"""
+    result = _fake_result("TSLA", pinning=None)
+    line = run_watchlist.build_intraday_summary_line("TSLA", result)
+    assert "Pinning" not in line
+
+
+def test_run_intraday_summary_continues_when_one_symbol_fails(monkeypatch):
+    def fake_fetch(symbol, max_expiries, risk_free_rate):
+        if symbol == "NVDA":
+            raise ConnectionError("Yahoo Finance 斷線")
+        return _fake_result(symbol)
+
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", fake_fetch)
+
+    text = run_watchlist.run_intraday_summary(["TSLA", "NVDA"], max_expiries=4, risk_free_rate=0.045)
+
+    assert "TSLA" in text
+    assert "NVDA" in text
+    assert "分析失敗" in text
+
+
+def test_run_intraday_summary_sends_telegram_when_notify(monkeypatch):
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda symbol, max_expiries, risk_free_rate: _fake_result(symbol))
+
+    import telegram_notifier
+    sent = {}
+    monkeypatch.setattr(telegram_notifier, "send_text_report", lambda text: sent.setdefault("text", text))
+
+    run_watchlist.run_intraday_summary(["TSLA"], max_expiries=4, risk_free_rate=0.045, notify=True)
+
+    assert "TSLA" in sent["text"]
+
+
+def test_run_intraday_summary_skips_telegram_without_notify(monkeypatch):
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda symbol, max_expiries, risk_free_rate: _fake_result(symbol))
+
+    import telegram_notifier
+    mock = MagicMock()
+    monkeypatch.setattr(telegram_notifier, "send_text_report", mock)
+
+    run_watchlist.run_intraday_summary(["TSLA"], max_expiries=4, risk_free_rate=0.045, notify=False)
+
+    mock.assert_not_called()
+
+
+def test_main_intraday_summary_flag_skips_full_daily_flow(monkeypatch, tmp_path, capsys):
+    """--intraday-summary 應該只跑輕量摘要就結束，不該連帶跑歷史資料庫
+    寫入/策略建議/圖表產生那整套每日流程——用 mock 斷言那些步驟完全沒被
+    呼叫到，而不是只看有沒有丟例外。
+    """
+    watchlist_path = tmp_path / "watchlist.json"
+    watchlist_path.write_text(json.dumps({"symbols": ["TSLA"]}), encoding="utf-8")
+
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda symbol, max_expiries, risk_free_rate: _fake_result(symbol))
+
+    save_snapshot_mock = MagicMock()
+    monkeypatch.setattr("db_manager.save_snapshot", save_snapshot_mock)
+    build_chart_mock = MagicMock()
+    monkeypatch.setattr(analyze, "build_chart", build_chart_mock)
+
+    monkeypatch.setattr(sys, "argv", [
+        "run_watchlist.py", "--watchlist", str(watchlist_path), "--intraday-summary",
+    ])
+
+    run_watchlist.main()
+
+    captured = capsys.readouterr()
+    assert "TSLA" in captured.out
+    save_snapshot_mock.assert_not_called()
+    build_chart_mock.assert_not_called()

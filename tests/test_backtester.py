@@ -24,6 +24,7 @@ class _FakeResult:
     gamma_flip_distance_pct: float | None = None
     zero_dte_summary: dict = None
     alert: str | None = None
+    pinning: dict | None = None
 
     def __post_init__(self):
         if self.zero_dte_summary is None:

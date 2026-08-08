@@ -46,6 +46,30 @@ def test_is_market_hours_false_on_saturday():
     assert not intraday_watcher.is_market_hours(_et(2026, 8, 1, 10, 0))  # 假設是週六
 
 
+# ---------- is_regular_market_hours ----------
+
+def test_is_regular_market_hours_true_during_regular_session():
+    assert intraday_watcher.is_regular_market_hours(_et(2026, 8, 3, 10, 0))  # 週一 10:00 ET
+
+
+def test_is_regular_market_hours_false_during_premarket():
+    """跟 is_market_hours 不同：09:30 之前（含盤前）一律不算，Pinning
+    警報只在正式開盤後評估。"""
+    assert not intraday_watcher.is_regular_market_hours(_et(2026, 8, 3, 9, 0))
+
+
+def test_is_regular_market_hours_true_at_exact_open():
+    assert intraday_watcher.is_regular_market_hours(_et(2026, 8, 3, 9, 30))
+
+
+def test_is_regular_market_hours_false_after_close():
+    assert not intraday_watcher.is_regular_market_hours(_et(2026, 8, 3, 16, 1))
+
+
+def test_is_regular_market_hours_false_on_saturday():
+    assert not intraday_watcher.is_regular_market_hours(_et(2026, 8, 1, 10, 0))
+
+
 # ---------- check_wall_breach ----------
 
 @dataclass
@@ -59,6 +83,7 @@ class _FakeResult:
     gamma_flip_distance_pct: float | None = None
     zero_dte_summary: dict = None
     alert: str | None = None
+    pinning: dict | None = None
 
     def __post_init__(self):
         if self.zero_dte_summary is None:
@@ -93,6 +118,62 @@ def test_check_wall_breach_no_breach_within_range(tmp_path):
     db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
 
     assert intraday_watcher.check_wall_breach("TSLA", spot=100.0, db_path=db_path) is None
+
+
+# ---------- check_pinning_alert ----------
+
+def _pinning_snapshot_result(
+    symbol="TSLA", spot=100.0, pin_strike=100.0, oi_concentration_pct=100.0,
+    in_positive_gamma=True, call_wall=110.0, put_wall=90.0,
+):
+    return _FakeResult(
+        symbol=symbol, spot=spot, max_pain=pin_strike, call_wall=call_wall, put_wall=put_wall,
+        pinning={
+            "pin_strike": pin_strike, "oi_concentration_pct": oi_concentration_pct,
+            "in_positive_gamma": in_positive_gamma, "score": 99, "regime": "PINNING",
+        },
+    )
+
+
+def test_check_pinning_alert_returns_none_without_history(tmp_path):
+    db_path = tmp_path / "history.db"
+    assert intraday_watcher.check_pinning_alert("TSLA", spot=100.0, db_path=db_path) is None
+
+
+def test_check_pinning_alert_returns_none_when_no_pinning_data_stored(tmp_path):
+    """前一天 pinning 加分項失敗（pin_strike 存成 NULL），優雅跳過。"""
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, pinning=None), "2026-08-01", db_path=db_path)
+    assert intraday_watcher.check_pinning_alert("TSLA", spot=100.0, db_path=db_path) is None
+
+
+def test_check_pinning_alert_triggers_when_score_exceeds_threshold(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_pinning_snapshot_result(), "2026-08-01", db_path=db_path)
+
+    alert = intraday_watcher.check_pinning_alert("TSLA", spot=100.2, db_path=db_path)
+    assert alert is not None
+    assert "Pinning" in alert
+    assert "TSLA" in alert
+
+
+def test_check_pinning_alert_none_when_score_at_or_below_threshold(tmp_path):
+    db_path = tmp_path / "history.db"
+    # 負Gamma時最高只能拿到70分（40近距離+0Gamma+30集中度），不會超過門檻80。
+    db_manager.save_snapshot(
+        _pinning_snapshot_result(in_positive_gamma=False), "2026-08-01", db_path=db_path,
+    )
+    assert intraday_watcher.check_pinning_alert("TSLA", spot=100.2, db_path=db_path) is None
+
+
+def test_check_pinning_alert_uses_live_spot_not_stored_score(tmp_path):
+    """驗證分數是用『現在』的即時現貨價重新算，不是直接沿用昨天存的分數
+    ——現貨已經遠離 Pin Strike 時，就算昨天存的分數很高，也不該再觸發。
+    """
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_pinning_snapshot_result(), "2026-08-01", db_path=db_path)
+
+    assert intraday_watcher.check_pinning_alert("TSLA", spot=130.0, db_path=db_path) is None
 
 
 # ---------- check_unusual_activity ----------
@@ -136,6 +217,41 @@ def test_run_check_continues_when_wall_breach_check_fails(monkeypatch, tmp_path)
     assert len(result["unusual_activity"]) == 1
 
 
+def test_run_check_evaluates_pinning_during_regular_hours(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(intraday_watcher, "check_pinning_alert", lambda *a, **k: "TSLA Pinning 分數達 99/100")
+    monkeypatch.setattr(intraday_watcher, "check_wall_breach", lambda *a, **k: None)
+    monkeypatch.setattr(intraday_watcher, "check_unusual_activity", lambda symbol: [])
+
+    result = intraday_watcher.run_check("TSLA", now=_et(2026, 8, 3, 10, 0))
+    assert result["pinning_alert"] == "TSLA Pinning 分數達 99/100"
+
+
+def test_run_check_skips_pinning_outside_regular_hours(monkeypatch):
+    """盤前（09:30 之前）不評估 Pinning 分數——就算底層資料會判定觸發，
+    也不該在這個時段被評估到，見 is_regular_market_hours() 的理由。
+    """
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(intraday_watcher, "check_pinning_alert", lambda *a, **k: "不該被呼叫到")
+    monkeypatch.setattr(intraday_watcher, "check_wall_breach", lambda *a, **k: None)
+    monkeypatch.setattr(intraday_watcher, "check_unusual_activity", lambda symbol: [])
+
+    result = intraday_watcher.run_check("TSLA", now=_et(2026, 8, 3, 8, 0))
+    assert result["pinning_alert"] is None
+
+
+def test_run_check_continues_when_pinning_check_fails(monkeypatch):
+    """Pinning 檢查失敗不該連累其他子檢查——跟牆位/異常大單同一套獨立性。"""
+    monkeypatch.setattr(data_fetcher, "get_spot_price", lambda symbol: 100.0)
+    monkeypatch.setattr(intraday_watcher, "check_pinning_alert", lambda *a, **k: (_ for _ in ()).throw(ValueError("boom")))
+    monkeypatch.setattr(intraday_watcher, "check_wall_breach", lambda *a, **k: None)
+    monkeypatch.setattr(intraday_watcher, "check_unusual_activity", lambda symbol: [{"strike": 100.0, "side": "call", "volume": 5000, "oi": 100, "ratio": 50.0}])
+
+    result = intraday_watcher.run_check("TSLA", now=_et(2026, 8, 3, 10, 0))
+    assert result["pinning_alert"] is None
+    assert len(result["unusual_activity"]) == 1
+
+
 # ---------- build_alert_text ----------
 
 def test_build_alert_text_returns_none_when_nothing_triggered():
@@ -154,6 +270,17 @@ def test_build_alert_text_formats_wall_breach_and_unusual_activity():
     assert intraday_watcher.INTRADAY_ALERT_PREFIX in text
     assert "Call Wall" in text
     assert "320" in text
+
+
+def test_build_alert_text_includes_pinning_alert():
+    result = {
+        "symbol": "TSLA", "spot": 100.2, "error": None, "wall_breach": None,
+        "pinning_alert": "TSLA Pinning 分數達 99/100（現貨 $100.20 貼近 Pin Strike $100，做市商磁吸/卡價效應極強）",
+        "unusual_activity": [],
+    }
+    text = intraday_watcher.build_alert_text(result)
+    assert text is not None
+    assert "Pinning" in text
 
 
 def test_build_alert_text_shows_infinity_symbol_not_python_inf():
@@ -193,6 +320,24 @@ def test_build_alert_signature_differs_for_different_wall():
     }
     put_breach = _wall_breach_result()
     assert intraday_watcher.build_alert_signature(call_breach) != intraday_watcher.build_alert_signature(put_breach)
+
+
+def test_build_alert_signature_includes_pinning_token():
+    base = {"symbol": "TSLA", "spot": 100.0, "error": None, "wall_breach": None, "unusual_activity": []}
+    with_pinning = {**base, "pinning_alert": "TSLA Pinning 分數達 99/100"}
+    without_pinning = {**base, "pinning_alert": None}
+    assert intraday_watcher.build_alert_signature(with_pinning) != intraday_watcher.build_alert_signature(without_pinning)
+
+
+def test_build_alert_signature_stable_for_sustained_pinning_alert():
+    """跟牆位突破一樣，Pinning 警報的簽章不該受現貨小幅波動影響——持續中
+    的同一個事件不該每次都被當成新事件重新推播。
+    """
+    result1 = {"symbol": "TSLA", "spot": 100.1, "error": None, "wall_breach": None,
+               "unusual_activity": [], "pinning_alert": "TSLA Pinning 分數達 99/100"}
+    result2 = {"symbol": "TSLA", "spot": 100.3, "error": None, "wall_breach": None,
+               "unusual_activity": [], "pinning_alert": "TSLA Pinning 分數達 95/100"}
+    assert intraday_watcher.build_alert_signature(result1) == intraday_watcher.build_alert_signature(result2)
 
 
 def test_should_send_alert_true_when_no_prior_state(tmp_path):

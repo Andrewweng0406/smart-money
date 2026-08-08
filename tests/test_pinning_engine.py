@@ -10,6 +10,7 @@ from pinning_engine import (
     PIN_PROXIMITY_THRESHOLD_PCT,
     compute_pinning_analysis,
     find_pin_strike,
+    score_pinning,
 )
 
 
@@ -188,6 +189,34 @@ def test_score_is_zero_at_far_distance_negative_gamma_and_no_concentration():
     assert result["oi_concentration_pct"] == 0.0
     assert result["score"] == 0
     assert result["regime"] == "NEUTRAL"
+
+
+def test_score_pinning_matches_compute_pinning_analysis_with_same_inputs():
+    """score_pinning() 是 compute_pinning_analysis() 內部真正在做評分的那段
+    邏輯拆出來的獨立入口——直接用同一組 pin_strike/集中度呼叫，結果應該
+    完全一致（intraday_watcher.py 用這支重用前一天存好的 pin_strike，不用
+    每次都重抓整條期權鏈）。
+    """
+    rows = [_row(100, 5000, 5000)]
+    via_full = compute_pinning_analysis(
+        rows, spot=100.2, max_pain=100.0, call_wall=105.0, put_wall=95.0,
+        in_positive_gamma=True,
+    )
+    via_direct = score_pinning(
+        spot=100.2, pin_strike=100.0, oi_concentration_pct=100.0, max_pain=100.0,
+        call_wall=105.0, put_wall=95.0, in_positive_gamma=True,
+    )
+    assert via_full == via_direct
+
+
+def test_score_pinning_none_pin_strike_returns_none():
+    assert (
+        score_pinning(
+            spot=100.0, pin_strike=None, oi_concentration_pct=50.0, max_pain=100.0,
+            call_wall=105.0, put_wall=95.0, in_positive_gamma=True,
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("in_positive_gamma", [True, False])

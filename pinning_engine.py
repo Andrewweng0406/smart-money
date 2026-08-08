@@ -94,9 +94,10 @@ def _score_to_label(score: int) -> str:
     return "極高"
 
 
-def compute_pinning_analysis(
-    gex_by_strike: Sequence[dict],
+def score_pinning(
     spot: float,
+    pin_strike: float | None,
+    oi_concentration_pct: float,
     max_pain: float,
     call_wall: float,
     put_wall: float,
@@ -125,15 +126,21 @@ def compute_pinning_analysis(
       - NEUTRAL：在 Wall 區間內，但訊號還不夠強（離 Pin Strike 太遠、
         或處於負 Gamma、或 Pin Strike 籌碼不夠集中）。
 
-    gex_by_strike 為空時回傳 None（無法判斷，不瞎猜，呼叫端應優雅跳過
+    pin_strike/oi_concentration_pct 是拆出來的獨立參數（不是自己從
+    gex_by_strike 算），讓盤中輕量監控（intraday_watcher.py）可以拿前一次
+    收盤後算好、存進資料庫的 pin_strike/集中度，只搭配「現在」的即時現貨價
+    重新評分，不用每次都重抓整條期權鏈——跟 intraday_watcher.py
+    check_wall_breach() 沿用前一交易日 Wall 位階、只換即時現貨價的做法是
+    同一套省成本設計。compute_pinning_analysis() 是這支函式的完整版
+    （spot/gex_by_strike 都是當下新鮮算的），供每日完整報告使用。
+
+    pin_strike 為 None 時回傳 None（無法判斷，不瞎猜，呼叫端應優雅跳過
     這個加分欄位）。
     """
-    pin_strike = find_pin_strike(gex_by_strike, spot)
     if pin_strike is None or spot <= 0:
         return None
 
     distance_pct = abs(spot - pin_strike) / spot * 100
-    oi_concentration_pct = _oi_concentration_pct(gex_by_strike, pin_strike)
 
     proximity_cap_pct = PIN_PROXIMITY_THRESHOLD_PCT * 2
     proximity_score = max(0.0, (proximity_cap_pct - distance_pct) / proximity_cap_pct) * 40
@@ -170,3 +177,24 @@ def compute_pinning_analysis(
         "label": label,
         "regime": regime,
     }
+
+
+def compute_pinning_analysis(
+    gex_by_strike: Sequence[dict],
+    spot: float,
+    max_pain: float,
+    call_wall: float,
+    put_wall: float,
+    in_positive_gamma: bool,
+) -> dict | None:
+    """完整版：從一整條當下重新彙總的期權鏈（gex_by_strike）自己找
+    Pin Strike 與集中度，再交給 score_pinning() 評分——analyze.py 的每日
+    完整報告用這支，它一定有新鮮抓好的完整 gex_by_strike 可用。
+    """
+    pin_strike = find_pin_strike(gex_by_strike, spot)
+    if pin_strike is None:
+        return None
+    oi_concentration_pct = _oi_concentration_pct(gex_by_strike, pin_strike)
+    return score_pinning(
+        spot, pin_strike, oi_concentration_pct, max_pain, call_wall, put_wall, in_positive_gamma,
+    )

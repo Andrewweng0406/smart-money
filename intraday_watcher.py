@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 
 import data_fetcher
 import db_manager
+import pinning_engine
 import smart_money
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -36,6 +37,12 @@ logger = logging.getLogger("options_gex")
 US_EASTERN = ZoneInfo("America/New_York")
 PRE_MARKET_OPEN = time(4, 0)   # 盤前 04:00 ET
 MARKET_CLOSE = time(16, 0)     # 收盤 16:00 ET
+REGULAR_MARKET_OPEN = time(9, 30)  # 正式開盤 09:30 ET
+
+# Pinning 分數超過這個門檻才發警報——跟 pinning_engine._LABEL_THRESHOLDS
+# 的「高」門檻（60）不同，這裡刻意設更高：盤中警報要留給真正極端、值得
+# 立刻打斷使用者的訊號，不是每次分數落在「高」區間就轟炸。
+PINNING_ALERT_SCORE_THRESHOLD = 80
 
 # 異常大單門檻——比 smart_money.py 每日報告用的門檻（volume/oi>=0.5, volume>=100）
 # 嚴格很多：盤中只想抓真正巨大的單一事件，不是每天都會觸發的日常雜訊。
@@ -71,6 +78,20 @@ def is_market_hours(now: datetime | None = None) -> bool:
     return PRE_MARKET_OPEN <= now.time() <= MARKET_CLOSE
 
 
+def is_regular_market_hours(now: datetime | None = None) -> bool:
+    """判斷現在是否為美股「正式」盤中時間（週一~週五 09:30~16:00 美東），
+    不含盤前——Pinning 分數警報刻意只在正式開盤後才評估：盤前流動性稀薄，
+    現貨價格容易有失真的跳動，用它去比對前一天算好的 Pin Strike/集中度會
+    製造出沒有意義的假警報。既有的 Wall 突破/異常大單監控維持原本較寬的
+    is_market_hours()（04:00~16:00）不變，避免改動已經在正式環境運作中的
+    行為。
+    """
+    now = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
+    if now.weekday() >= 5:
+        return False
+    return REGULAR_MARKET_OPEN <= now.time() <= MARKET_CLOSE
+
+
 def check_wall_breach(symbol: str, spot: float, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> str | None:
     """拿最近一次（通常是前一交易日收盤後）算好的 Call Wall / Put Wall 跟
     即時現貨價比較——不重新計算整條期權鏈的GEX（那是「輕量級」監控的重點：
@@ -92,6 +113,41 @@ def check_wall_breach(symbol: str, spot: float, db_path: Path | str = db_manager
     return None
 
 
+def check_pinning_alert(symbol: str, spot: float, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> str | None:
+    """拿最近一次收盤後算好、存進資料庫的 Pin Strike/集中度/正Gamma狀態，
+    搭配「現在」的即時現貨價重新評分（pinning_engine.score_pinning）——
+    跟 check_wall_breach() 同一套省成本設計：不重抓整條期權鏈，只換一個
+    即時現貨價就能反映盤中價格變動對 Pinning 分數的影響。
+
+    分數超過 PINNING_ALERT_SCORE_THRESHOLD 才回傳警報文字；沒有前一天的
+    Pinning 資料（result.pinning 當時是 None）或分數沒超過門檻都回傳 None。
+    """
+    rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
+    if not rows:
+        return None
+
+    latest = rows[0]
+    if latest.get("pin_strike") is None:
+        return None  # 前一天沒有算出 Pinning（加分項失敗或期權鏈為空），優雅跳過
+
+    result = pinning_engine.score_pinning(
+        spot=spot,
+        pin_strike=latest["pin_strike"],
+        oi_concentration_pct=latest["pinning_oi_concentration_pct"],
+        max_pain=latest["max_pain"],
+        call_wall=latest["call_wall"],
+        put_wall=latest["put_wall"],
+        in_positive_gamma=bool(latest["pinning_in_positive_gamma"]),
+    )
+    if result is None or result["score"] <= PINNING_ALERT_SCORE_THRESHOLD:
+        return None
+
+    return (
+        f"{symbol} Pinning 分數達 {result['score']}/100（現貨 ${spot:.2f} 貼近 "
+        f"Pin Strike ${result['pin_strike']:.0f}，做市商磁吸/卡價效應極強）"
+    )
+
+
 def check_unusual_activity(symbol: str) -> list[dict]:
     """檢查最近到期日（含0DTE）的期權鏈，找 Volume/OI 比例與絕對成交量都
     達到「盤中巨量」門檻的合約——這比每日報告用的門檻嚴格很多倍，只想抓
@@ -110,12 +166,17 @@ def check_unusual_activity(symbol: str) -> list[dict]:
     )
 
 
-def run_check(symbol: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> dict:
+def run_check(
+    symbol: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH, now: datetime | None = None,
+) -> dict:
     """對單一標的做一次完整檢查，回傳結構化結果（不管有沒有觸發警示都會
     回傳，方便測試跟記錄；呼叫端自己決定要不要推播）。任何一個子檢查失敗
     都不該讓另一個檢查跟著失敗——盤中監控最忌諱因為一個小問題整個停擺。
     """
-    result = {"symbol": symbol, "wall_breach": None, "unusual_activity": [], "spot": None, "error": None}
+    result = {
+        "symbol": symbol, "wall_breach": None, "pinning_alert": None,
+        "unusual_activity": [], "spot": None, "error": None,
+    }
 
     try:
         spot = data_fetcher.get_spot_price(symbol)
@@ -130,6 +191,14 @@ def run_check(symbol: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> 
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 牆位突破檢查失敗：%s", symbol, exc)
 
+    # Pinning 分數警報只在正式盤中時間（09:30~16:00 ET）評估，見
+    # is_regular_market_hours() 的理由；盤前不判斷，不是判斷了但被丟棄。
+    if is_regular_market_hours(now):
+        try:
+            result["pinning_alert"] = check_pinning_alert(symbol, spot, db_path=db_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s Pinning 分數警報檢查失敗：%s", symbol, exc)
+
     try:
         result["unusual_activity"] = check_unusual_activity(symbol)
     except Exception as exc:  # noqa: BLE001
@@ -143,6 +212,8 @@ def build_alert_text(result: dict) -> str | None:
     lines = []
     if result["wall_breach"]:
         lines.append(result["wall_breach"])
+    if result.get("pinning_alert"):
+        lines.append(result["pinning_alert"])
     for item in result["unusual_activity"]:
         ratio_text = "∞" if item["ratio"] == float("inf") else f"{item['ratio']:.1f}x"
         lines.append(
@@ -183,6 +254,8 @@ def build_alert_signature(result: dict) -> str:
     parts = []
     if result["wall_breach"]:
         parts.append("call_wall" if "Call Wall" in result["wall_breach"] else "put_wall")
+    if result.get("pinning_alert"):
+        parts.append("pinning_over_80")
     for item in result["unusual_activity"]:
         parts.append(f"{item['side']}:{item['strike']}")
     return "|".join(sorted(parts))

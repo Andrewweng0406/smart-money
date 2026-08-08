@@ -35,6 +35,26 @@ def test_should_trigger_daily_false_outside_time_window():
     assert cloud_scheduler.should_trigger_daily(now, last_run_date=None) is False
 
 
+def test_should_trigger_intraday_summary_at_exact_time_on_weekday():
+    now = _et(2026, 8, 4, 10, 0)
+    assert cloud_scheduler.should_trigger_intraday_summary(now, last_run_date=None) is True
+
+
+def test_should_trigger_intraday_summary_false_if_already_ran_today():
+    now = _et(2026, 8, 4, 10, 0)
+    assert cloud_scheduler.should_trigger_intraday_summary(now, last_run_date=now.date()) is False
+
+
+def test_should_trigger_intraday_summary_false_on_weekend():
+    now = _et(2026, 8, 8, 10, 0)
+    assert cloud_scheduler.should_trigger_intraday_summary(now, last_run_date=None) is False
+
+
+def test_should_trigger_intraday_summary_false_outside_time_window():
+    now = _et(2026, 8, 4, 10, 1)
+    assert cloud_scheduler.should_trigger_intraday_summary(now, last_run_date=None) is False
+
+
 def test_should_trigger_intraday_on_15_minute_boundary():
     now = _et(2026, 8, 4, 10, 15)
     assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is True
