@@ -56,6 +56,14 @@ def test_is_market_hours_false_on_saturday():
     assert not intraday_watcher.is_market_hours(_et(2026, 8, 1, 10, 0))  # 假設是週六
 
 
+def test_is_market_hours_false_on_market_holiday():
+    assert not intraday_watcher.is_market_hours(_et(2026, 12, 25, 10, 0))
+
+
+def test_is_market_hours_false_after_early_close():
+    assert not intraday_watcher.is_market_hours(_et(2026, 11, 27, 13, 15))
+
+
 # ---------- is_regular_market_hours ----------
 
 def test_is_regular_market_hours_true_during_regular_session():

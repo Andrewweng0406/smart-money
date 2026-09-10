@@ -22,7 +22,7 @@ import argparse
 import json
 import logging
 import os
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -31,13 +31,12 @@ import db_manager
 import pinning_engine
 import signal_tiering
 import smart_money
+import market_calendar
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("options_gex")
 
 US_EASTERN = ZoneInfo("America/New_York")
-REGULAR_MARKET_OPEN = time(9, 30)  # 美股/股票期權正式開盤 09:30 ET
-MARKET_CLOSE = time(16, 0)         # 多數股票期權收盤 16:00 ET
 
 # Pinning 偵測門檻——直接引用分級層的門檻，維持單一真相來源。
 #
@@ -75,22 +74,18 @@ ALERT_STATE_PATH = (
 
 
 def is_market_hours(now: datetime | None = None) -> bool:
-    """判斷現在是否為美股股票期權正式交易時間（週一~週五 09:30~16:00 ET）。
+    """判斷現在是否為美股股票期權正式交易時間。
 
     這個 bot 監控的是期權訊號，不是單純現貨盤前報價。盤前現貨可能從 04:00 ET
     開始跳動，但一般股票期權仍未進入正式交易時段；用盤前現貨去觸發 Wall
     突破/異常期權單警報，會製造無法實際交易、也沒有完整期權成交資料支撐的
     Telegram 噪音。
 
-    不處理美股假日（感恩節、聖誕節等交易所公休日）——那需要一份完整的
-    交易所行事曆，是後續可以再加的功能，目前假日當天執行只會白跑一次
-    （抓到的資料會顯示前一個交易日收盤價，不會出現異常判定的假警報，
-    只是浪費一次API呼叫，風險可控）。
+    NYSE 行事曆會排除完整休市日，也會使用半日市的實際收盤時間；提前停止
+    比多抓幾次舊資料更保守，避免在期權已無法交易時發出可操作警報。
     """
     now = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
-    if now.weekday() >= 5:  # 週六=5, 週日=6
-        return False
-    return REGULAR_MARKET_OPEN <= now.time() <= MARKET_CLOSE
+    return market_calendar.is_market_hours(now)
 
 
 def is_regular_market_hours(now: datetime | None = None) -> bool:

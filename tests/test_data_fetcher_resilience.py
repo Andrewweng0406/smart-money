@@ -35,39 +35,16 @@ def test_get_spot_price_raises_clear_error_when_totally_unavailable():
             data_fetcher.get_spot_price("TSLA")
 
 
-def test_is_market_trading_day_true_when_reference_date_matches_last_bar():
-    fake_hist = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-08-03"]))
-    fake_ticker = MagicMock()
-    fake_ticker.history.return_value = fake_hist
-
-    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
-        assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is True
+def test_is_market_trading_day_true_on_regular_session():
+    assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is True
 
 
-def test_is_market_trading_day_false_on_holiday_where_last_bar_is_stale():
-    # 上一根日K是週五（8/1），但目標日期是週一(8/3)遇到假日，SPY還沒有新的一根。
-    fake_hist = pd.DataFrame({"Close": [100.0]}, index=pd.to_datetime(["2026-07-31"]))
-    fake_ticker = MagicMock()
-    fake_ticker.history.return_value = fake_hist
-
-    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
-        assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is False
+def test_is_market_trading_day_false_on_market_holiday():
+    assert data_fetcher.is_market_trading_day(date(2026, 12, 25)) is False
 
 
-def test_is_market_trading_day_false_when_history_empty():
-    fake_ticker = MagicMock()
-    fake_ticker.history.return_value = pd.DataFrame()
-
-    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
-        assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is False
-
-
-def test_is_market_trading_day_false_when_query_fails():
-    fake_ticker = MagicMock()
-    fake_ticker.history.side_effect = ConnectionError("network down")
-
-    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
-        assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is False
+def test_is_market_trading_day_true_on_early_close_session():
+    assert data_fetcher.is_market_trading_day(date(2026, 11, 27)) is True
 
 
 def test_get_close_price_on_date_returns_that_days_close():

@@ -10,6 +10,7 @@ Telegram 機器人隨時主動查詢（指令或自然語言皆可）。
 
 ```
 資料層：      data_fetcher.py（yfinance）
+             market_calendar.py（NYSE交易日、正式時段、提前收盤）
 純計算層：    gex_engine.py（Black-Scholes/GEX）
              options_strategy_engine.py（賣方價差/Iron Condor/買方突圍）
              smart_money.py（IV Skew/PCR/異常大單/莊家壓力分數）
@@ -100,6 +101,7 @@ python check_env.py
 |---|---|
 | `gex_engine.py` | Black-Scholes Gamma/Delta、Net GEX、Gamma翻轉點 |
 | `data_fetcher.py` | yfinance 存取層（現貨價、期權鏈、bid/ask、到期日查詢） |
+| `market_calendar.py` | NYSE 行事曆（完整休市日、正式交易時段、提前收盤） |
 | `options_strategy_engine.py` | 賣方價差/Iron Condor/買方突圍，依GEX狀態自動選策略 |
 | `smart_money.py` | IV Skew、Put/Call Ratio、異常大單偵測、莊家壓力分數 |
 | `signal_tiering.py` | 訊號分級政策（urgent/watch/silent）——純計算，不做 I/O、不讀狀態 |

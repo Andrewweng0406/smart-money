@@ -22,12 +22,9 @@ import time
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
-US_EASTERN = ZoneInfo("America/New_York")
+import market_calendar
 
-# 收盤 16:00 ET，緩衝30分鐘讓 yfinance 資料更新穩定，等同本機
-# com.andrewweng.stockgex.plist 裡的 13:30 PT（PT/ET 固定差3小時）。
-DAILY_RUN_HOUR = 16
-DAILY_RUN_MINUTE = 30
+US_EASTERN = ZoneInfo("America/New_York")
 
 # 開盤 09:30 ET，緩衝30分鐘讓開盤初期的價格/成交量雜訊沉澱一些，觸發一次
 # 輕量的盤中 GEX+Pinning 摘要（run_watchlist.py --intraday-summary）。
@@ -38,11 +35,6 @@ INTRADAY_SUMMARY_MINUTE = 0
 # 的 StartInterval=900；雲端這邊也先用正式期權交易時段擋掉盤前/盤後，
 # intraday_watcher.py 內部仍有第二層 gate，避免排程或手動呼叫漏防。
 INTRADAY_INTERVAL_MINUTES = 15
-REGULAR_MARKET_OPEN_HOUR = 9
-REGULAR_MARKET_OPEN_MINUTE = 30
-REGULAR_MARKET_CLOSE_HOUR = 16
-REGULAR_MARKET_CLOSE_MINUTE = 0
-
 LOOP_SLEEP_SECONDS = 30
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -50,11 +42,12 @@ logger = logging.getLogger("cloud_scheduler")
 
 
 def should_trigger_daily(now_et: datetime, last_run_date: date | None) -> bool:
-    """判斷現在是否該觸發每日收盤分析——平日、時間點吻合、當天還沒跑過。"""
+    """判斷是否到達當日實際收盤後 30 分鐘且尚未執行。"""
+    run_at = market_calendar.daily_analysis_time(now_et.date())
     return (
-        now_et.weekday() < 5
-        and now_et.hour == DAILY_RUN_HOUR
-        and now_et.minute == DAILY_RUN_MINUTE
+        run_at is not None
+        and now_et.hour == run_at.hour
+        and now_et.minute == run_at.minute
         and last_run_date != now_et.date()
     )
 
@@ -64,7 +57,7 @@ def should_trigger_intraday_summary(now_et: datetime, last_run_date: date | None
     形狀（平日、時間點吻合、當天還沒跑過），只是時間點跟對應的任務不同。
     """
     return (
-        now_et.weekday() < 5
+        market_calendar.is_market_trading_day(now_et.date())
         and now_et.hour == INTRADAY_SUMMARY_HOUR
         and now_et.minute == INTRADAY_SUMMARY_MINUTE
         and last_run_date != now_et.date()
@@ -79,12 +72,7 @@ def should_trigger_intraday(now_et: datetime, last_run_bucket: tuple | None) -> 
     這裡刻意只允許 09:30~16:00 ET：這套 intraday watcher 發的是股票期權
     訊號，盤前現貨雖然會動，但一般股票期權還沒進入正式交易時段。
     """
-    if now_et.weekday() >= 5:
-        return False
-    minutes_since_midnight = now_et.hour * 60 + now_et.minute
-    open_minutes = REGULAR_MARKET_OPEN_HOUR * 60 + REGULAR_MARKET_OPEN_MINUTE
-    close_minutes = REGULAR_MARKET_CLOSE_HOUR * 60 + REGULAR_MARKET_CLOSE_MINUTE
-    if not (open_minutes <= minutes_since_midnight <= close_minutes):
+    if not market_calendar.is_market_hours(now_et):
         return False
 
     bucket = (now_et.date(), now_et.hour, now_et.minute // INTRADAY_INTERVAL_MINUTES)

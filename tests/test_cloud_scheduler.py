@@ -30,6 +30,16 @@ def test_should_trigger_daily_false_on_weekend():
     assert cloud_scheduler.should_trigger_daily(now, last_run_date=None) is False
 
 
+def test_should_trigger_daily_false_on_market_holiday():
+    now = _et(2026, 12, 25, 16, 30)
+    assert cloud_scheduler.should_trigger_daily(now, last_run_date=None) is False
+
+
+def test_should_trigger_daily_uses_early_close_time():
+    now = _et(2026, 11, 27, 13, 30)
+    assert cloud_scheduler.should_trigger_daily(now, last_run_date=None) is True
+
+
 def test_should_trigger_daily_false_outside_time_window():
     now = _et(2026, 8, 4, 16, 31)
     assert cloud_scheduler.should_trigger_daily(now, last_run_date=None) is False
@@ -82,6 +92,16 @@ def test_should_trigger_intraday_false_after_close():
 
 def test_should_trigger_intraday_false_on_weekend():
     now = _et(2026, 8, 8, 10, 15)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
+
+
+def test_should_trigger_intraday_false_on_market_holiday():
+    now = _et(2026, 12, 25, 10, 15)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
+
+
+def test_should_trigger_intraday_respects_early_close():
+    now = _et(2026, 11, 27, 13, 15)
     assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
 
 

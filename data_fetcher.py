@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
+import market_calendar
+
 logger = logging.getLogger("options_gex")
 
 # IV 超出這個範圍視為資料雜訊（深度價內/價外、極端近到期合約常見的失真數值），
@@ -149,23 +151,12 @@ def is_market_trading_day(reference_date: date | None = None) -> bool:
     launchd 的 Weekday 過濾只能排除週六週日，排不掉感恩節、耶誕節這類美股
     休市的平日假期——排程如果在假期當天照常執行，會把「其實沒有新資料」
     的一天寫進 daily_snapshots，汙染 backtester.py 依星期幾配對比較的統計。
-    這裡用 SPY（高流動性、幾乎不可能停牌的代表性標的）最近一根日K的日期
-    跟目標日期比對，而不是自己維護一份假日表——不用每年手動更新，也不用
-    多裝套件。任何查詢失敗都保守回傳 False（寧可跳過分析，也不要在無法
-    確認的情況下誤判成交易日、留下誤導性的紀錄）。
+    使用與 Railway 排程、盤中 watcher 相同的 NYSE 行事曆，避免靠 SPY 最新
+    日K判斷時受到 Yahoo 延遲或斷線影響，也避免三個入口對同一天得出不同答案。
     """
     if reference_date is None:
         reference_date = datetime.now(timezone.utc).astimezone(ZoneInfo("America/New_York")).date()
-    try:
-        _throttle()
-        hist = yf.Ticker("SPY").history(period="5d", interval="1d")
-        if hist.empty:
-            return False
-        last_trading_date = hist.index[-1].date()
-        return last_trading_date == reference_date
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("檢查美股交易日失敗：%s", exc)
-        return False
+    return market_calendar.is_market_trading_day(reference_date)
 
 
 def get_all_expiries(symbol: str, max_expiries: int | None = None) -> list[str]:
