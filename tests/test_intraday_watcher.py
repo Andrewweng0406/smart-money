@@ -483,8 +483,9 @@ def test_run_watch_cycle_suppresses_duplicate_notification_within_cooldown(monke
     send_mock = MagicMock()
     monkeypatch.setattr(telegram_notifier, "send_text_report", send_mock)
 
-    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True)
-    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True)
+    db_path = tmp_path / "history.db"
+    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True, db_path=db_path)
+    intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True, db_path=db_path)
 
     send_mock.assert_called_once()
 
@@ -522,7 +523,10 @@ def test_run_watch_cycle_skips_premarket_without_fetching_data(monkeypatch):
     mock_run_check.assert_not_called()
 
 
-def test_main_force_flag_bypasses_market_hours_check(monkeypatch):
+def test_main_force_flag_bypasses_market_hours_check(monkeypatch, tmp_path):
+    # ALERT_STATE_PATH 一定要導到 tmp：run_watch_cycle 每輪都會寫入 prev_spots，
+    # 沒導開的話測試會在專案根目錄留下真正的 intraday_alert_state.json。
+    monkeypatch.setattr(intraday_watcher, "ALERT_STATE_PATH", tmp_path / "state.json")
     monkeypatch.setattr(intraday_watcher, "is_market_hours", lambda *a, **k: False)
     monkeypatch.setattr(sys, "argv", ["intraday_watcher.py", "--symbol", "TSLA", "--force"])
     monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol, **kwargs: {

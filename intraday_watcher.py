@@ -477,13 +477,22 @@ def load_symbols(symbol: str | None, watchlist_path: str | None) -> list[str]:
     return data.get("symbols", [])
 
 
-def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = False) -> None:
+def run_watch_cycle(
+    symbols: list[str],
+    notify: bool = False,
+    force: bool = False,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> None:
     """執行一次盤中檢查週期——CLI 的 main() 跟 analyze.py 的 --watch 都呼叫
     這支函式，避免 analyze.py 要重新進入 intraday_watcher.py 自己的
     argparse（那樣 sys.argv 會混到 analyze.py 的參數，解析會出錯）。
 
     每一輪都把當次的 spot 存進狀態檔，下一輪才有 prev_spot 可以做 crossing
     比較（見 check_wall_breach 的說明）。
+
+    db_path 一定要能被注入：沒有這個參數的話，測試會寫進專案真正的
+    history.db，累積的假事件會吃光當日推播預算、讓其他測試莫名其妙失敗
+    （實測踩到的真bug，跟 should_send_alert 的 state_path 是同一類問題）。
     """
     if not force and not is_market_hours():
         logger.info("目前不是美股股票期權正式交易時間，略過本次檢查")
@@ -494,7 +503,7 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
     prev_spots = dict(_load_alert_state(state_path).get("_prev_spots", {}))
 
     for symbol in symbols:
-        result = run_check(symbol, prev_spot=prev_spots.get(symbol))
+        result = run_check(symbol, db_path=db_path, prev_spot=prev_spots.get(symbol))
         if result["error"]:
             continue
 
@@ -502,7 +511,7 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
         prev_spots[symbol] = result["spot"]
 
         try:
-            rows = db_manager.get_recent_snapshots(symbol, limit=1)
+            rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
             latest = rows[0] if rows else {}
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s 讀取最近快照失敗，regime 以空值處理：%s", symbol, exc)
@@ -514,7 +523,7 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
             total_net_gex=latest.get("total_net_gex"),
         )
 
-        urgent = classify_and_route(symbol, result, regime, trading_date)
+        urgent = classify_and_route(symbol, result, regime, trading_date, db_path=db_path)
         if not urgent:
             logger.info("%s 本輪無緊急訊號（現貨 $%.2f）", symbol, result["spot"])
             continue
