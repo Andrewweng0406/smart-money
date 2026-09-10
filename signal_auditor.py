@@ -57,15 +57,11 @@ def _build_signal_specs(
             "success": lambda row, future_spot: future_spot < row["spot"],
         },
         "gamma_flip_touch": {
-            # 基準是「所有有 Gamma Flip 的日子」，訊號是「離它 1.5% 以內」。
-            #
-            # ⚠️ 這個基準有已知的機械性偏誤，解讀時務必留意：離關卡很遠的
-            # 日子「守住」幾乎是必然的（根本碰不到），所以基準勝率天生偏高，
-            # 靠近關卡的日子勝率天生偏低。因此 gamma_flip_touch 的負超額
-            # 「不等於」這個訊號有害，其中有一大部分只是距離造成的。
-            # 要真的隔離 gamma 的效果，需要「距離配對」的對照組（拿同樣
-            # 距離的隨機價位當基準），那是後續可以再做的改良。
-            # 其餘四個訊號沒有這個問題，超額可以直接解讀。
+            # 這個訊號用「同距離安慰劑」當基準（見
+            # _distance_matched_baseline_events），不是逐日的無條件基準。
+            # 原因是距離本身會機械性地決定守住機率，不控制住就無法分辨
+            # 「gamma flip 特別」與「靠近任何價位都容易被穿越」。
+            # 其餘四個訊號沒有這個問題，維持無條件基準。
             "eligible": lambda row: bool(row.get("gamma_flip")),
             "trigger": lambda row: (
                 abs(row["spot"] - row["gamma_flip"]) / row["spot"] * 100 <= gamma_flip_touch_threshold_pct
@@ -74,6 +70,7 @@ def _build_signal_specs(
                 future_spot > row["gamma_flip"] if row["spot"] > row["gamma_flip"]
                 else future_spot < row["gamma_flip"]
             ),
+            "baseline_builder": _distance_matched_baseline_events,
         },
         "pinning_high": {
             "eligible": lambda row: row.get("pinning_score") is not None,
@@ -121,6 +118,61 @@ def _collect_events(
             "return_pct": (future_spot - row["spot"]) / row["spot"] * 100,
             "success": success_fn(row, future_spot) if success_fn else None,
         })
+    return events
+
+
+def _distance_matched_baseline_events(
+    rows: list[dict], episode_indices: list[int], eligible_indices: list[int], horizon: int,
+) -> list[dict]:
+    """gamma_flip_touch 專用的「同距離安慰劑」對照組。
+
+    為什麼需要這個：舊的基準是「所有有 gamma_flip 的日子」，但離關卡越遠，
+    「守住」越是必然（價格根本碰不到那個價位）。所以基準勝率天生偏高、
+    靠近關卡的觸發日天生偏低，兩者相減得到的負超額裡有一大部分只是距離
+    造成的機械性偏誤，不是 gamma 效應。實測 TSLA 的樸素基準是 80%，
+    觸發日 56%——那個 -24% 完全無法解讀。
+
+    做法：對每個觸發事件的（距離 d、方向 s），在**每一個**合格日放一個
+    同距離同方向的安慰劑價位，看它守不守得住。這樣就把「靠近某個價位」
+    這件事本身控制住了，剩下的差異才是「那個價位剛好是 gamma flip」帶的
+    資訊。
+
+    刻意遍歷所有合格日而非隨機抽樣：結果是確定性的，測試不用 seed RNG，
+    也不會有「某次跑起來剛好過」的假綠燈。
+    """
+    events: list[dict] = []
+    for i in episode_indices:
+        row = rows[i]
+        gamma_flip = row.get("gamma_flip")
+        spot = row.get("spot")
+        if not gamma_flip or not spot:
+            continue
+
+        distance_frac = abs(spot - gamma_flip) / spot
+        above = spot > gamma_flip
+
+        for j in eligible_indices:
+            future_idx = j + horizon
+            if future_idx >= len(rows):
+                continue
+            baseline_spot = rows[j].get("spot")
+            future_spot = rows[future_idx].get("spot")
+            if not baseline_spot or not future_spot:
+                continue
+
+            # 安慰劑價位：跟觸發事件同樣的相對距離、同樣的方向
+            placebo = (
+                baseline_spot * (1 - distance_frac) if above
+                else baseline_spot * (1 + distance_frac)
+            )
+            held = future_spot > placebo if above else future_spot < placebo
+
+            events.append({
+                "date": rows[j]["date"],
+                "future_date": rows[future_idx]["date"],
+                "return_pct": (future_spot - baseline_spot) / baseline_spot * 100,
+                "success": held,
+            })
     return events
 
 
@@ -209,15 +261,20 @@ def audit_signal_performance(
         trigger_idx = [i for i in eligible_idx if spec["trigger"](rows_sorted[i])]
         episode_idx = _episode_start_indices(trigger_idx)
 
-        signals[name] = {
-            h: _summarize(
-                _collect_events(rows_sorted, episode_idx, h, spec["success"]),
-                _collect_events(rows_sorted, eligible_idx, h, spec["success"]),
-                len(trigger_idx),
-                has_success_rate=has_success_rate,
+        # 有 baseline_builder 的訊號用自訂對照組（目前只有 gamma_flip_touch
+        # 需要距離配對）；其餘維持「不看訊號、每天都做」的無條件基準。
+        baseline_builder = spec.get("baseline_builder")
+
+        signals[name] = {}
+        for h in horizons:
+            events = _collect_events(rows_sorted, episode_idx, h, spec["success"])
+            if baseline_builder is not None:
+                baseline_events = baseline_builder(rows_sorted, episode_idx, eligible_idx, h)
+            else:
+                baseline_events = _collect_events(rows_sorted, eligible_idx, h, spec["success"])
+            signals[name][h] = _summarize(
+                events, baseline_events, len(trigger_idx), has_success_rate=has_success_rate,
             )
-            for h in horizons
-        }
 
     return {
         "symbol": symbol,
@@ -318,6 +375,11 @@ def build_signal_audit_report(
     lines.append(
         "「基準」= 不看訊號、每天都做的同期表現；「超額」= 訊號減基準。"
         "超額接近 0 代表這個訊號沒有加值，只是跟著標的的大方向走。"
+    )
+    lines.append(
+        "※ Gamma Flip 的基準改用「同距離安慰劑價位」——把同樣的距離套到每一個"
+        "對照日上再看守不守得住。不這樣控制的話，離關卡遠的日子必然守住，"
+        "基準會被灌高，負超額會被誤讀成訊號有害。"
     )
     lines.append(
         f"連續觸發的日子會收斂成一「段」（episode），少於 {settings['min_sample_size']} 段"

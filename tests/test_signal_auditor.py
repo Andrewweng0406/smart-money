@@ -294,3 +294,108 @@ def test_build_signal_audit_report_includes_signal_sections(tmp_path):
     assert "Call Wall 突破續漲" in report
     assert "成功率" in report
     assert "定義" in report
+
+
+# ---------- gamma_flip_touch 的距離配對對照組 ----------
+
+def _save_mixed_distance_series(db_path):
+    """一半的日子 flip 很近（會觸發），一半很遠（不觸發、且遠到必然守住）。
+
+    這個形狀是刻意的：舊的樸素基準把「遠到根本碰不到」的日子也算進基準，
+    所以基準勝率被灌高；距離配對之後所有安慰劑價位都放在觸發日的那個
+    近距離上，基準勝率才會落到可比的水準。兩種做法在這份資料上會給出
+    明顯不同的數字——測試才有鑑別力。
+    """
+    spots = [100, 102, 99, 103, 98, 104, 97, 105, 96, 106, 95, 107]
+    for i, spot in enumerate(spots):
+        gamma_flip = spot * 0.99 if i % 2 == 0 else spot * 0.80
+        _save(db_path, f"2026-08-{3 + i:02d}", float(spot), gamma_flip=gamma_flip)
+    return spots
+
+
+def test_gamma_flip_baseline_is_pairwise_not_per_day(tmp_path):
+    """基準樣本數必須是「事件 × 對照日」的配對乘積，不是合格天數。
+
+    這是最直接的鑑別點：樸素基準逐日評估，只會有 11 筆（有未來報酬的
+    合格天數）；距離配對會把每個事件的距離套到每一個對照日上，
+    6 個事件 × 11 個對照日 = 66 筆。
+    """
+    db_path = tmp_path / "history.db"
+    _save_mixed_distance_series(db_path)
+
+    audit = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+    stat = audit["signals"]["gamma_flip_touch"][1]
+
+    assert stat["sample_size"] == 6
+    assert stat["baseline_sample_size"] == 66
+
+
+def test_distance_matched_baseline_is_lower_than_naive_baseline(tmp_path):
+    """舊基準被「遠到碰不到」的日子灌高；配對之後必須明顯降下來。
+
+    沒有這個測試，就算把基準換成配對版，也證明不了它真的修掉了那個
+    機械性偏誤。
+    """
+    db_path = tmp_path / "history.db"
+    _save_mixed_distance_series(db_path)
+
+    audit = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+    stat = audit["signals"]["gamma_flip_touch"][1]
+
+    # 樸素基準在這份資料上會是 100%（一半的日子 flip 遠在 20% 外，必然守住，
+    # 另一半漲跌都不足以跨越 1%…實際會接近滿分）。配對基準必須低於它。
+    assert stat["baseline_success_rate_pct"] < 100.0
+
+
+def test_gamma_flip_excess_is_zero_when_flip_is_not_special(tmp_path):
+    """價格每天固定漲 1% 時，gamma_flip 跟任何同距離的價位都一樣守得住，
+    超額必須歸零——不能因為「守住率 100%」就顯示成訊號有效。
+    """
+    db_path = tmp_path / "history.db"
+    spots = [100 * (1.01 ** i) for i in range(12)]
+    for i, spot in enumerate(spots):
+        _save(db_path, f"2026-08-{3 + i:02d}", spot, gamma_flip=spot * 0.995)
+
+    audit = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+    stat = audit["signals"]["gamma_flip_touch"][1]
+
+    assert stat["success_rate_pct"] == pytest.approx(100.0)
+    assert stat["baseline_success_rate_pct"] == pytest.approx(100.0)
+    assert stat["edge_pct"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_gamma_flip_baseline_is_deterministic(tmp_path):
+    """不用亂數抽樣——遍歷所有合格日，跑兩次結果必須完全一致。"""
+    db_path = tmp_path / "history.db"
+    _save_mixed_distance_series(db_path)
+
+    first = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+    second = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+
+    assert first["signals"]["gamma_flip_touch"] == second["signals"]["gamma_flip_touch"]
+
+
+def test_other_signals_keep_unconditional_baseline(tmp_path):
+    """距離配對只套用在 gamma_flip_touch，其餘四個訊號的基準不變。
+
+    它們沒有距離造成的機械性偏誤，超額可以直接解讀。
+    """
+    db_path = tmp_path / "history.db"
+    spots = [100 * (1.01 ** i) for i in range(12)]
+    _save_series(db_path, spots, call_wall=110.0)
+
+    audit = signal_auditor.audit_signal_performance("TSLA", db_path=db_path, horizons=(1,))
+    stat = audit["signals"]["call_wall_break"][1]
+
+    # 逐日評估，不是配對乘積
+    assert stat["baseline_sample_size"] == 11
+
+
+def test_report_labels_gamma_flip_baseline_as_distance_matched(tmp_path):
+    """報告要標明這個訊號用的是同距離對照，否則跟其他訊號的基準會被混淆。"""
+    db_path = tmp_path / "history.db"
+    _save_mixed_distance_series(db_path)
+
+    report = signal_auditor.build_signal_audit_report("TSLA", db_path=db_path, horizons=(1,))
+
+    assert "同距離" in report
