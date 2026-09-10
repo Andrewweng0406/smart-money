@@ -29,6 +29,7 @@ import line_formatter
 import line_notifier
 import macro_calendar
 import options_strategy_engine
+import risk_gauge
 import pinning_engine
 import smart_money
 from gex_engine import (
@@ -425,6 +426,44 @@ _PINNING_REGIME_LABEL = {
 }
 
 
+def _build_risk_lines(assessment: dict | None) -> list[str]:
+    """把 risk_gauge.assess_risk() 的結果轉成 Markdown 區塊。
+
+    assessment 為 None（加分項計算失敗）時回傳空列表，整段直接從報告消失，
+    不留下半殘的標題——跟 _build_pinning_lines 同一個慣例。
+    """
+    if assessment is None:
+        return []
+
+    lines = [
+        "## 風險計量（今天有多危險）", "",
+        f"- **風險分數：{assessment['risk_score']} / 100（{assessment['risk_label']}）**",
+        f"- 市場狀態：{assessment['regime_text']}",
+        "",
+    ]
+
+    if assessment["factors"]:
+        lines += ["**因子拆解**（每一項貢獻多少分、為什麼）：", ""]
+        for factor in assessment["factors"]:
+            lines.append(f"- `{factor['points']:+d}` {factor['name']} — {factor['why']}")
+        lines.append("")
+
+    if assessment["avoid"]:
+        lines += ["**應避開**：", ""]
+        for item in assessment["avoid"]:
+            lines.append(f"- ⚠️ {item}")
+        lines.append("")
+
+    lines += [
+        f"➡️ {assessment['posture']}",
+        "",
+        "> 風險計量衡量的是**波動大小**（做市商對沖對市場的影響），不是漲跌方向。",
+        "> 規則式判斷、非回測驗證過的最佳解，不構成投資建議。",
+        "",
+    ]
+    return lines
+
+
 def _build_pinning_lines(pinning: dict | None) -> list[str]:
     """把 pinning_engine.compute_pinning_analysis() 的結果轉成 Markdown
     區塊。pinning 為 None（加分項計算失敗或期權鏈為空）時回傳空列表，
@@ -466,6 +505,24 @@ def build_markdown_report(
     # 的東西，跟策略建議刻意放在最後（行動建議）的順序邏輯相反。
     if macro_warnings:
         lines += macro_warnings + [""]
+
+    # 風險計量緊接在預警之後：它回答「今天適不適合進場」，屬於同一類
+    # 「看細節之前先看」的資訊。計算失敗只記警告，不能拖垮報告本身。
+    try:
+        assessment = risk_gauge.assess_risk(
+            spot=result.spot,
+            gamma_flip=result.gamma_flip,
+            total_net_gex=result.zero_dte_summary["total_net_gex"],
+            zero_dte_share_pct=result.zero_dte_summary["zero_dte_share_pct"],
+            iv_skew=result.iv_skew,
+            pinning=result.pinning,
+            mm_pressure=result.mm_pressure,
+            alert=result.alert,
+            calendar_warnings=macro_warnings,
+        )
+        lines += _build_risk_lines(assessment)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 風險計量失敗，報告略過該區塊：%s", result.symbol, exc)
 
     lines += [
         f"- 當日現貨收盤價：${result.spot:.2f}",

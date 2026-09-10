@@ -21,6 +21,7 @@ from pathlib import Path
 import analyze
 import data_fetcher
 import db_manager
+import risk_gauge
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("options_gex")
@@ -108,12 +109,31 @@ def run_one_symbol(
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s HTML 儀表板產生失敗：%s", symbol, exc)
 
+    # 風險計量是加分項：算不出來就留 None，摘要那段直接不顯示，
+    # 不能讓它拖垮整份 watchlist。
+    try:
+        risk = risk_gauge.assess_risk(
+            spot=result.spot,
+            gamma_flip=result.gamma_flip,
+            total_net_gex=result.zero_dte_summary["total_net_gex"],
+            zero_dte_share_pct=result.zero_dte_summary["zero_dte_share_pct"],
+            iv_skew=result.iv_skew,
+            pinning=result.pinning,
+            mm_pressure=result.mm_pressure,
+            alert=result.alert,
+            calendar_warnings=macro_warnings,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 風險計量失敗：%s", symbol, exc)
+        risk = None
+
     return {
         "symbol": symbol, "spot": result.spot, "max_pain": result.max_pain,
         "call_wall": result.call_wall, "put_wall": result.put_wall,
         "gamma_flip": result.gamma_flip, "alert": result.alert,
         "strategy_name": strategy.strategy_name if strategy else "N/A",
         "mm_pressure": result.mm_pressure, "macro_warnings": macro_warnings,
+        "risk": risk,
     }
 
 
@@ -229,6 +249,11 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
 
         flip_text = f"${row['gamma_flip']:.0f}" if row["gamma_flip"] is not None else "N/A"
         lines.append(f"◆ {row['symbol']}　現貨 ${row['spot']:.2f}")
+        risk = row.get("risk")
+        if risk:
+            lines.append(f"  🎯 風險 {risk['risk_score']}/100（{risk['risk_label']}）　{risk['regime_text']}")
+            for item in risk["avoid"]:
+                lines.append(f"  ⚠️ {item}")
         lines.append(
             f"  Max Pain ${row['max_pain']:.0f}　Call Wall ${row['call_wall']:.0f}　"
             f"Put Wall ${row['put_wall']:.0f}　Gamma翻轉點 {flip_text}"

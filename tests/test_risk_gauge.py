@@ -185,3 +185,39 @@ def test_regime_definition_matches_signal_tiering():
     regime = signal_tiering.build_regime(spot=90.0, gamma_flip=100.0, total_net_gex=5.0)
 
     assert a["negative_gamma"] == regime["negative_gamma"]
+
+
+# ---------- 報告區塊 ----------
+
+def test_build_risk_lines_renders_score_and_factors():
+    import analyze
+
+    assessment = risk_gauge.assess_risk(
+        spot=90.0, gamma_flip=100.0, total_net_gex=5.0,
+        alert="⚠️ 做市商對沖賣壓風險高",
+    )
+
+    lines = analyze._build_risk_lines(assessment)
+    text = "\n".join(lines)
+
+    assert "風險計量" in text
+    assert "45" in text                 # 30（負Gamma）+ 15（警報）
+    assert "負 Gamma" in text
+    assert "避免裸賣" in text
+
+
+def test_build_risk_lines_returns_empty_for_none():
+    """加分項計算失敗時整段從報告消失，不留半殘標題。"""
+    import analyze
+
+    assert analyze._build_risk_lines(None) == []
+
+
+def test_build_risk_lines_omits_avoid_section_when_nothing_to_avoid():
+    import analyze
+
+    assessment = risk_gauge.assess_risk(spot=110.0, gamma_flip=100.0, total_net_gex=5.0)
+    text = "\n".join(analyze._build_risk_lines(assessment))
+
+    assert "風險計量" in text
+    assert "應避開" not in text
