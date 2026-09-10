@@ -39,10 +39,15 @@ US_EASTERN = ZoneInfo("America/New_York")
 REGULAR_MARKET_OPEN = time(9, 30)  # 美股/股票期權正式開盤 09:30 ET
 MARKET_CLOSE = time(16, 0)         # 多數股票期權收盤 16:00 ET
 
-# Pinning 分數超過這個門檻才發警報——跟 pinning_engine._LABEL_THRESHOLDS
-# 的「高」門檻（60）不同，這裡刻意設更高：盤中警報要留給真正極端、值得
-# 立刻打斷使用者的訊號，不是每次分數落在「高」區間就轟炸。
-PINNING_ALERT_SCORE_THRESHOLD = 80
+# Pinning 偵測門檻——直接引用分級層的門檻，維持單一真相來源。
+#
+# 原本這裡寫死 80，但生產資料 78 筆快照中 pinning_score 最高只有 76，
+# 這條警報從上線到現在一次都沒觸發過。更糟的是：把門檻留在偵測層會讓
+# 分級層的 70 分門檻永遠碰不到（分數 70~80 的訊號在這裡就被濾掉了），
+# 等於用一個死碼去餵另一個死碼。
+#
+# 門檻屬於「政策」，該住在 signal_tiering.py；偵測層只負責算分數。
+PINNING_ALERT_SCORE_THRESHOLD = signal_tiering.PINNING_WATCH_SCORE_THRESHOLD
 
 # 異常大單門檻——比 smart_money.py 每日報告用的門檻（volume/oi>=0.5, volume>=100）
 # 嚴格很多：盤中只想抓真正巨大的單一事件，不是每天都會觸發的日常雜訊。
@@ -50,6 +55,11 @@ UNUSUAL_ACTIVITY_MIN_RATIO = 3.0
 UNUSUAL_ACTIVITY_MIN_VOLUME = 3000.0
 
 INTRADAY_ALERT_PREFIX = "🚨 盤中緊急警報"
+
+# 每日緊急推播上限——跨所有標的合計，不是每檔各 8 則。使用者定案的區間是
+# 5~10 則/天，取中值。做成單一常數而非分散的門檻：跑幾週之後依實際感受調
+# 這一個數字就好，不用重新校準每個訊號的靈敏度。
+MAX_URGENT_PUSHES_PER_DAY = 8
 
 # 同一個訊號（同一道牆被突破/同一組異常大單）在這段時間內不重複推播——
 # 沒有這層冷卻機制的話，一個持續好幾小時的突破會每15分鐘（一次排程觸發
@@ -172,13 +182,19 @@ def check_pinning_alert(symbol: str, spot: float, db_path: Path | str = db_manag
         put_wall=latest["put_wall"],
         in_positive_gamma=bool(latest["pinning_in_positive_gamma"]),
     )
-    if result is None or result["score"] <= PINNING_ALERT_SCORE_THRESHOLD:
+    if result is None or result["score"] < PINNING_ALERT_SCORE_THRESHOLD:
         return None
 
-    return (
-        f"{symbol} Pinning 分數達 {result['score']}/100（現貨 ${spot:.2f} 貼近 "
-        f"Pin Strike ${result['pin_strike']:.0f}，做市商磁吸/卡價效應極強）"
-    )
+    # 回傳結構化資料而非純文字：分級層需要 score 才能判斷級別，
+    # 從文字裡反解析分數是 build_alert_signature 那個 bug 的同一種錯誤。
+    return {
+        "score": result["score"],
+        "pin_strike": result["pin_strike"],
+        "text": (
+            f"{symbol} Pinning 分數達 {result['score']}/100（現貨 ${spot:.2f} 貼近 "
+            f"Pin Strike ${result['pin_strike']:.0f}，做市商磁吸/卡價效應極強）"
+        ),
+    }
 
 
 def check_unusual_activity(symbol: str) -> list[dict]:
@@ -249,7 +265,7 @@ def build_alert_text(result: dict) -> str | None:
     if result["wall_breach"]:
         lines.append(result["wall_breach"]["text"])
     if result.get("pinning_alert"):
-        lines.append(result["pinning_alert"])
+        lines.append(result["pinning_alert"]["text"])
     for item in result["unusual_activity"]:
         ratio_text = "∞" if item["ratio"] == float("inf") else f"{item['ratio']:.1f}x"
         lines.append(
@@ -260,6 +276,118 @@ def build_alert_text(result: dict) -> str | None:
     if not lines:
         return None
     return f"{INTRADAY_ALERT_PREFIX}\n\n" + "\n".join(lines)
+
+
+def extract_signals(result: dict) -> list[dict]:
+    """把 run_check() 的結果拆成彼此獨立的訊號。
+
+    拆開是分級的前提：原本所有異常被壓成同一則訊息、共用同一個合併簽章，
+    導致無法分別判斷緊急度，也讓最吵的訊號穿透冷卻。
+    """
+    signals: list[dict] = []
+    symbol = result["symbol"]
+
+    breach = result.get("wall_breach")
+    if breach:
+        signals.append({
+            "kind": breach["kind"],
+            "payload": {"wall_price": breach["wall_price"], "spot": breach["spot"]},
+            "signature": breach["kind"],
+            "text": breach["text"],
+        })
+
+    pinning = result.get("pinning_alert")
+    if pinning:
+        score = pinning.get("score", 0)
+        signals.append({
+            "kind": signal_tiering.KIND_PINNING_HIGH,
+            "payload": {"score": score, "pin_strike": pinning.get("pin_strike")},
+            "signature": f"pinning:{score}",
+            "text": pinning["text"],
+        })
+
+    for item in result.get("unusual_activity") or []:
+        ratio = item["ratio"]
+        ratio_text = "∞" if ratio == float("inf") else f"{ratio:.1f}x"
+        signals.append({
+            "kind": signal_tiering.KIND_UNUSUAL_ACTIVITY,
+            "payload": {"strike": item["strike"], "side": item["side"],
+                        "volume": item["volume"], "ratio": ratio,
+                        "likely_opening": item.get("likely_opening")},
+            "signature": f"{item['side']}:{item['strike']}",
+            "text": (f"{symbol} ${item['strike']:.0f} {item['side'].upper()} 出現巨量："
+                     f"成交量 {item['volume']:,.0f} 張（OI的 {ratio_text}）"),
+        })
+
+    return signals
+
+
+def classify_and_route(
+    symbol: str,
+    result: dict,
+    regime: dict,
+    trading_date: str,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+    now: datetime | None = None,
+) -> list[dict]:
+    """分級、落地、套用每日預算，回傳實際要推播的 urgent 訊號。
+
+    分級跟落地都是「加分項」：失敗只記警告，不能讓核心的偵測與既有推播
+    連帶失敗。
+    """
+    now = now or datetime.now(timezone.utc)
+    detected_at = now.isoformat()
+
+    classified: list[dict] = []
+    for signal in extract_signals(result):
+        try:
+            tier, reason = signal_tiering.classify(signal["kind"], signal["payload"], regime)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 訊號分級失敗（%s）：%s", symbol, signal["kind"], exc)
+            continue
+        classified.append({**signal, "tier": tier, "reason": reason})
+
+    # 緊急訊號依優先序排列，讓預算用盡時保留最重要的那幾則，而不是先到先贏。
+    urgent_candidates = sorted(
+        [s for s in classified if s["tier"] == "urgent"],
+        key=lambda s: signal_tiering.urgent_priority(s["kind"]),
+    )
+
+    try:
+        already_sent = db_manager.count_urgent_delivered(trading_date, db_path=db_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("讀取當日推播計數失敗，本輪不套用預算限制：%s", exc)
+        already_sent = 0
+
+    remaining = max(MAX_URGENT_PUSHES_PER_DAY - already_sent, 0)
+    keep_ids = {id(s) for s in urgent_candidates[:remaining]}
+    to_push: list[dict] = []
+
+    for signal in classified:
+        delivered_tier = signal["tier"]
+        reason = signal["reason"]
+
+        if signal["tier"] == "urgent":
+            if id(signal) in keep_ids:
+                to_push.append(signal)
+            else:
+                # 只降 delivered_tier，classified_tier 維持 urgent——否則日後
+                # 績效統計會被「當天還發生了什麼事」條件化，而非訊號品質。
+                delivered_tier = "watch"
+                reason = f"{reason}｜超出當日推播預算（上限 {MAX_URGENT_PUSHES_PER_DAY}）"
+
+        try:
+            db_manager.save_signal_event(
+                symbol, detected_at, trading_date, signal["kind"],
+                classified_tier=signal["tier"], delivered_tier=delivered_tier,
+                reason=reason, signature=signal["signature"],
+                payload={**signal["payload"], "text": signal["text"]},
+                db_path=db_path,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 訊號落地失敗（%s）：%s", symbol, signal["kind"], exc)
+
+    return to_push
 
 
 def _load_alert_state(state_path: Path = ALERT_STATE_PATH) -> dict:
@@ -353,30 +481,60 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
     """執行一次盤中檢查週期——CLI 的 main() 跟 analyze.py 的 --watch 都呼叫
     這支函式，避免 analyze.py 要重新進入 intraday_watcher.py 自己的
     argparse（那樣 sys.argv 會混到 analyze.py 的參數，解析會出錯）。
+
+    每一輪都把當次的 spot 存進狀態檔，下一輪才有 prev_spot 可以做 crossing
+    比較（見 check_wall_breach 的說明）。
     """
     if not force and not is_market_hours():
         logger.info("目前不是美股股票期權正式交易時間，略過本次檢查")
         return
 
+    trading_date = current_trading_date()
+    state_path = ALERT_STATE_PATH
+    prev_spots = dict(_load_alert_state(state_path).get("_prev_spots", {}))
+
     for symbol in symbols:
-        result = run_check(symbol)
+        result = run_check(symbol, prev_spot=prev_spots.get(symbol))
         if result["error"]:
             continue
 
-        alert_text = build_alert_text(result)
-        if alert_text:
+        # 記下這次的 spot 供下一輪做 crossing 比較
+        prev_spots[symbol] = result["spot"]
+
+        try:
+            rows = db_manager.get_recent_snapshots(symbol, limit=1)
+            latest = rows[0] if rows else {}
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 讀取最近快照失敗，regime 以空值處理：%s", symbol, exc)
+            latest = {}
+
+        regime = signal_tiering.build_regime(
+            spot=result["spot"],
+            gamma_flip=latest.get("gamma_flip"),
+            total_net_gex=latest.get("total_net_gex"),
+        )
+
+        urgent = classify_and_route(symbol, result, regime, trading_date)
+        if not urgent:
+            logger.info("%s 本輪無緊急訊號（現貨 $%.2f）", symbol, result["spot"])
+            continue
+
+        for signal in urgent:
+            alert_text = f"{INTRADAY_ALERT_PREFIX}\n\n{signal['text']}"
             logger.warning(alert_text)
             print(alert_text)
-            if notify:
-                signature = build_alert_signature(result)
-                if should_send_alert(symbol, "legacy_combined", signature):
-                    import telegram_notifier
-                    telegram_notifier.send_text_report(alert_text)
-                    record_alert_sent(symbol, "legacy_combined", signature)
-                else:
-                    logger.info("%s 同一事件仍在冷卻時間內，略過重複推播", symbol)
-        else:
-            logger.info("%s 目前無異常（現貨 $%.2f）", symbol, result["spot"])
+            if not notify:
+                continue
+            if should_send_alert(symbol, signal["kind"], signal["signature"]):
+                import telegram_notifier
+                telegram_notifier.send_text_report(alert_text)
+                record_alert_sent(symbol, signal["kind"], signal["signature"])
+            else:
+                logger.info("%s %s 仍在冷卻時間內，略過重複推播", symbol, signal["kind"])
+
+    state = _load_alert_state(state_path)
+    state["_prev_spots"] = prev_spots
+    _save_alert_state(state, state_path)
 
 
 def main() -> None:

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -212,8 +213,8 @@ def test_check_pinning_alert_triggers_when_score_exceeds_threshold(tmp_path):
 
     alert = intraday_watcher.check_pinning_alert("TSLA", spot=100.2, db_path=db_path)
     assert alert is not None
-    assert "Pinning" in alert
-    assert "TSLA" in alert
+    assert "Pinning" in alert["text"]
+    assert "TSLA" in alert["text"]
 
 
 def test_check_pinning_alert_none_when_score_at_or_below_threshold(tmp_path):
@@ -337,7 +338,8 @@ def test_build_alert_text_formats_wall_breach_and_unusual_activity():
 def test_build_alert_text_includes_pinning_alert():
     result = {
         "symbol": "TSLA", "spot": 100.2, "error": None, "wall_breach": None,
-        "pinning_alert": "TSLA Pinning 分數達 99/100（現貨 $100.20 貼近 Pin Strike $100，做市商磁吸/卡價效應極強）",
+        "pinning_alert": {"score": 99, "pin_strike": 100.0,
+                          "text": "TSLA Pinning 分數達 99/100（現貨 $100.20 貼近 Pin Strike $100）"},
         "unusual_activity": [],
     }
     text = intraday_watcher.build_alert_text(result)
@@ -392,7 +394,8 @@ def test_build_alert_signature_differs_for_different_wall():
 
 def test_build_alert_signature_includes_pinning_token():
     base = {"symbol": "TSLA", "spot": 100.0, "error": None, "wall_breach": None, "unusual_activity": []}
-    with_pinning = {**base, "pinning_alert": "TSLA Pinning 分數達 99/100"}
+    with_pinning = {**base, "pinning_alert": {"score": 99, "pin_strike": 100.0,
+                                              "text": "TSLA Pinning 分數達 99/100"}}
     without_pinning = {**base, "pinning_alert": None}
     assert intraday_watcher.build_alert_signature(with_pinning) != intraday_watcher.build_alert_signature(without_pinning)
 
@@ -402,9 +405,11 @@ def test_build_alert_signature_stable_for_sustained_pinning_alert():
     的同一個事件不該每次都被當成新事件重新推播。
     """
     result1 = {"symbol": "TSLA", "spot": 100.1, "error": None, "wall_breach": None,
-               "unusual_activity": [], "pinning_alert": "TSLA Pinning 分數達 99/100"}
+               "unusual_activity": [],
+               "pinning_alert": {"score": 99, "pin_strike": 100.0, "text": "TSLA Pinning 分數達 99/100"}}
     result2 = {"symbol": "TSLA", "spot": 100.3, "error": None, "wall_breach": None,
-               "unusual_activity": [], "pinning_alert": "TSLA Pinning 分數達 95/100"}
+               "unusual_activity": [],
+               "pinning_alert": {"score": 95, "pin_strike": 100.0, "text": "TSLA Pinning 分數達 95/100"}}
     assert intraday_watcher.build_alert_signature(result1) == intraday_watcher.build_alert_signature(result2)
 
 
@@ -472,7 +477,7 @@ def test_run_watch_cycle_suppresses_duplicate_notification_within_cooldown(monke
     """
     state_path = tmp_path / "state.json"
     monkeypatch.setattr(intraday_watcher, "ALERT_STATE_PATH", state_path)
-    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol: _wall_breach_result(symbol))
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol, **kwargs: _wall_breach_result(symbol))
 
     import telegram_notifier
     send_mock = MagicMock()
@@ -520,7 +525,7 @@ def test_run_watch_cycle_skips_premarket_without_fetching_data(monkeypatch):
 def test_main_force_flag_bypasses_market_hours_check(monkeypatch):
     monkeypatch.setattr(intraday_watcher, "is_market_hours", lambda *a, **k: False)
     monkeypatch.setattr(sys, "argv", ["intraday_watcher.py", "--symbol", "TSLA", "--force"])
-    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol: {
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol, **kwargs: {
         "symbol": symbol, "wall_breach": None, "unusual_activity": [], "spot": 100.0, "error": None,
     })
 
@@ -592,3 +597,120 @@ def test_same_kind_different_symbols_are_independent(tmp_path):
         "MU", "call_wall_breach", "sig-a",
         now=now + timedelta(minutes=1), state_path=state_path,
     ) is True
+
+
+# ---------- 分級路由與預算 ----------
+
+def _result_with_put_wall_breach(symbol="TSLA"):
+    return {
+        "symbol": symbol, "spot": 85.0,
+        "wall_breach": {
+            "kind": "put_wall_breach", "wall_price": 90.0, "spot": 85.0,
+            "text": f"{symbol} 現貨 $85.00 向下穿越 Put Wall $90",
+        },
+        "pinning_alert": None, "unusual_activity": [], "error": None,
+    }
+
+
+def test_pinning_alert_threshold_matches_tiering_watch_threshold(tmp_path):
+    """偵測層的門檻必須跟分級層一致，否則分級的 70 分門檻是碰不到的死碼。"""
+    assert (
+        intraday_watcher.PINNING_ALERT_SCORE_THRESHOLD
+        == signal_tiering.PINNING_WATCH_SCORE_THRESHOLD
+    )
+
+
+def test_check_pinning_alert_returns_score_for_tiering(tmp_path):
+    """回傳結構化分數而非純文字，分級層才有東西可判斷。"""
+    db_path = tmp_path / "history.db"
+    db_manager.save_snapshot(_pinning_snapshot_result(), "2026-08-01", db_path=db_path)
+
+    alert = intraday_watcher.check_pinning_alert("TSLA", spot=100.2, db_path=db_path)
+
+    assert isinstance(alert, dict)
+    assert alert["score"] >= signal_tiering.PINNING_WATCH_SCORE_THRESHOLD
+    assert "Pinning" in alert["text"]
+
+
+def test_extract_signals_splits_result_into_independent_signals():
+    result = {
+        "symbol": "TSLA", "spot": 115.0,
+        "wall_breach": {"kind": "call_wall_breach", "wall_price": 110.0,
+                        "spot": 115.0, "text": "穿越"},
+        "pinning_alert": None,
+        "unusual_activity": [{"strike": 120.0, "side": "call", "volume": 5000,
+                              "oi": 1000, "ratio": 5.0, "likely_opening": None}],
+        "error": None,
+    }
+
+    signals = intraday_watcher.extract_signals(result)
+
+    kinds = {s["kind"] for s in signals}
+    assert "call_wall_breach" in kinds
+    assert "unusual_activity" in kinds
+    assert len(signals) == 2
+
+
+def test_classify_and_route_persists_every_signal_including_silent(tmp_path):
+    """靜默訊號也必須落地——那是未來績效儀表板的對照組。"""
+    db_path = tmp_path / "history.db"
+    result = {
+        "symbol": "TSLA", "spot": 100.0, "wall_breach": None, "pinning_alert": None,
+        "unusual_activity": [{"strike": 120.0, "side": "call", "volume": 5000,
+                              "oi": 5000, "ratio": 1.0, "likely_opening": None}],
+        "error": None,
+    }
+    regime = signal_tiering.build_regime(spot=100.0, gamma_flip=95.0, total_net_gex=1.0)
+
+    urgent = intraday_watcher.classify_and_route(
+        "TSLA", result, regime, "2026-09-09", db_path=db_path,
+    )
+
+    assert urgent == []
+    with sqlite3.connect(db_path) as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM signal_events WHERE classified_tier='silent'"
+        ).fetchone()[0]
+    assert count == 1
+
+
+def test_classify_and_route_returns_urgent_for_put_wall_breach(tmp_path):
+    db_path = tmp_path / "history.db"
+    regime = signal_tiering.build_regime(spot=85.0, gamma_flip=80.0, total_net_gex=1.0)
+
+    urgent = intraday_watcher.classify_and_route(
+        "TSLA", _result_with_put_wall_breach(), regime, "2026-09-09", db_path=db_path,
+    )
+
+    assert len(urgent) == 1
+    assert urgent[0]["kind"] == "put_wall_breach"
+
+
+def test_daily_budget_demotes_excess_urgent_to_watch(tmp_path, monkeypatch):
+    """超出預算的訊號 delivered_tier 降為 watch，但 classified_tier 不變。"""
+    db_path = tmp_path / "history.db"
+    monkeypatch.setattr(intraday_watcher, "MAX_URGENT_PUSHES_PER_DAY", 1)
+    regime = signal_tiering.build_regime(spot=85.0, gamma_flip=80.0, total_net_gex=1.0)
+
+    first = intraday_watcher.classify_and_route(
+        "TSLA", _result_with_put_wall_breach("TSLA"), regime, "2026-09-09", db_path=db_path,
+    )
+    db_manager.mark_events_delivered(
+        [1], "2026-09-09T14:00:00+00:00", "telegram_urgent", db_path=db_path,
+    )
+    second = intraday_watcher.classify_and_route(
+        "MU", _result_with_put_wall_breach("MU"), regime, "2026-09-09", db_path=db_path,
+    )
+
+    assert len(first) == 1
+    assert second == []
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT classified_tier, delivered_tier, reason FROM signal_events "
+            "WHERE symbol='MU'"
+        ).fetchone()
+    assert row["classified_tier"] == "urgent"
+    assert row["delivered_tier"] == "watch"
+    assert "預算" in row["reason"]
