@@ -1,6 +1,4 @@
 from dataclasses import dataclass
-from math import isinf
-
 import pytest
 
 from gex_engine import black_scholes_delta
@@ -11,6 +9,7 @@ from smart_money import (
     compute_market_maker_pressure_score,
     compute_put_call_ratio,
     detect_unusual_activity,
+    assess_oi_data_quality,
 )
 
 
@@ -183,14 +182,35 @@ def test_detect_unusual_activity_finds_both_sides_and_sorts_by_ratio():
     ]
 
 
-def test_detect_unusual_activity_treats_zero_oi_as_infinite_ratio():
-    legs = [FakeLeg(strike=350, call_volume=100, call_oi=0)]
+def test_detect_unusual_activity_skips_zero_oi_but_keeps_valid_oi():
+    legs = [
+        FakeLeg(strike=350, call_volume=5000, call_oi=0),
+        FakeLeg(strike=355, call_volume=5000, call_oi=100),
+    ]
 
-    result = detect_unusual_activity(legs)
+    result = detect_unusual_activity(legs, min_volume_oi_ratio=3.0, top_n=999)
 
     assert len(result) == 1
-    assert result[0]["side"] == "call"
-    assert isinf(result[0]["ratio"])
+    assert result[0]["strike"] == 355
+    assert result[0]["ratio"] == 50.0
+
+
+def test_assess_oi_data_quality_flags_implausibly_low_oi():
+    legs = [FakeLeg(strike=100, call_volume=5000, call_oi=100, put_volume=3000, put_oi=50)]
+
+    result = assess_oi_data_quality(legs)
+
+    assert result["usable"] is False
+    assert result["total_oi"] == 150
+    assert result["total_volume"] == 8000
+
+
+def test_assess_oi_data_quality_accepts_oi_that_is_not_too_low():
+    legs = [FakeLeg(strike=100, call_volume=1000, call_oi=100, put_volume=500, put_oi=100)]
+
+    result = assess_oi_data_quality(legs)
+
+    assert result["usable"] is True
 
 
 def test_detect_unusual_activity_applies_threshold_and_top_n():

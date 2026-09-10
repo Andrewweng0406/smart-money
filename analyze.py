@@ -88,6 +88,7 @@ class AnalysisResult:
     unusual_activity: list = field(default_factory=list)
     mm_pressure: dict | None = None
     pinning: dict | None = None
+    oi_data_quality: dict | None = None
 
 
 def _load_previous_oi_snapshot(symbol: str, db_path: Path | str) -> dict[float, dict] | None:
@@ -156,6 +157,14 @@ def fetch_and_aggregate(
                 zero_dte_legs.append(leg)
             volume_by_strike[raw.strike]["call_volume"] += raw.call_volume
             volume_by_strike[raw.strike]["put_volume"] += raw.put_volume
+
+    try:
+        oi_data_quality = smart_money.assess_oi_data_quality(all_raw_legs)
+        if not oi_data_quality["usable"]:
+            logger.warning("%s OI 資料品質可疑：%s", symbol, oi_data_quality["reason"])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s OI 資料品質檢查失敗：%s", symbol, exc)
+        oi_data_quality = None
 
     gex_by_strike = compute_net_gex_by_strike(all_legs, spot=spot, risk_free_rate=risk_free_rate)
     if not gex_by_strike:
@@ -226,6 +235,7 @@ def fetch_and_aggregate(
         zero_dte_summary=zero_dte_summary, alert=alert,
         iv_skew=iv_skew, put_call_ratio=put_call_ratio,
         unusual_activity=unusual_activity, mm_pressure=mm_pressure, pinning=pinning,
+        oi_data_quality=oi_data_quality,
     )
 
 

@@ -13,6 +13,28 @@ DEATH_LOOP_ALERT_TEXT = (
     "——這個時間點追高風險較高，建議暫緩加碼。"
 )
 
+# OI 長期通常應高於當日成交量；低到只剩成交量的極小比例，多半是尚未公布
+# 或回傳不完整，不應讓資料缺失被誤判成市場最異常的訊號。
+DEFAULT_MIN_OI_TO_VOLUME_RATIO = 0.05
+
+
+def assess_oi_data_quality(
+    legs: list[Any],
+    min_oi_to_volume_ratio: float = DEFAULT_MIN_OI_TO_VOLUME_RATIO,
+) -> dict[str, bool | float | str]:
+    """評估整條期權鏈的 OI 是否足以作為分析參考。"""
+    total_oi = sum(getattr(leg, "call_oi") + getattr(leg, "put_oi") for leg in legs)
+    total_volume = sum(getattr(leg, "call_volume") + getattr(leg, "put_volume") for leg in legs)
+    threshold = total_volume * min_oi_to_volume_ratio
+    usable = total_oi >= threshold
+    if total_volume == 0:
+        reason = "沒有成交量，無法用成交量比例評估 OI"
+    elif usable:
+        reason = "OI/成交量比例在可接受範圍"
+    else:
+        reason = f"OI 僅為成交量的 {total_oi / total_volume:.2%}，低於 {min_oi_to_volume_ratio:.2%} 門檻"
+    return {"usable": usable, "total_oi": total_oi, "total_volume": total_volume, "reason": reason}
+
 
 def compute_iv_skew(
     legs: list[Any],
@@ -121,9 +143,11 @@ def detect_unusual_activity(
             volume = getattr(leg, f"{side}_volume")
             oi = getattr(leg, f"{side}_oi")
 
-            # 莊家做盤視角：OI 為零但出現達標成交量，代表市場可能正在建立全新部位，
-            # 相對既有籌碼的增幅視為無限大；一般情況則用 volume/OI 衡量新量能。
-            ratio = float("inf") if oi == 0 else volume / oi
+            # OI=0 絕大多數是資料缺失，真正的新開倉會在隔天 OI 更新後以正常比值出現；
+            # 把缺失當成無限異常會讓整份清單被假象佔滿，排擠掉真實訊號。
+            if oi == 0:
+                continue
+            ratio = volume / oi
             if volume >= min_volume and ratio >= min_volume_oi_ratio:
                 likely_opening = None
                 if previous_oi_by_strike is not None:
