@@ -121,8 +121,9 @@ python check_env.py
 
 部署與排程設定見 `SETUP.md`。**2026-08 起改跑在 Railway 雲端**（`stock-agent`
 專案，單一 service 常駐容器同時跑機器人 + 內部排程迴圈，`history.db` 存在
-掛載的 Volume），本機 Mac Mini 的三支 launchd 服務已停用（plist 檔案還在，
-需要的話可以重新 `launchctl load`）。細節見 `SETUP.md` 第8節。
+掛載的 Volume）。**線上唯一在運行的就是這個容器**——本機三支 launchd 服務
+沒有載入、crontab 是空的。plist 檔案還在，但**不能直接 `launchctl load`**
+（路徑失效 + TCC，見「已知風險」）。細節見 `SETUP.md` 第8節。
 
 ## 已知風險
 
@@ -130,18 +131,24 @@ python check_env.py
   指定對象的 push。個人使用情境下預期只有使用者自己是好友；如果官方帳號
   之後加了其他好友，broadcast 會發給所有人。要改成指定對象需要額外設定
   webhook 才查得到對方的 User ID，目前沒有做。
-- **（已修復，2026-08）專案原本放在 `~/Desktop` 下，launchd/crontab 啟動
-  的背景程式會被 macOS 的 TCC（隱私保護）擋下存取權限**（實測抓到的真實
+- **（地雷已重新裝回，2026-09-10 核對）`~/Desktop` 底下的 launchd/crontab
+  背景程式會被 macOS 的 TCC（隱私保護）擋下存取權限**（實測抓到的真實
   問題，不是理論推測）——症狀是 `PermissionError: Operation not permitted`
   或 `shell-init: error retrieving current directory`。手動在終端機執行
   一切正常是因為終端機App早就被系統授權過，但 launchd/cron 啟動的是全新
-  的、沒授權過的行程。修復方式是把整個專案搬到 `~/stock.agent`（一般
-  家目錄底下，不受 TCC 保護），`.venv` 重建（不是直接搬移，venv 腳本會
-  寫死絕對路徑）、三支 `scripts/*.plist` 跟 `analyze.py` 的
-  `DEFAULT_DASHBOARD_PATH`（原本寫死 `~/Desktop/...`，已改成
-  `Path(__file__).parent`，不受專案位置影響）都同步更新過。詳見
-  `SETUP.md` 第4節。如果之後又把專案搬回 Desktop/Documents/Downloads
-  底下的資料夾，會再踩到同一個問題。
+  的、沒授權過的行程。
+
+  2026-08 曾經把專案搬到 `~/stock.agent` 修掉這個問題，**但那次搬移後來
+  被還原了**：`~/stock.agent` 現在不存在，專案又回到 `~/Desktop/smart-money`。
+  目前**不會**踩到，因為 launchd/cron 全部停用、只跑 Railway，TCC 只擋
+  本機背景行程。但三支 `scripts/*.plist` 仍寫死已不存在的
+  `/Users/andrewweng/stock.agent`，且**一旦有人 `launchctl load` 它們就會
+  同時撞上「路徑不存在」跟「Desktop 被 TCC 擋」兩個問題**。三支 plist
+  檔頭都加了退役警告。重新啟用的正確順序見 `SETUP.md` 第4節：先把專案
+  搬出 Desktop → 重建 `.venv` → 改 plist 路徑 → 才 load。
+
+  （`analyze.py` 的 `DEFAULT_DASHBOARD_PATH` 已改用 `Path(__file__).parent`，
+  不受專案位置影響，這部分的修復仍然有效。）
 - **策略到期結算價是「到期日當天收盤價」的近似值，不是選擇權到期當天
   交易所公告的官方結算價**（AM/PM settlement）——兩者可能有小落差，
   `/scorecard` 的輸出裡有註明這點，見 `strategy_resolver.py`。

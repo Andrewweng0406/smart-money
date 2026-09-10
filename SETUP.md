@@ -1,9 +1,23 @@
-# 部署到 Mac Mini：定時執行 + Telegram 推播
+# 部署與排程
+
+> ## ⚠️ 現況（2026-09-10 核對過）
+>
+> **線上唯一在運行的是 Railway 的 `stock-agent` service**（見第8節）。
+> 本機 Mac Mini 的三支 launchd 服務**全部沒有載入**，crontab 是空的——
+> 本機對這套系統零貢獻。第 5~7 節的 launchd/cron 內容保留為歷史參考。
+>
+> **`~/stock.agent` 這個目錄目前不存在。** 專案實際位置是
+> `~/Desktop/smart-money`。三支 `scripts/*.plist` 裡寫死的
+> `/Users/andrewweng/stock.agent` 因此全都指向不存在的路徑——這不影響
+> 現在的運作（沒人載入它們），但**重新啟用前必須先處理，見第4節**。
+>
+> **Railway 沒有接 GitHub source**，部署靠手動 `railway up`。所以
+> `git push` ≠ 上線。這個機制造成過線上版本落後一個月，正在改善中。
 
 ## 1. 安裝與初次測試
 
 ```bash
-cd /Users/andrewweng/stock.agent
+cd ~/Desktop/smart-money     # 專案實際位置
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt   # 含 requirements.txt + pytest
@@ -51,7 +65,7 @@ Watchlist 模式裡某一檔標的分析失敗（例如代號打錯、下市）�
 
 ### HTML 儀表板
 
-每次分析完會自動在 `~/stock.agent/dashboard/index.html` 產生一份
+每次分析完會自動在 `<專案目錄>/dashboard/index.html` 產生一份
 暗黑風格的互動式儀表板（KPI卡片、GEX圖表、Smart Money風險評級、異常大單、
 AI研報），直接用瀏覽器打開即可。Watchlist 模式下每檔標的另外存一份
 `dashboard/{symbol}.html`，`index.html` 固定鏡射清單裡第一檔標的。加
@@ -181,6 +195,19 @@ shell-init: error retrieving current directory: getcwd: cannot access parent dir
 **修復方式：把整個專案搬出 `~/Desktop`，改放在 `~/stock.agent`**（一般
 家目錄底下的資料夾，只有 Desktop/Documents/Downloads/iCloud Drive 這幾個
 特殊資料夾有 TCC 這層保護，一般資料夾不受影響）。搬移時做了這幾件事：
+
+> **⚠️ 這段搬移後來被還原了（2026-09-10 核對）。** `~/stock.agent` 已經
+> 不存在，專案現在又回到 `~/Desktop/smart-money`。目前**不會**踩到 TCC，
+> 因為 launchd/cron 全部停用、只跑 Railway，而 TCC 只擋本機背景行程。
+>
+> **但這代表底下這個地雷是「已裝好、只是還沒被踩」的狀態**：只要你哪天
+> 重新 `launchctl load` 那三支 plist，就會同時撞上兩個問題——路徑指向
+> 不存在的 `~/stock.agent`，以及就算改成 Desktop 路徑也會被 TCC 擋。
+>
+> **重新啟用本機排程的正確順序**：先把專案搬到 `~/` 底下的一般資料夾
+> （不能是 Desktop/Documents/Downloads/iCloud Drive）→ 重建 `.venv`
+> （不要直接搬，venv 腳本寫死絕對路徑）→ 更新三支 plist 的路徑 →
+> 才 `launchctl load`。下面這份清單就是當初的完整做法，照著做即可。
 1. `mv ~/Desktop/stock.agent ~/stock.agent`
 2. `.venv` 重新建立（不是直接搬移）——venv 裡的 `bin/activate`、
    `bin/pip` 等腳本會寫死建立當下的絕對路徑，直接搬移資料夾會讓這些
@@ -268,8 +295,11 @@ crontab -e
 `30 5`）：
 
 ```
-30 4 * * 2-6 /bin/bash /Users/andrewweng/stock.agent/run.sh >> /Users/andrewweng/Library/Logs/stockgex/stockgex.log 2>&1
+30 4 * * 2-6 /bin/bash <專案目錄>/run.sh >> /Users/andrewweng/Library/Logs/stockgex/stockgex.log 2>&1
 ```
+
+⚠️ `<專案目錄>` 不能是 `~/Desktop`、`~/Documents`、`~/Downloads` 或
+iCloud Drive 底下——cron 啟動的行程會被 TCC 擋掉，見第4節。
 
 不帶參數執行 `run.sh` 就是 watchlist 模式（讀 `watchlist.json`）；只想排程
 單一標的的話在後面加代號，例如 `run.sh TSLA`。
@@ -354,10 +384,11 @@ launchd 就會自動重啟。這是跟 `telegram_bot_listener.py` 內部自己�
 supervisor while迴圈互補的**第二層防護**：內部迴圈處理「同一個process裡
 發生例外，重建Application再試」，launchd 處理「整個process本身掛掉了」。
 
-⚠️ 專案還放在 `~/Desktop` 底下的話，這支也一樣會踩到「## 4」開頭那個
-`~/Desktop` 權限問題（症狀是 `bot.err.log` 出現 `PermissionError` 或
-`Fatal Python error: init_import_site`）——目前專案已經搬到 `~/stock.agent`
-不受影響，這裡留著提醒是因為之後如果又搬回 Desktop 底下的資料夾會再踩到。
+⚠️ 這支也一樣會踩到「## 4」開頭那個 `~/Desktop` 權限問題（症狀是
+`bot.err.log` 出現 `PermissionError` 或 `Fatal Python error:
+init_import_site`）。**專案目前就放在 `~/Desktop/smart-money`**，所以
+這支 plist 一旦被 `launchctl load` 就會踩到——重新啟用前務必先照第4節
+把專案搬出 Desktop。
 
 停用：
 ```bash

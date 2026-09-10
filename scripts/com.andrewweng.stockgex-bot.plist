@@ -1,6 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!--
+  ############################################################
+  #  退役中（2026-09-10 核對）：這支服務目前沒有載入。
+  #
+  #  現在所有排程都跑在 Railway 的 stock-agent service 上，
+  #  見 SETUP.md 第 8 節。本檔案保留為歷史參考。
+  #
+  #  ⚠️ 重新啟用前必讀：底下寫死的 /Users/andrewweng/stock.agent
+  #     這個目錄「已經不存在」。專案現在在 ~/Desktop/smart-money，
+  #     但你不能只是把路徑改成 Desktop —— Desktop 底下的背景程式
+  #     會被 macOS TCC 擋掉（實測過的真問題，症狀是
+  #     PermissionError: Operation not permitted）。
+  #
+  #     正確順序：專案先搬到 ~/ 底下的一般資料夾 → 重建 .venv
+  #     → 更新本檔路徑 → 才 launchctl load。詳見 SETUP.md 第 4 節。
+  ############################################################
+-->
 <dict>
     <key>Label</key>
     <string>com.andrewweng.stockgex-bot</string>
