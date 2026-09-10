@@ -11,8 +11,9 @@
 > `/Users/andrewweng/stock.agent` 因此全都指向不存在的路徑——這不影響
 > 現在的運作（沒人載入它們），但**重新啟用前必須先處理，見第4節**。
 >
-> **Railway 沒有接 GitHub source**，部署靠手動 `railway up`。所以
-> `git push` ≠ 上線。這個機制造成過線上版本落後一個月，正在改善中。
+> **部署方式：`git push origin main` 即自動上線。**（2026-09-10 接上
+> GitHub source，實測過。）在此之前是手動 `railway up`，曾造成線上版本
+> 落後 GitHub 一個月——那個問題已經解掉，不需要再手動部署。
 
 ## 1. 安裝與初次測試
 
@@ -474,7 +475,35 @@ railway variable set \
 
 # 6. 套用新設定
 railway redeploy --service stock-agent --yes
+
+# 7. 接上 GitHub source，之後 push 就自動部署（2026-09-10 補做）
+railway service connect --repo Andrewweng0406/smart-money --branch main
 ```
+
+### 日常部署：只要 `git push`
+
+上面那串是「從零建起來」的一次性步驟。**接上 GitHub source 之後，日常
+更新只需要**：
+
+```bash
+git push origin main     # Railway 自動偵測、建置、部署
+```
+
+不需要再跑 `railway up`。這點很重要——2026-08~09 這段期間因為服務沒接
+GitHub、部署全靠手動 `railway up`，線上版本一度落後 GitHub 一個月而且
+沒有任何警示。接上 source 之後 GitHub 是唯一部署來源，不會再漂移。
+
+驗證部署結果（`commitHash` 欄位會顯示是哪個 commit 上線的，
+`(upload)` 代表那是舊的手動上傳）：
+
+```bash
+railway deployment list --service stock-agent --environment production --json
+railway logs --service stock-agent --environment production --lines 20
+```
+
+⚠️ 本機有第二份 clone 在 `~/Desktop/git2threads-demo/smart-money`，
+停在舊的 commit。現在部署來源是 GitHub 不是本機目錄，所以它不會再
+誤觸發部署，但改 code 前還是要確認自己在哪一份。
 
 `DB_PATH` / `ALERT_STATE_PATH` 這兩個環境變數是雲端部署專用的路徑覆寫，
 本機開發不用設定（`db_manager.DEFAULT_DB_PATH` /

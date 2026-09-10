@@ -125,6 +125,10 @@ python check_env.py
 沒有載入、crontab 是空的。plist 檔案還在，但**不能直接 `launchctl load`**
 （路徑失效 + TCC，見「已知風險」）。細節見 `SETUP.md` 第8節。
 
+**部署方式：`git push origin main` 即自動上線**（2026-09-10 接上 GitHub
+source，實測過）。不需要跑 `railway up`。在此之前部署全靠手動上傳，曾造成
+線上版本落後 GitHub 一個月且無任何警示。
+
 ## 已知風險
 
 - **`line_notifier.py` 用的是 broadcast，會發給官方帳號的所有好友**，不是
