@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 import data_fetcher
 import db_manager
 import pinning_engine
+import signal_tiering
 import smart_money
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -87,12 +88,39 @@ def is_regular_market_hours(now: datetime | None = None) -> bool:
     return is_market_hours(now)
 
 
-def check_wall_breach(symbol: str, spot: float, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> str | None:
-    """拿最近一次（通常是前一交易日收盤後）算好的 Call Wall / Put Wall 跟
-    即時現貨價比較——不重新計算整條期權鏈的GEX（那是「輕量級」監控的重點：
-    盤中每15分鐘都要重算全部到期日的GEX成本太高），用昨天算好的牆位當
-    參考關卡，現貨價格穿越就示警。
+def current_trading_date(now: datetime | None = None) -> str:
+    """回傳所屬交易日（美東日期）。
+
+    刻意不用 UTC 也不用本機時區：容器跑在 UTC、使用者在台灣，兩者跨日的
+    時間點都跟美股交易日不一致。用美東日期才能讓每日推播預算跟「一個交易日」
+    對齊，否則預算會在盤中某個時刻莫名其妙重置。
     """
+    now = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
+    return now.strftime("%Y-%m-%d")
+
+
+def check_wall_breach(
+    symbol: str,
+    spot: float,
+    prev_spot: float | None = None,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> dict | None:
+    """偵測現貨「穿越」Call/Put Wall 的事件，不是「位於牆外」的狀態。
+
+    原本的寫法是 `if spot > call_wall` ——那是價位條件。價格整天待在牆上，
+    每 15 分鐘的檢查都會回報突破，冷卻機制只能限流不能治本（60 分鐘冷卻
+    仍會每小時推一次，六個半小時吃掉大半日推播預算）。分級的整個前提是
+    訊號為離散事件，所以這裡必須改成比較前後兩次的相對位置。
+
+    牆位本身仍沿用最近一次（通常是前一交易日收盤後）算好的值——盤中每 15
+    分鐘重算整條期權鏈的 GEX 成本太高，這是既有的架構取捨。
+
+    prev_spot 為 None（當日首次檢查、狀態檔遺失）時一律不觸發：寧可漏報一次
+    真突破，也不要把「本來就在牆外」誤報成新事件。
+    """
+    if prev_spot is None:
+        return None
+
     rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
     if not rows:
         return None  # 還沒有歷史快照可以當參考牆位，優雅跳過
@@ -101,10 +129,20 @@ def check_wall_breach(symbol: str, spot: float, db_path: Path | str = db_manager
     call_wall = latest["call_wall"]
     put_wall = latest["put_wall"]
 
-    if call_wall and spot > call_wall:
-        return f"{symbol} 現貨 ${spot:.2f} 已突破 Call Wall ${call_wall:.0f}（潛在壓力位失守）"
-    if put_wall and spot < put_wall:
-        return f"{symbol} 現貨 ${spot:.2f} 已跌破 Put Wall ${put_wall:.0f}（潛在支撐位失守）"
+    if call_wall and prev_spot <= call_wall < spot:
+        return {
+            "kind": signal_tiering.KIND_CALL_WALL_BREACH,
+            "wall_price": call_wall,
+            "spot": spot,
+            "text": f"{symbol} 現貨 ${spot:.2f} 向上穿越 Call Wall ${call_wall:.0f}（潛在壓力位失守）",
+        }
+    if put_wall and prev_spot >= put_wall > spot:
+        return {
+            "kind": signal_tiering.KIND_PUT_WALL_BREACH,
+            "wall_price": put_wall,
+            "spot": spot,
+            "text": f"{symbol} 現貨 ${spot:.2f} 向下穿越 Put Wall ${put_wall:.0f}（潛在支撐位失守）",
+        }
     return None
 
 
@@ -162,7 +200,10 @@ def check_unusual_activity(symbol: str) -> list[dict]:
 
 
 def run_check(
-    symbol: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH, now: datetime | None = None,
+    symbol: str,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+    now: datetime | None = None,
+    prev_spot: float | None = None,
 ) -> dict:
     """對單一標的做一次完整檢查，回傳結構化結果（不管有沒有觸發警示都會
     回傳，方便測試跟記錄；呼叫端自己決定要不要推播）。任何一個子檢查失敗
@@ -182,7 +223,7 @@ def run_check(
         return result
 
     try:
-        result["wall_breach"] = check_wall_breach(symbol, spot, db_path=db_path)
+        result["wall_breach"] = check_wall_breach(symbol, spot, prev_spot=prev_spot, db_path=db_path)
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 牆位突破檢查失敗：%s", symbol, exc)
 
@@ -206,7 +247,7 @@ def build_alert_text(result: dict) -> str | None:
     """把 run_check() 的結果組成一段警示文字；沒有任何異常時回傳 None。"""
     lines = []
     if result["wall_breach"]:
-        lines.append(result["wall_breach"])
+        lines.append(result["wall_breach"]["text"])
     if result.get("pinning_alert"):
         lines.append(result["pinning_alert"])
     for item in result["unusual_activity"]:
@@ -248,7 +289,7 @@ def build_alert_signature(result: dict) -> str:
     """
     parts = []
     if result["wall_breach"]:
-        parts.append("call_wall" if "Call Wall" in result["wall_breach"] else "put_wall")
+        parts.append(result["wall_breach"]["kind"])
     if result.get("pinning_alert"):
         parts.append("pinning_over_80")
     for item in result["unusual_activity"]:

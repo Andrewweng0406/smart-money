@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import data_fetcher
 import db_manager
 import intraday_watcher
+import signal_tiering
 import smart_money
 from data_fetcher import StrikeLegRaw
 
@@ -97,34 +98,85 @@ class _FakeResult:
             self.zero_dte_summary = {"total_net_gex": 0, "zero_dte_net_gex": 0, "ex_zero_dte_net_gex": 0, "zero_dte_share_pct": 0.0}
 
 
+def _save_walls(db_path, call_wall=110.0, put_wall=90.0):
+    db_manager.save_snapshot(
+        _FakeResult(symbol="TSLA", spot=100.0, call_wall=call_wall, put_wall=put_wall),
+        "2026-08-01", db_path=db_path,
+    )
+
+
 def test_check_wall_breach_returns_none_without_history(tmp_path):
     db_path = tmp_path / "history.db"
-    assert intraday_watcher.check_wall_breach("TSLA", spot=100.0, db_path=db_path) is None
+    assert intraday_watcher.check_wall_breach(
+        "TSLA", spot=100.0, prev_spot=99.0, db_path=db_path,
+    ) is None
 
 
-def test_check_wall_breach_detects_call_wall_breach(tmp_path):
+def test_check_wall_breach_detects_upward_call_wall_crossing(tmp_path):
     db_path = tmp_path / "history.db"
-    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+    _save_walls(db_path)
 
-    breach = intraday_watcher.check_wall_breach("TSLA", spot=115.0, db_path=db_path)
+    breach = intraday_watcher.check_wall_breach(
+        "TSLA", spot=115.0, prev_spot=105.0, db_path=db_path,
+    )
+
     assert breach is not None
-    assert "Call Wall" in breach
+    assert breach["kind"] == signal_tiering.KIND_CALL_WALL_BREACH
+    assert breach["wall_price"] == 110.0
+    assert "Call Wall" in breach["text"]
 
 
-def test_check_wall_breach_detects_put_wall_breach(tmp_path):
+def test_check_wall_breach_detects_downward_put_wall_crossing(tmp_path):
     db_path = tmp_path / "history.db"
-    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+    _save_walls(db_path)
 
-    breach = intraday_watcher.check_wall_breach("TSLA", spot=85.0, db_path=db_path)
+    breach = intraday_watcher.check_wall_breach(
+        "TSLA", spot=85.0, prev_spot=95.0, db_path=db_path,
+    )
+
     assert breach is not None
-    assert "Put Wall" in breach
+    assert breach["kind"] == signal_tiering.KIND_PUT_WALL_BREACH
+    assert "Put Wall" in breach["text"]
 
 
-def test_check_wall_breach_no_breach_within_range(tmp_path):
+def test_check_wall_breach_ignores_price_already_above_wall(tmp_path):
+    """問題二的迴歸測試：價格整天待在牆上不是持續的『突破事件』。
+
+    沒有這個測試，價格不動地停在 Call Wall 上方會每次檢查都回報突破，
+    60 分鐘冷卻仍會每小時推一次，六個半小時吃掉大半日推播預算。
+    """
     db_path = tmp_path / "history.db"
-    db_manager.save_snapshot(_FakeResult(symbol="TSLA", spot=100.0, call_wall=110.0, put_wall=90.0), "2026-08-01", db_path=db_path)
+    _save_walls(db_path)
 
-    assert intraday_watcher.check_wall_breach("TSLA", spot=100.0, db_path=db_path) is None
+    assert intraday_watcher.check_wall_breach(
+        "TSLA", spot=115.0, prev_spot=114.0, db_path=db_path,
+    ) is None
+
+
+def test_check_wall_breach_without_prev_spot_never_triggers(tmp_path):
+    """當日首次檢查或狀態檔遺失時寧可漏報，也不要把既有狀態誤報成新突破。"""
+    db_path = tmp_path / "history.db"
+    _save_walls(db_path)
+
+    assert intraday_watcher.check_wall_breach(
+        "TSLA", spot=115.0, prev_spot=None, db_path=db_path,
+    ) is None
+
+
+def test_check_wall_breach_no_crossing_within_range(tmp_path):
+    db_path = tmp_path / "history.db"
+    _save_walls(db_path)
+
+    assert intraday_watcher.check_wall_breach(
+        "TSLA", spot=100.0, prev_spot=101.0, db_path=db_path,
+    ) is None
+
+
+def test_current_trading_date_uses_eastern_not_utc():
+    """UTC 已跨日但美東還是前一天時，交易日必須是美東日期。"""
+    utc_after_midnight = datetime(2026, 9, 10, 2, 0, tzinfo=timezone.utc)
+
+    assert intraday_watcher.current_trading_date(utc_after_midnight) == "2026-09-09"
 
 
 # ---------- check_pinning_alert ----------
@@ -269,7 +321,10 @@ def test_build_alert_text_returns_none_when_nothing_triggered():
 def test_build_alert_text_formats_wall_breach_and_unusual_activity():
     result = {
         "symbol": "TSLA", "spot": 115.0, "error": None,
-        "wall_breach": "TSLA 現貨 $115.00 已突破 Call Wall $110（潛在壓力位失守）",
+        "wall_breach": {
+            "kind": signal_tiering.KIND_CALL_WALL_BREACH, "wall_price": 110.0, "spot": 115.0,
+            "text": "TSLA 現貨 $115.00 向上穿越 Call Wall $110（潛在壓力位失守）",
+        },
         "unusual_activity": [{"strike": 320.0, "side": "call", "volume": 5000.0, "oi": 500.0, "ratio": 10.0}],
     }
     text = intraday_watcher.build_alert_text(result)
@@ -305,7 +360,10 @@ def test_build_alert_text_shows_infinity_symbol_not_python_inf():
 def _wall_breach_result(symbol="TSLA", spot=280.0):
     return {
         "symbol": symbol, "spot": spot, "error": None,
-        "wall_breach": f"{symbol} 現貨 ${spot:.2f} 已跌破 Put Wall $300（潛在支撐位失守）",
+        "wall_breach": {
+            "kind": signal_tiering.KIND_PUT_WALL_BREACH, "wall_price": 300.0, "spot": spot,
+            "text": f"{symbol} 現貨 ${spot:.2f} 向下穿越 Put Wall $300（潛在支撐位失守）",
+        },
         "unusual_activity": [],
     }
 
@@ -322,7 +380,10 @@ def test_build_alert_signature_ignores_spot_price_changes():
 def test_build_alert_signature_differs_for_different_wall():
     call_breach = {
         "symbol": "TSLA", "spot": 320.0, "error": None,
-        "wall_breach": "TSLA 現貨 $320.00 已突破 Call Wall $310（潛在壓力位失守）",
+        "wall_breach": {
+            "kind": signal_tiering.KIND_CALL_WALL_BREACH, "wall_price": 310.0, "spot": 320.0,
+            "text": "TSLA 現貨 $320.00 向上穿越 Call Wall $310（潛在壓力位失守）",
+        },
         "unusual_activity": [],
     }
     put_breach = _wall_breach_result()
