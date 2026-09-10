@@ -13,10 +13,12 @@ Telegram 機器人隨時主動查詢（指令或自然語言皆可）。
 純計算層：    gex_engine.py（Black-Scholes/GEX）
              options_strategy_engine.py（賣方價差/Iron Condor/買方突圍）
              smart_money.py（IV Skew/PCR/異常大單/莊家壓力分數）
+             signal_tiering.py（訊號分級：urgent/watch/silent）
              backtester.py（歷史勝率統計）
              macro_calendar.py（財報/總經事件倒數）
              strategy_tracker.py（策略到期損益計算/勝率彙總）
-儲存層：      db_manager.py（SQLite，history.db：每日快照 + 策略追蹤記分板）
+儲存層：      db_manager.py（SQLite，history.db：每日快照 + 策略追蹤記分板
+             + signal_events 訊號分級事件）
 輸出層：      analyze.py（Markdown報告）
              dashboard_generator.py（HTML儀表板）
              telegram_notifier.py（Telegram推播）
@@ -37,7 +39,8 @@ Markdown/HTML/Telegram 訊息。
 ## 關鍵設計慣例
 
 - **純計算 vs I/O 分離**：`gex_engine.py`、`options_strategy_engine.py`、
-  `smart_money.py`、`backtester.py`、`strategy_tracker.py` 都不做網路 I/O，
+  `smart_money.py`、`signal_tiering.py`、`backtester.py`、`strategy_tracker.py`
+  都不做網路 I/O，
   只吃參數、回傳結果，方便用合成資料測試，也方便未來換資料源不用動這些檔案。
 - **加分項優雅降級**：AI 評語、歷史資料庫寫入、策略建議、Smart Money 指標、
   總經日曆、HTML 儀表板、LINE 極端警報都是「加分項」——計算/寫入失敗只記警告
@@ -99,7 +102,8 @@ python check_env.py
 | `data_fetcher.py` | yfinance 存取層（現貨價、期權鏈、bid/ask、到期日查詢） |
 | `options_strategy_engine.py` | 賣方價差/Iron Condor/買方突圍，依GEX狀態自動選策略 |
 | `smart_money.py` | IV Skew、Put/Call Ratio、異常大單偵測、莊家壓力分數 |
-| `db_manager.py` | SQLite 讀寫（history.db：每日快照 + 策略追蹤記分板） |
+| `signal_tiering.py` | 訊號分級政策（urgent/watch/silent）——純計算，不做 I/O、不讀狀態 |
+| `db_manager.py` | SQLite 讀寫（history.db：每日快照 + 策略追蹤記分板 + signal_events 訊號分級事件） |
 | `backtester.py` | Max Pain偏離度、Gamma Flip支撐/阻力勝率統計 |
 | `signal_auditor.py` | Telegram 實戰訊號績效審核（Wall/Gamma/Pinning/警報日後續表現） |
 | `macro_calendar.py` | 財報/FOMC/CPI倒數天數警示 |

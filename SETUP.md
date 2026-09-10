@@ -480,6 +480,28 @@ railway redeploy --service stock-agent --yes
 railway service connect --repo Andrewweng0406/smart-money --branch main
 ```
 
+### 盤中訊號分級
+
+盤中訊號分成三級，各走不同通道：
+
+- **緊急**：立即推播 Telegram。每日上限由
+  `intraday_watcher.MAX_URGENT_PUSHES_PER_DAY` 控制（預設 8，**跨所有標的
+  合計**）。要調鬆緊改這一個常數即可，不用重新校準每個訊號的靈敏度。
+- **觀察**：不即時推播，累積後併入 10:00 ET 摘要或 16:30 日報。
+- **靜默**：只寫入 `signal_events` 表，不推播。
+
+分級規則寫在 `signal_tiering.py`（純計算、可用合成資料測試）。幾個要點：
+
+- **牆位訊號是「穿越事件」不是「價位狀態」**——價格停在牆外不會重複觸發。
+- **緊急度主閘門是 `spot` 相對 `gamma_flip` 的位置**，不是隔夜的 net GEX
+  符號（後者在 regime 正在改變的日子會系統性判錯）。
+- **Put Wall 跌破一律緊急**，這是風險偏好設定（保護優先），不是實證發現。
+- **異常大單永遠不會是緊急**——盤中 OI 尚未結算，無法區分開倉/平倉。
+
+⚠️ 這些門檻是規則式判斷、不是回測驗證過的最佳解，且只在單一趨勢盤
+regime 上校準過。詳見
+`docs/superpowers/specs/2026-09-09-signal-tiering-design.md` 的「已知限制」。
+
 ### 日常部署：只要 `git push`
 
 上面那串是「從零建起來」的一次性步驟。**接上 GitHub source 之後，日常
