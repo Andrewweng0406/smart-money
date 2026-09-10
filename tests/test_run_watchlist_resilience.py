@@ -14,6 +14,7 @@ import pytest
 
 import analyze
 import data_fetcher
+import db_manager
 import run_watchlist
 
 
@@ -261,3 +262,62 @@ def test_main_intraday_summary_flag_skips_full_daily_flow(monkeypatch, tmp_path,
     assert "TSLA" in captured.out
     save_snapshot_mock.assert_not_called()
     build_chart_mock.assert_not_called()
+
+
+# ---------- 觀察名單 ----------
+
+def _save_watch_event(db_path, symbol="TSLA", text="TSLA 現貨 $115.00 向上穿越 Call Wall $110"):
+    return db_manager.save_signal_event(
+        symbol, "2026-09-09T14:00:00+00:00", "2026-09-09", "call_wall_breach",
+        classified_tier="watch", delivered_tier="watch",
+        reason="正 Gamma 通常被壓回", signature="call_wall_breach",
+        payload={"text": text}, db_path=db_path,
+    )
+
+
+def test_build_watch_section_is_empty_without_pending_events(tmp_path):
+    db_path = tmp_path / "history.db"
+
+    text, ids = run_watchlist.build_watch_section(["TSLA"], db_path=db_path)
+
+    assert text == ""
+    assert ids == []
+
+
+def test_build_watch_section_lists_pending_events(tmp_path):
+    db_path = tmp_path / "history.db"
+    event_id = _save_watch_event(db_path)
+
+    text, ids = run_watchlist.build_watch_section(["TSLA"], db_path=db_path)
+
+    assert "觀察名單" in text
+    assert "Call Wall" in text
+    assert "正 Gamma" in text
+    assert ids == [event_id]
+
+
+def test_watch_events_are_not_repeated_after_delivery(tmp_path):
+    """drain 之後標記已送，下一個摘要時間點不得重複出現。"""
+    db_path = tmp_path / "history.db"
+    _save_watch_event(db_path)
+
+    _, ids = run_watchlist.build_watch_section(["TSLA"], db_path=db_path)
+    db_manager.mark_events_delivered(
+        ids, "2026-09-09T20:30:00+00:00", "daily_report", db_path=db_path,
+    )
+
+    text, ids_again = run_watchlist.build_watch_section(["TSLA"], db_path=db_path)
+
+    assert text == ""
+    assert ids_again == []
+
+
+def test_build_watch_section_spans_multiple_symbols(tmp_path):
+    db_path = tmp_path / "history.db"
+    _save_watch_event(db_path, symbol="TSLA", text="TSLA 穿越 Call Wall")
+    _save_watch_event(db_path, symbol="MU", text="MU 穿越 Call Wall")
+
+    text, ids = run_watchlist.build_watch_section(["TSLA", "MU"], db_path=db_path)
+
+    assert "TSLA" in text and "MU" in text
+    assert len(ids) == 2

@@ -15,7 +15,7 @@ import argparse
 import json
 import logging
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import analyze
@@ -144,6 +144,38 @@ def build_intraday_summary_line(symbol: str, result: analyze.AnalysisResult) -> 
     return "\n".join(lines)
 
 
+def build_watch_section(
+    symbols: list[str], db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> tuple[str, list[int]]:
+    """組出「觀察名單」文字區塊，並回傳要標記已送的 event id。
+
+    交付規則就是「每個摘要時間點清空待送佇列」，不需要額外的時間判斷邏輯：
+    10:00 執行時佇列裡只會有前一日 16:30 之後累積的項目，16:30 執行時只會有
+    當天 10:00 之後累積的項目。delivered_at 是唯一狀態，天然保證每筆只送一次。
+
+    讀取失敗只記警告——觀察名單是加分項，不能讓它拖垮日報本身。
+    """
+    lines: list[str] = []
+    event_ids: list[int] = []
+
+    for symbol in symbols:
+        try:
+            events = db_manager.get_undelivered_watch_events(symbol, db_path=db_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 讀取觀察名單失敗：%s", symbol, exc)
+            continue
+        for event in events:
+            text = (event.get("payload") or {}).get("text") or event["kind"]
+            lines.append(f"• {text}\n  （{event['reason']}）")
+            event_ids.append(event["id"])
+
+    if not lines:
+        return "", []
+
+    section = "👀 觀察名單（值得注意，不需立刻動作）\n\n" + "\n".join(lines)
+    return section, event_ids
+
+
 def run_intraday_summary(
     symbols: list[str], max_expiries: int | None, risk_free_rate: float, notify: bool = False,
 ) -> str:
@@ -164,9 +196,19 @@ def run_intraday_summary(
         lines.append("")
 
     text = "\n".join(lines).strip()
+
+    watch_text, watch_ids = build_watch_section(symbols)
+    if watch_text:
+        text = f"{text}\n\n{watch_text}"
+
     if notify:
         import telegram_notifier
         telegram_notifier.send_text_report(text)
+        # 推播成功才標記已送——丟例外時不標記，下個摘要時間點會自動重試。
+        if watch_ids:
+            db_manager.mark_events_delivered(
+                watch_ids, datetime.now(timezone.utc).isoformat(), "intraday_summary",
+            )
     return text
 
 
@@ -275,6 +317,11 @@ def main() -> None:
             logger.warning("複製主要標的儀表板到 index.html 失敗：%s", exc)
 
     summary_text = build_watchlist_summary(summaries)
+
+    watch_text, watch_ids = build_watch_section(symbols)
+    if watch_text:
+        summary_text = f"{summary_text}\n\n{watch_text}"
+
     date_tag = datetime.now().strftime("%Y%m%d")
     summary_path = output_dir / f"watchlist_summary_{date_tag}.md"
     summary_path.write_text(summary_text, encoding="utf-8")
@@ -284,6 +331,11 @@ def main() -> None:
     if args.notify:
         import telegram_notifier
         telegram_notifier.send_text_report(summary_text)
+        # 推播成功才標記已送——丟例外時不標記，下次會重試。
+        if watch_ids:
+            db_manager.mark_events_delivered(
+                watch_ids, datetime.now(timezone.utc).isoformat(), "daily_report",
+            )
 
     failed = [row["symbol"] for row in summaries if "error" in row]
     if failed and len(failed) == len(symbols):
