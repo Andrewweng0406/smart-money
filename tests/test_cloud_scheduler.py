@@ -60,6 +60,31 @@ def test_should_trigger_intraday_on_15_minute_boundary():
     assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is True
 
 
+def test_should_trigger_intraday_false_during_premarket():
+    now = _et(2026, 8, 4, 8, 45)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
+
+
+def test_should_trigger_intraday_true_at_exact_regular_open():
+    now = _et(2026, 8, 4, 9, 30)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is True
+
+
+def test_should_trigger_intraday_true_at_exact_close():
+    now = _et(2026, 8, 4, 16, 0)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is True
+
+
+def test_should_trigger_intraday_false_after_close():
+    now = _et(2026, 8, 4, 16, 15)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
+
+
+def test_should_trigger_intraday_false_on_weekend():
+    now = _et(2026, 8, 8, 10, 15)
+    assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False
+
+
 def test_should_trigger_intraday_false_off_boundary():
     now = _et(2026, 8, 4, 10, 16)
     assert cloud_scheduler.should_trigger_intraday(now, last_run_bucket=None) is False

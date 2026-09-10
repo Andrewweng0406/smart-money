@@ -3,7 +3,7 @@
 
 架構決定：這支腳本每次執行只做「一次」檢查就結束，不是自己用
 time.sleep(900)寫一個常駐的輪詢迴圈。原因：
-1. 長駐 Python process 跑一整個交易日（美股盤前+盤中將近12小時），中途
+1. 長駐 Python process 跑一整個正式交易日，中途
    當機、記憶體洩漏、網路斷線都會讓監控整個停掉，而且不容易發現；
 2. 每次呼叫都是獨立、無狀態的，好測試（不用 mock time.sleep），也好除錯
    （單次執行失敗只影響那一次檢查，不會拖垮後面的檢查）。
@@ -35,9 +35,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger("options_gex")
 
 US_EASTERN = ZoneInfo("America/New_York")
-PRE_MARKET_OPEN = time(4, 0)   # 盤前 04:00 ET
-MARKET_CLOSE = time(16, 0)     # 收盤 16:00 ET
-REGULAR_MARKET_OPEN = time(9, 30)  # 正式開盤 09:30 ET
+REGULAR_MARKET_OPEN = time(9, 30)  # 美股/股票期權正式開盤 09:30 ET
+MARKET_CLOSE = time(16, 0)         # 多數股票期權收盤 16:00 ET
 
 # Pinning 分數超過這個門檻才發警報——跟 pinning_engine._LABEL_THRESHOLDS
 # 的「高」門檻（60）不同，這裡刻意設更高：盤中警報要留給真正極端、值得
@@ -65,7 +64,12 @@ ALERT_STATE_PATH = (
 
 
 def is_market_hours(now: datetime | None = None) -> bool:
-    """判斷現在是否為美股盤前或盤中時間（週一~週五 04:00~16:00 美東時間）。
+    """判斷現在是否為美股股票期權正式交易時間（週一~週五 09:30~16:00 ET）。
+
+    這個 bot 監控的是期權訊號，不是單純現貨盤前報價。盤前現貨可能從 04:00 ET
+    開始跳動，但一般股票期權仍未進入正式交易時段；用盤前現貨去觸發 Wall
+    突破/異常期權單警報，會製造無法實際交易、也沒有完整期權成交資料支撐的
+    Telegram 噪音。
 
     不處理美股假日（感恩節、聖誕節等交易所公休日）——那需要一份完整的
     交易所行事曆，是後續可以再加的功能，目前假日當天執行只會白跑一次
@@ -75,21 +79,12 @@ def is_market_hours(now: datetime | None = None) -> bool:
     now = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
     if now.weekday() >= 5:  # 週六=5, 週日=6
         return False
-    return PRE_MARKET_OPEN <= now.time() <= MARKET_CLOSE
+    return REGULAR_MARKET_OPEN <= now.time() <= MARKET_CLOSE
 
 
 def is_regular_market_hours(now: datetime | None = None) -> bool:
-    """判斷現在是否為美股「正式」盤中時間（週一~週五 09:30~16:00 美東），
-    不含盤前——Pinning 分數警報刻意只在正式開盤後才評估：盤前流動性稀薄，
-    現貨價格容易有失真的跳動，用它去比對前一天算好的 Pin Strike/集中度會
-    製造出沒有意義的假警報。既有的 Wall 突破/異常大單監控維持原本較寬的
-    is_market_hours()（04:00~16:00）不變，避免改動已經在正式環境運作中的
-    行為。
-    """
-    now = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
-    if now.weekday() >= 5:
-        return False
-    return REGULAR_MARKET_OPEN <= now.time() <= MARKET_CLOSE
+    """向後相容的別名：現在所有盤中期權監控都只認正式交易時段。"""
+    return is_market_hours(now)
 
 
 def check_wall_breach(symbol: str, spot: float, db_path: Path | str = db_manager.DEFAULT_DB_PATH) -> str | None:
@@ -309,7 +304,7 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
     argparse（那樣 sys.argv 會混到 analyze.py 的參數，解析會出錯）。
     """
     if not force and not is_market_hours():
-        logger.info("目前不是美股盤前/盤中時間，略過本次檢查")
+        logger.info("目前不是美股股票期權正式交易時間，略過本次檢查")
         return
 
     for symbol in symbols:

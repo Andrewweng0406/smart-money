@@ -98,8 +98,8 @@ python intraday_watcher.py --symbol TSLA --force         # 忽略交易時間限
 ./run.sh --watch                                          # 排程用的統一入口
 ```
 
-只有在美股盤前/盤中時間（週一~週五 04:00~16:00 美東）才會真的執行檢查，
-其餘時間直接跳過（不會浪費 API 呼叫）。這支腳本**不含美股假日行事曆**——
+只有在美股股票期權正式交易時間（週一~週五 09:30~16:00 美東）才會真的
+執行檢查，盤前/盤後直接跳過（不會浪費 API 呼叫）。這支腳本**不含美股假日行事曆**——
 感恩節、聖誕節等交易所公休日當天執行只會抓到前一交易日的收盤資料，不會
 誤判成異常，頂多浪費一次 API 呼叫，風險可控。
 
@@ -307,7 +307,8 @@ launchctl list | grep stockgex-intraday   # 驗證是否註冊成功
 
 這支排程用 `StartInterval=900`（每900秒=15分鐘觸發一次），不是像每日排程
 那樣用固定時鐘時間——它會全天候每15分鐘觸發一次 `run.sh --watch`，但腳本
-內部的 `is_market_hours()` 會在非美股交易時間直接跳過，不會真的打 API。
+內部的 `is_market_hours()` 只允許美股股票期權正式交易時間
+（09:30~16:00 ET），盤前/盤後會直接跳過，不會真的打 API。
 停用方式跟每日排程一樣：
 
 ```bash
@@ -328,11 +329,12 @@ log 在 `~/Library/Logs/stockgex/stockgex-intraday.log`（跟 `.err.log`）。
 - `/report <代號>` - 立即分析單一標的（不指定預設 TSLA）
 - `/watchlist` - 立即分析整份 `watchlist.json`
 - `/backtest <代號>` - 歷史籌碼模型回測統計
+- `/signals <代號>` - 實戰訊號績效審核（Wall/Gamma/Pinning 警報是否有用）
 - `/scorecard <代號>` - 策略追蹤記分板（見下方說明）
 - `/status` - 排程健康檢查（各標的最後一次成功分析是什麼時候）
 - `/help` - 顯示說明
 
-也可以直接打口語，例如「幫我看一下特斯拉」「TSLA的策略推薦準不準」
+也可以直接打口語，例如「幫我看一下特斯拉」「TSLA訊號準不準」「TSLA的策略推薦準不準」
 「排程還活著嗎」——機器人會用 Claude 判斷你想做哪一種操作，不需要背
 指令格式。看不出意圖時會請你改用上面的精確指令，不會亂猜。
 
@@ -456,6 +458,7 @@ railway redeploy --service stock-agent --yes
   `run.sh` 「測試沒過就中止」的慣例。
 - `railway.json`：指定用 Dockerfile 建置、啟動指令、失敗自動重啟策略。
 - `cloud_scheduler.py`：容器的進入點，取代 launchd 的排程判斷邏輯，
+  `should_trigger_intraday` 只會在 09:30~16:00 ET 的正式期權交易時段觸發；
   純函式（`should_trigger_daily` / `should_trigger_intraday`）有對應的
   `tests/test_cloud_scheduler.py`。
 

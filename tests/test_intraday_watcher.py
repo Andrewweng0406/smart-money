@@ -30,12 +30,20 @@ def test_is_market_hours_true_during_regular_session():
     assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 10, 0))  # 週一 10:00 ET
 
 
-def test_is_market_hours_true_during_premarket():
-    assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 4, 30))  # 週一 04:30 ET
+def test_is_market_hours_false_during_premarket():
+    assert not intraday_watcher.is_market_hours(_et(2026, 8, 3, 4, 30))  # 週一 04:30 ET
 
 
-def test_is_market_hours_false_before_premarket_open():
-    assert not intraday_watcher.is_market_hours(_et(2026, 8, 3, 3, 59))
+def test_is_market_hours_false_before_regular_open():
+    assert not intraday_watcher.is_market_hours(_et(2026, 8, 3, 9, 29))
+
+
+def test_is_market_hours_true_at_exact_regular_open():
+    assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 9, 30))
+
+
+def test_is_market_hours_true_at_exact_close():
+    assert intraday_watcher.is_market_hours(_et(2026, 8, 3, 16, 0))
 
 
 def test_is_market_hours_false_after_close():
@@ -53,8 +61,7 @@ def test_is_regular_market_hours_true_during_regular_session():
 
 
 def test_is_regular_market_hours_false_during_premarket():
-    """跟 is_market_hours 不同：09:30 之前（含盤前）一律不算，Pinning
-    警報只在正式開盤後評估。"""
+    """09:30 之前（含盤前）一律不算，期權監控只在正式交易時段評估。"""
     assert not intraday_watcher.is_regular_market_hours(_et(2026, 8, 3, 9, 0))
 
 
@@ -423,6 +430,15 @@ def test_main_skips_outside_market_hours(monkeypatch):
 
     with patch("intraday_watcher.run_check") as mock_run_check:
         intraday_watcher.main()
+
+    mock_run_check.assert_not_called()
+
+
+def test_run_watch_cycle_skips_premarket_without_fetching_data(monkeypatch):
+    monkeypatch.setattr(intraday_watcher, "is_market_hours", lambda *a, **k: False)
+
+    with patch("intraday_watcher.run_check") as mock_run_check:
+        intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=False)
 
     mock_run_check.assert_not_called()
 

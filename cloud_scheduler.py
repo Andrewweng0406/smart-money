@@ -35,10 +35,13 @@ INTRADAY_SUMMARY_HOUR = 10
 INTRADAY_SUMMARY_MINUTE = 0
 
 # 每15分鐘觸發一次盤中檢查，等同本機 com.andrewweng.stockgex-intraday.plist
-# 的 StartInterval=900；是否真的要做檢查交給 intraday_watcher.py 內部的
-# is_market_hours() 判斷（盤外時間會直接跳過，不會打任何 API），這裡只負責
-# 「時間到了就觸發」。
+# 的 StartInterval=900；雲端這邊也先用正式期權交易時段擋掉盤前/盤後，
+# intraday_watcher.py 內部仍有第二層 gate，避免排程或手動呼叫漏防。
 INTRADAY_INTERVAL_MINUTES = 15
+REGULAR_MARKET_OPEN_HOUR = 9
+REGULAR_MARKET_OPEN_MINUTE = 30
+REGULAR_MARKET_CLOSE_HOUR = 16
+REGULAR_MARKET_CLOSE_MINUTE = 0
 
 LOOP_SLEEP_SECONDS = 30
 
@@ -71,7 +74,19 @@ def should_trigger_intraday_summary(now_et: datetime, last_run_date: date | None
 def should_trigger_intraday(now_et: datetime, last_run_bucket: tuple | None) -> bool:
     """判斷現在是否該觸發盤中檢查——每15分鐘一次，用 (日期, 小時, 第幾個15分
     區間) 當作 bucket 判斷這個區間內是否已經跑過，避免迴圈輪詢間隔（30秒）
-    造成同一個15分鐘區間內重複觸發。"""
+    造成同一個15分鐘區間內重複觸發。
+
+    這裡刻意只允許 09:30~16:00 ET：這套 intraday watcher 發的是股票期權
+    訊號，盤前現貨雖然會動，但一般股票期權還沒進入正式交易時段。
+    """
+    if now_et.weekday() >= 5:
+        return False
+    minutes_since_midnight = now_et.hour * 60 + now_et.minute
+    open_minutes = REGULAR_MARKET_OPEN_HOUR * 60 + REGULAR_MARKET_OPEN_MINUTE
+    close_minutes = REGULAR_MARKET_CLOSE_HOUR * 60 + REGULAR_MARKET_CLOSE_MINUTE
+    if not (open_minutes <= minutes_since_midnight <= close_minutes):
+        return False
+
     bucket = (now_et.date(), now_et.hour, now_et.minute // INTRADAY_INTERVAL_MINUTES)
     return now_et.minute % INTRADAY_INTERVAL_MINUTES == 0 and last_run_bucket != bucket
 
