@@ -410,47 +410,60 @@ def test_build_alert_signature_stable_for_sustained_pinning_alert():
 
 def test_should_send_alert_true_when_no_prior_state(tmp_path):
     state_path = tmp_path / "state.json"
-    assert intraday_watcher.should_send_alert("TSLA", "put_wall", state_path=state_path) is True
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "put_wall_breach", "sig", state_path=state_path,
+    ) is True
 
 
 def test_should_send_alert_false_within_cooldown_for_same_signature(tmp_path):
     state_path = tmp_path / "state.json"
     now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
-    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "put_wall_breach", "sig", now=now, state_path=state_path,
+    )
 
     still_cooling = now + timedelta(minutes=30)
     assert intraday_watcher.should_send_alert(
-        "TSLA", "put_wall", now=still_cooling, state_path=state_path, cooldown_minutes=60,
+        "TSLA", "put_wall_breach", "sig",
+        now=still_cooling, state_path=state_path, cooldown_minutes=60,
     ) is False
 
 
 def test_should_send_alert_true_after_cooldown_expires(tmp_path):
     state_path = tmp_path / "state.json"
     now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
-    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "put_wall_breach", "sig", now=now, state_path=state_path,
+    )
 
     after_cooldown = now + timedelta(minutes=61)
     assert intraday_watcher.should_send_alert(
-        "TSLA", "put_wall", now=after_cooldown, state_path=state_path, cooldown_minutes=60,
+        "TSLA", "put_wall_breach", "sig",
+        now=after_cooldown, state_path=state_path, cooldown_minutes=60,
     ) is True
 
 
 def test_should_send_alert_true_when_signature_changes_even_within_cooldown(tmp_path):
-    """訊號變了（例如換一道牆被突破）不受冷卻時間限制，一定要重新推播。"""
+    """同一種訊號但內容變了（簽章不同）不受冷卻限制，一定要重新推播。"""
     state_path = tmp_path / "state.json"
     now = datetime(2026, 8, 3, 14, 0, tzinfo=timezone.utc)
-    intraday_watcher.record_alert_sent("TSLA", "put_wall", now=now, state_path=state_path)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "unusual_activity", "call:100", now=now, state_path=state_path,
+    )
 
     moments_later = now + timedelta(minutes=1)
     assert intraday_watcher.should_send_alert(
-        "TSLA", "call_wall", now=moments_later, state_path=state_path, cooldown_minutes=60,
+        "TSLA", "unusual_activity", "call:120",
+        now=moments_later, state_path=state_path, cooldown_minutes=60,
     ) is True
 
 
 def test_should_send_alert_survives_corrupted_state_file(tmp_path):
     state_path = tmp_path / "state.json"
     state_path.write_text("不是合法的JSON{{{", encoding="utf-8")
-    assert intraday_watcher.should_send_alert("TSLA", "put_wall", state_path=state_path) is True
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "put_wall_breach", "sig", state_path=state_path,
+    ) is True
 
 
 def test_run_watch_cycle_suppresses_duplicate_notification_within_cooldown(monkeypatch, tmp_path):
@@ -512,3 +525,70 @@ def test_main_force_flag_bypasses_market_hours_check(monkeypatch):
     })
 
     intraday_watcher.main()  # 不應該拋出例外，且應該真的執行了 run_check（透過上面 monkeypatch 驗證不會crash即可）
+
+
+# ---------- 冷卻：每訊號種類獨立 ----------
+
+def test_cooldown_blocks_same_kind_within_window(tmp_path):
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 9, 9, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "call_wall_breach", "sig-a", now=now, state_path=state_path,
+    )
+
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "call_wall_breach", "sig-a",
+        now=now + timedelta(minutes=30), state_path=state_path,
+    ) is False
+
+
+def test_cooldown_expires_after_window(tmp_path):
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 9, 9, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "call_wall_breach", "sig-a", now=now, state_path=state_path,
+    )
+
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "call_wall_breach", "sig-a",
+        now=now + timedelta(minutes=61), state_path=state_path,
+    ) is True
+
+
+def test_different_kinds_have_independent_cooldowns(tmp_path):
+    """問題一的迴歸測試。
+
+    原本所有訊號共用一個簽章：異常大單的履約價盤中會 churn，簽章一變就
+    穿透冷卻，導致最吵的訊號擁有最高推播頻率，且牆位突破被綁在同一個簽章
+    裡跟著重發。分開之後，異常大單怎麼變都不能影響牆位突破的冷卻。
+    """
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 9, 9, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "call_wall_breach", "wall-sig", now=now, state_path=state_path,
+    )
+
+    # 異常大單是全新的種類，不該被牆位突破的冷卻擋住
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "unusual_activity", "strike-123",
+        now=now + timedelta(minutes=1), state_path=state_path,
+    ) is True
+
+    # 而牆位突破自己仍然在冷卻中——不受異常大單的簽章變動影響
+    assert intraday_watcher.should_send_alert(
+        "TSLA", "call_wall_breach", "wall-sig",
+        now=now + timedelta(minutes=1), state_path=state_path,
+    ) is False
+
+
+def test_same_kind_different_symbols_are_independent(tmp_path):
+    state_path = tmp_path / "state.json"
+    now = datetime(2026, 9, 9, 14, 0, tzinfo=timezone.utc)
+    intraday_watcher.record_alert_sent(
+        "TSLA", "call_wall_breach", "sig-a", now=now, state_path=state_path,
+    )
+
+    assert intraday_watcher.should_send_alert(
+        "MU", "call_wall_breach", "sig-a",
+        now=now + timedelta(minutes=1), state_path=state_path,
+    ) is True

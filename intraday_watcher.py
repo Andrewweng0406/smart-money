@@ -297,13 +297,22 @@ def build_alert_signature(result: dict) -> str:
     return "|".join(sorted(parts))
 
 
+def _cooldown_key(symbol: str, kind: str) -> str:
+    """冷卻狀態的鍵——刻意含 kind。
+
+    原本只用 symbol，所有訊號共用一筆狀態與一個「把全部訊號串起來」的合併
+    簽章。異常大單的履約價盤中會持續變動，簽章一變就整組放行，等於冷卻對
+    「最吵的訊號」完全失效，而且會連帶把還在冷卻中的牆位突破一起重發。
+    """
+    return f"{symbol}|{kind}"
+
+
 def should_send_alert(
-    symbol: str, signature: str, now: datetime | None = None,
+    symbol: str, kind: str, signature: str, now: datetime | None = None,
     state_path: Path | None = None, cooldown_minutes: int = ALERT_COOLDOWN_MINUTES,
 ) -> bool:
-    """同一個訊號（signature相同）如果在冷卻時間內已經推播過，就不用再推
-    一次——避免每15分鐘對同一個持續中的事件重複轟炸。訊號變了（例如換一道
-    牆被突破，或多了新的異常大單）一定重新推播，不受冷卻時間限制。
+    """同一種訊號（symbol+kind）如果在冷卻時間內已經推播過，就不用再推一次。
+    訊號內容變了（簽章不同）一定重新推播，不受冷卻時間限制。
 
     state_path 預設 None、在函式內才解析成 ALERT_STATE_PATH（而不是直接
     寫在參數預設值上）——Python 的參數預設值是在函式「定義」當下就綁定，
@@ -313,7 +322,7 @@ def should_send_alert(
     if state_path is None:
         state_path = ALERT_STATE_PATH
     now = now or datetime.now(timezone.utc)
-    last = _load_alert_state(state_path).get(symbol)
+    last = _load_alert_state(state_path).get(_cooldown_key(symbol, kind))
     if last is None or last.get("signature") != signature:
         return True
     last_sent_at = datetime.fromisoformat(last["sent_at"])
@@ -321,13 +330,14 @@ def should_send_alert(
 
 
 def record_alert_sent(
-    symbol: str, signature: str, now: datetime | None = None, state_path: Path | None = None,
+    symbol: str, kind: str, signature: str, now: datetime | None = None,
+    state_path: Path | None = None,
 ) -> None:
     if state_path is None:
         state_path = ALERT_STATE_PATH
     now = now or datetime.now(timezone.utc)
     state = _load_alert_state(state_path)
-    state[symbol] = {"signature": signature, "sent_at": now.isoformat()}
+    state[_cooldown_key(symbol, kind)] = {"signature": signature, "sent_at": now.isoformat()}
     _save_alert_state(state, state_path)
 
 
@@ -359,10 +369,10 @@ def run_watch_cycle(symbols: list[str], notify: bool = False, force: bool = Fals
             print(alert_text)
             if notify:
                 signature = build_alert_signature(result)
-                if should_send_alert(symbol, signature):
+                if should_send_alert(symbol, "legacy_combined", signature):
                     import telegram_notifier
                     telegram_notifier.send_text_report(alert_text)
-                    record_alert_sent(symbol, signature)
+                    record_alert_sent(symbol, "legacy_combined", signature)
                 else:
                     logger.info("%s 同一事件仍在冷卻時間內，略過重複推播", symbol)
         else:
