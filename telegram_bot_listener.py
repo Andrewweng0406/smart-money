@@ -43,7 +43,14 @@ import anthropic
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    ApplicationHandlerStop,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+)
 
 import analyze
 import backtester
@@ -68,6 +75,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "").strip()
 OUTPUT_DIR = Path("reports")
 INTENT_MODEL = "claude-opus-5"
@@ -83,6 +91,34 @@ HELP_TEXT = (
     "/status - 排程健康檢查（各標的最後一次成功分析是什麼時候）\n"
     "/help - 顯示這則說明"
 )
+
+
+def _parse_authorized_chat_id(value: str) -> int:
+    """把環境變數中的 Telegram Chat ID 轉成可比對的整數。"""
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("TELEGRAM_CHAT_ID 必須是有效整數") from exc
+
+
+def _is_authorized_update(update: Update, authorized_chat_id: int) -> bool:
+    """只允許設定的私人 chat 使用會觸發外部資源的互動功能。"""
+    chat = update.effective_chat
+    return chat is not None and chat.id == authorized_chat_id
+
+
+async def _reject_unauthorized_update(
+    update: Update, context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """在所有功能 handler 前阻擋未授權 chat。"""
+    authorized_chat_id = _parse_authorized_chat_id(TELEGRAM_CHAT_ID)
+    if _is_authorized_update(update, authorized_chat_id):
+        return
+
+    # 不回覆陌生 chat，避免確認 Bot 功能與有效性；只留下不含訊息內容的安全日誌。
+    attempted_chat_id = update.effective_chat.id if update.effective_chat else None
+    logger.warning("拒絕未授權 Telegram chat：%s", attempted_chat_id)
+    raise ApplicationHandlerStop
 
 
 class BotIntent(BaseModel):
@@ -424,6 +460,7 @@ def _build_and_run_once(token: str) -> None:
     asyncio.set_event_loop(loop)
 
     application = Application.builder().token(token).build()
+    application.add_handler(MessageHandler(filters.ALL, _reject_unauthorized_update), group=-1)
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", start_command))
     application.add_handler(CommandHandler("report", report_command))
@@ -445,6 +482,11 @@ def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("未設定 TELEGRAM_BOT_TOKEN，無法啟動互動機器人")
         raise SystemExit(1)
+    try:
+        _parse_authorized_chat_id(TELEGRAM_CHAT_ID)
+    except ValueError as exc:
+        logger.error("%s，無法安全啟動互動機器人", exc)
+        raise SystemExit(1) from exc
 
     while True:
         try:

@@ -144,7 +144,8 @@ python intraday_watcher.py --symbol TSLA --force         # 忽略交易時間限
    `https://api.telegram.org/bot<TOKEN>/getUpdates`
    在回傳的 JSON 裡找 `"chat":{"id": 123456789, ...}`，那組數字就是
    `TELEGRAM_CHAT_ID`。
-4. 把兩個值填進 `.env`。
+4. 把兩個值填進 `.env`。`TELEGRAM_CHAT_ID` 同時是互動 Bot 的唯一白名單；
+   其他私人對話或群組即使找到 Bot，也會被靜默拒絕，不會觸發分析或 AI 呼叫。
 
 選填：到 [console.anthropic.com](https://console.anthropic.com/) 登入後在
 API Keys 頁面建立一組金鑰，填入 `.env` 的 `ANTHROPIC_API_KEY`，報告就會多一段

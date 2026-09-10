@@ -117,7 +117,7 @@ python check_env.py
 | `analyze.py` | 單一標的完整流程編排（也是其他編排腳本會 import 的共用函式庫） |
 | `run_watchlist.py` | 多標的 watchlist 編排 |
 | `intraday_watcher.py` | 盤中即時異常監控（單次檢查，排程交給 launchd StartInterval；同一事件有冷卻機制避免重複推播） |
-| `telegram_bot_listener.py` | 常駐互動機器人（/report /watchlist /backtest /signals /scorecard /status + 自然語言） |
+| `telegram_bot_listener.py` | 常駐互動機器人（TELEGRAM_CHAT_ID 白名單；/report /watchlist /backtest /signals /scorecard /status + 自然語言） |
 | `run.sh` | 排程統一入口，launchd/cron 都呼叫這支 |
 | `cloud_scheduler.py` | Railway 雲端部署的進入點，取代 launchd 排程判斷（見下方） |
 | `watchlist.json` | 使用者維護的標的清單 |

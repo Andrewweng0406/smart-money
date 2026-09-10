@@ -199,6 +199,34 @@ def test_run_watchlist_sync_aggregates_summaries(monkeypatch, tmp_path):
 
 # ---------- async command handlers ----------
 
+def test_is_authorized_update_accepts_only_configured_chat():
+    update, _ = _fake_update_and_context()
+    update.effective_chat.id = 12345
+
+    assert bot._is_authorized_update(update, 12345) is True
+    assert bot._is_authorized_update(update, 99999) is False
+
+
+def test_reject_unauthorized_update_stops_dispatch_without_reply(monkeypatch):
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "12345")
+    update, context = _fake_update_and_context()
+    update.effective_chat.id = 99999
+
+    with pytest.raises(bot.ApplicationHandlerStop):
+        _run(bot._reject_unauthorized_update(update, context))
+
+    update.message.reply_text.assert_not_called()
+
+
+def test_authorization_gate_allows_configured_chat(monkeypatch):
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "12345")
+    update, context = _fake_update_and_context()
+    update.effective_chat.id = 12345
+
+    _run(bot._reject_unauthorized_update(update, context))
+
+    update.message.reply_text.assert_not_called()
+
 def test_report_command_defaults_to_tsla_and_sends_text_and_photo(monkeypatch, tmp_path):
     chart_path = tmp_path / "chart.png"
     chart_path.write_bytes(b"fake png bytes")
@@ -629,11 +657,28 @@ def test_main_exits_without_token(monkeypatch):
         bot.main()
 
 
+def test_main_exits_without_authorized_chat_id(monkeypatch):
+    monkeypatch.setattr(bot, "TELEGRAM_BOT_TOKEN", "fake-token")
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "")
+
+    with pytest.raises(SystemExit):
+        bot.main()
+
+
+def test_main_exits_with_non_numeric_authorized_chat_id(monkeypatch):
+    monkeypatch.setattr(bot, "TELEGRAM_BOT_TOKEN", "fake-token")
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "not-a-number")
+
+    with pytest.raises(SystemExit):
+        bot.main()
+
+
 def test_main_restarts_after_unexpected_exception(monkeypatch):
     """_build_and_run_once 第一次拋出例外、第二次正常返回，main() 應該
     自動重試一次而不是直接讓程式掛掉；重試前會 sleep(5)。
     """
     monkeypatch.setattr(bot, "TELEGRAM_BOT_TOKEN", "fake-token")
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "12345")
     call_count = {"n": 0}
 
     def fake_build_and_run(token):
@@ -653,6 +698,7 @@ def test_main_restarts_after_unexpected_exception(monkeypatch):
 
 def test_main_stops_cleanly_on_keyboard_interrupt(monkeypatch):
     monkeypatch.setattr(bot, "TELEGRAM_BOT_TOKEN", "fake-token")
+    monkeypatch.setattr(bot, "TELEGRAM_CHAT_ID", "12345")
     monkeypatch.setattr(bot, "_build_and_run_once", lambda token: (_ for _ in ()).throw(KeyboardInterrupt()))
 
     with patch("telegram_bot_listener.time.sleep") as mock_sleep:
