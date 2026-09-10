@@ -9,11 +9,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal
+
+logger = logging.getLogger("options_gex")
 
 # 本機跑就用專案目錄下的 history.db；雲端部署（例如 Railway）沒有固定的
 # 「專案目錄」概念，資料庫要放在掛載的 Volume 裡才能在重新部署後還留著，
@@ -106,6 +109,39 @@ CREATE TABLE IF NOT EXISTS oi_snapshots (
 """
 
 
+# 訊號分級事件——三個級別共用這一張表：silent 是「永遠不會被 drain 的列」、
+# watch 是「等待 drain 的列」、urgent 是「已推播並標記的列」。連不推播的訊號
+# 也要落地，因為這張表同時是後續績效儀表板的資料來源。
+#
+# classified_tier 與 delivered_tier 刻意分開存：前者是分級層對「訊號品質」的
+# 判定，後者是實際走的通道。每日推播預算超額時只降 delivered_tier，若把兩者
+# 合而為一，tier 就會變成「當天還發生了什麼事」的函數，日後用 tier='urgent'
+# 取樣做績效統計會被當日到達順序污染——那是跑三個月才會發現的資料問題。
+_SIGNAL_EVENTS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS signal_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    detected_at TEXT NOT NULL,
+    trading_date TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    classified_tier TEXT NOT NULL,
+    delivered_tier TEXT NOT NULL,
+    reason TEXT,
+    signature TEXT,
+    payload_json TEXT,
+    delivered_at TEXT,
+    delivery_channel TEXT
+)
+"""
+
+_SIGNAL_EVENTS_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_signal_events_symbol_date "
+    "ON signal_events (symbol, trading_date)",
+    "CREATE INDEX IF NOT EXISTS idx_signal_events_delivery "
+    "ON signal_events (delivered_tier, delivered_at)",
+]
+
+
 @contextmanager
 def _connect(db_path: Path | str = DEFAULT_DB_PATH):
     conn = sqlite3.connect(str(db_path))
@@ -113,6 +149,9 @@ def _connect(db_path: Path | str = DEFAULT_DB_PATH):
         conn.execute(_SCHEMA)
         conn.execute(_STRATEGY_SCHEMA)
         conn.execute(_OI_SNAPSHOT_SCHEMA)
+        conn.execute(_SIGNAL_EVENTS_SCHEMA)
+        for statement in _SIGNAL_EVENTS_INDEXES:
+            conn.execute(statement)
         _migrate_daily_snapshots(conn)
         yield conn
         conn.commit()
@@ -321,3 +360,98 @@ def get_most_recent_oi_snapshot_date(
             (symbol, before_date),
         ).fetchone()
     return row[0] if row else None
+
+
+def save_signal_event(
+    symbol: str,
+    detected_at: str,
+    trading_date: str,
+    kind: str,
+    classified_tier: str,
+    delivered_tier: str,
+    reason: str,
+    signature: str,
+    payload: dict,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> int:
+    """存一筆訊號事件，回傳 rowid。
+
+    連 silent 級別也要存——那是未來績效儀表板要回答「哪些警報其實是噪音」
+    時的對照組，沒有它就只剩下被推播過的訊號，樣本天生偏誤。
+    """
+    with _connect(db_path) as conn:
+        cursor = conn.execute(
+            """INSERT INTO signal_events
+               (symbol, detected_at, trading_date, kind, classified_tier,
+                delivered_tier, reason, signature, payload_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (symbol, detected_at, trading_date, kind, classified_tier,
+             delivered_tier, reason, signature, json.dumps(payload)),
+        )
+        return cursor.lastrowid
+
+
+def get_undelivered_watch_events(
+    symbol: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """取出該標的所有還沒送達的觀察名單項目。
+
+    條件用 delivered_tier 而非 classified_tier：被每日預算擠下來的 urgent
+    訊號 delivered_tier 是 watch，應該跟著觀察名單一起送出去（降級不是丟棄）。
+    """
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT * FROM signal_events
+               WHERE symbol = ? AND delivered_tier = 'watch' AND delivered_at IS NULL
+               ORDER BY detected_at""",
+            (symbol,),
+        ).fetchall()
+
+    events = []
+    for row in rows:
+        event = dict(row)
+        try:
+            event["payload"] = json.loads(event.get("payload_json") or "{}")
+        except Exception as exc:  # noqa: BLE001
+            # payload 壞掉不該讓整份觀察名單消失——退回空 dict，呼叫端會用
+            # kind 當顯示文字。
+            logger.warning("訊號事件 payload 解析失敗（id=%s）：%s", event.get("id"), exc)
+            event["payload"] = {}
+        events.append(event)
+    return events
+
+
+def mark_events_delivered(
+    event_ids: list[int],
+    delivered_at: str,
+    channel: str,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> None:
+    """標記已送達。推播失敗時「不要」呼叫這支——沒標記的項目下次會重試。"""
+    if not event_ids:
+        return
+    placeholders = ",".join("?" for _ in event_ids)
+    with _connect(db_path) as conn:
+        conn.execute(
+            f"UPDATE signal_events SET delivered_at = ?, delivery_channel = ? "
+            f"WHERE id IN ({placeholders})",
+            (delivered_at, channel, *event_ids),
+        )
+
+
+def count_urgent_delivered(
+    trading_date: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> int:
+    """當日已實際推播的緊急訊號數——跨所有標的合計，不是每檔各算一份。
+
+    用 delivered_tier 而非 classified_tier：被擠掉的訊號沒有真的打擾使用者，
+    不該佔用預算額度。
+    """
+    with _connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM signal_events "
+            "WHERE trading_date = ? AND delivered_tier = 'urgent'",
+            (trading_date,),
+        ).fetchone()
+    return row[0] if row else 0

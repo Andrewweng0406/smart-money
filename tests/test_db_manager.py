@@ -328,3 +328,84 @@ def test_save_snapshot_migrates_pre_pinning_schema_database(tmp_path):
     assert len(rows) == 2
     old_row = next(r for r in rows if r["date"] == "2026-07-31")
     assert old_row["pin_strike"] is None  # 舊資料補上的新欄位是 NULL，不是報錯
+
+
+# ---------- signal_events ----------
+
+def test_save_and_read_undelivered_watch_event(tmp_path):
+    db_path = tmp_path / "history.db"
+    db_manager.save_signal_event(
+        "TSLA", "2026-09-09T14:00:00+00:00", "2026-09-09", "call_wall_breach",
+        classified_tier="watch", delivered_tier="watch",
+        reason="正 Gamma", signature="call_wall", payload={"wall": 110.0},
+        db_path=db_path,
+    )
+
+    rows = db_manager.get_undelivered_watch_events("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["kind"] == "call_wall_breach"
+    assert rows[0]["payload"]["wall"] == 110.0
+    assert rows[0]["reason"] == "正 Gamma"
+
+
+def test_silent_events_are_never_returned_as_watch(tmp_path):
+    """靜默紀錄只落地，永遠不該被 drain 出來推播。"""
+    db_path = tmp_path / "history.db"
+    db_manager.save_signal_event(
+        "TSLA", "2026-09-09T14:00:00+00:00", "2026-09-09", "pinning_high",
+        classified_tier="silent", delivered_tier="silent",
+        reason="分數不足", signature="pinning", payload={"score": 40},
+        db_path=db_path,
+    )
+
+    assert db_manager.get_undelivered_watch_events("TSLA", db_path=db_path) == []
+
+
+def test_marking_delivered_removes_from_queue(tmp_path):
+    db_path = tmp_path / "history.db"
+    event_id = db_manager.save_signal_event(
+        "TSLA", "2026-09-09T14:00:00+00:00", "2026-09-09", "call_wall_breach",
+        classified_tier="watch", delivered_tier="watch",
+        reason="正 Gamma", signature="call_wall", payload={},
+        db_path=db_path,
+    )
+
+    db_manager.mark_events_delivered(
+        [event_id], "2026-09-09T20:30:00+00:00", "daily_report", db_path=db_path,
+    )
+
+    assert db_manager.get_undelivered_watch_events("TSLA", db_path=db_path) == []
+
+
+def test_count_urgent_delivered_is_global_across_symbols(tmp_path):
+    """每日推播預算是跨所有標的合計，不是每檔各算一份。"""
+    db_path = tmp_path / "history.db"
+    for symbol in ("TSLA", "MU", "SPCX"):
+        db_manager.save_signal_event(
+            symbol, "2026-09-09T14:00:00+00:00", "2026-09-09", "put_wall_breach",
+            classified_tier="urgent", delivered_tier="urgent",
+            reason="保護優先", signature="put_wall", payload={},
+            db_path=db_path,
+        )
+
+    assert db_manager.count_urgent_delivered("2026-09-09", db_path=db_path) == 3
+    assert db_manager.count_urgent_delivered("2026-09-10", db_path=db_path) == 0
+
+
+def test_demoted_event_keeps_classified_tier_urgent(tmp_path):
+    """預算擠掉的訊號 delivered_tier 降級，但 classified_tier 必須維持
+    urgent——否則日後績效統計會被當日到達順序污染。"""
+    db_path = tmp_path / "history.db"
+    db_manager.save_signal_event(
+        "TSLA", "2026-09-09T14:00:00+00:00", "2026-09-09", "put_wall_breach",
+        classified_tier="urgent", delivered_tier="watch",
+        reason="超出當日推播預算", signature="put_wall", payload={},
+        db_path=db_path,
+    )
+
+    rows = db_manager.get_undelivered_watch_events("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["classified_tier"] == "urgent"
+    assert db_manager.count_urgent_delivered("2026-09-09", db_path=db_path) == 0
