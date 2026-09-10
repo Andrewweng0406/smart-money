@@ -51,6 +51,7 @@ import data_fetcher
 import db_manager
 import options_strategy_engine
 import run_watchlist
+import signal_auditor
 import strategy_tracker
 
 load_dotenv()
@@ -77,6 +78,7 @@ HELP_TEXT = (
     "/report <代號> - 立即分析單一標的（不指定代號預設 TSLA）\n"
     "/watchlist - 立即分析整份 watchlist.json\n"
     "/backtest <代號> - 歷史籌碼模型回測統計\n"
+    "/signals <代號> - Telegram 實戰訊號績效審核（Wall/Gamma/Pinning 警報是否有用）\n"
     "/scorecard <代號> - 策略追蹤記分板（過去推薦的策略實際勝率/損益）\n"
     "/status - 排程健康檢查（各標的最後一次成功分析是什麼時候）\n"
     "/help - 顯示這則說明"
@@ -85,7 +87,7 @@ HELP_TEXT = (
 
 class BotIntent(BaseModel):
     """自然語言意圖判斷結果——Claude 把使用者的口語訊息轉成結構化的動作。"""
-    action: Literal["report", "watchlist", "backtest", "scorecard", "status", "help", "unknown"]
+    action: Literal["report", "watchlist", "backtest", "signals", "scorecard", "status", "help", "unknown"]
     symbol: Optional[str] = None
 
 
@@ -97,6 +99,8 @@ INTENT_SYSTEM_PROMPT = (
     "輝達→NVDA、蘋果→AAPL等），看不出來要查哪支就留空。\n"
     "- watchlist：查詢整份追蹤清單的綜合摘要（例如「幫我看一下整份清單」）。\n"
     "- backtest：查詢某標的的歷史回測統計（例如「TSLA的歷史勝率如何」）。\n"
+    "- signals：查詢某標的 Telegram 實戰訊號績效審核，例如 Wall 突破、Gamma Flip、"
+    "Pinning、警報日後續是否有用（例如「TSLA訊號準不準」「哪些警報有用」）。\n"
     "- scorecard：查詢某標的過去策略建議的實際勝率/損益戰績（例如「TSLA的策略"
     "推薦準不準」「策略記分板」「勝率多少」）。\n"
     "- status：查詢排程有沒有正常運作、最後一次成功分析是什麼時候（例如「排程"
@@ -281,6 +285,17 @@ async def _handle_backtest(update: Update, symbol: str) -> None:
     await update.message.reply_text(_truncate(report_text))
 
 
+async def _handle_signals(update: Update, symbol: str) -> None:
+    try:
+        report_text = await asyncio.to_thread(signal_auditor.build_signal_audit_report, symbol)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("查詢 %s 訊號績效審核失敗：%s", symbol, exc)
+        await update.message.reply_text(f"❌ 查詢失敗：{exc}")
+        return
+
+    await update.message.reply_text(_truncate(report_text))
+
+
 async def _handle_scorecard(update: Update, symbol: str) -> None:
     try:
         scorecard_text = await asyncio.to_thread(_build_scorecard_sync, symbol)
@@ -319,6 +334,11 @@ async def watchlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def backtest_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     symbol = context.args[0].upper() if context.args else "TSLA"
     await _handle_backtest(update, symbol)
+
+
+async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    symbol = context.args[0].upper() if context.args else "TSLA"
+    await _handle_signals(update, symbol)
 
 
 async def scorecard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -372,6 +392,8 @@ async def natural_language_handler(update: Update, context: ContextTypes.DEFAULT
         await _handle_watchlist(update)
     elif intent.action == "backtest":
         await _handle_backtest(update, (intent.symbol or "TSLA").upper())
+    elif intent.action == "signals":
+        await _handle_signals(update, (intent.symbol or "TSLA").upper())
     elif intent.action == "scorecard":
         await _handle_scorecard(update, (intent.symbol or "TSLA").upper())
     elif intent.action == "status":
@@ -407,6 +429,7 @@ def _build_and_run_once(token: str) -> None:
     application.add_handler(CommandHandler("report", report_command))
     application.add_handler(CommandHandler("watchlist", watchlist_command))
     application.add_handler(CommandHandler("backtest", backtest_command))
+    application.add_handler(CommandHandler("signals", signals_command))
     application.add_handler(CommandHandler("scorecard", scorecard_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))

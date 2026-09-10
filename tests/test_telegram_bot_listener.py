@@ -280,6 +280,55 @@ def test_backtest_command_defaults_to_tsla(monkeypatch):
     assert last_call_text == "回測報告內容"
 
 
+# ---------- /signals ----------
+
+def test_signals_command_defaults_to_tsla(monkeypatch):
+    captured = {}
+
+    def fake_build_signal_audit_report(symbol):
+        captured["symbol"] = symbol
+        return "訊號審核內容"
+
+    import signal_auditor
+    monkeypatch.setattr(signal_auditor, "build_signal_audit_report", fake_build_signal_audit_report)
+
+    update, context = _fake_update_and_context(args=[])
+    _run(bot.signals_command(update, context))
+
+    assert captured["symbol"] == "TSLA"
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert last_call_text == "訊號審核內容"
+
+
+def test_signals_command_uses_symbol_from_args(monkeypatch):
+    captured = {}
+
+    import signal_auditor
+    monkeypatch.setattr(
+        signal_auditor, "build_signal_audit_report",
+        lambda symbol: captured.setdefault("symbol", symbol) or "ok",
+    )
+
+    update, context = _fake_update_and_context(args=["nvda"])
+    _run(bot.signals_command(update, context))
+
+    assert captured["symbol"] == "NVDA"
+
+
+def test_signals_command_replies_error_on_failure_without_raising(monkeypatch):
+    import signal_auditor
+    monkeypatch.setattr(
+        signal_auditor, "build_signal_audit_report",
+        lambda symbol: (_ for _ in ()).throw(RuntimeError("db 壞了")),
+    )
+
+    update, context = _fake_update_and_context(args=["TSLA"])
+    _run(bot.signals_command(update, context))
+
+    last_call_text = update.message.reply_text.call_args_list[-1].args[0]
+    assert "失敗" in last_call_text
+
+
 # ---------- /scorecard ----------
 
 def test_scorecard_command_defaults_to_tsla(monkeypatch):
@@ -489,6 +538,18 @@ def test_natural_language_handler_dispatches_to_backtest(monkeypatch):
     _run(bot.natural_language_handler(update, context))
 
     handle_backtest_mock.assert_called_once_with(update, "TSLA")
+
+
+def test_natural_language_handler_dispatches_to_signals(monkeypatch):
+    monkeypatch.setattr(bot, "interpret_intent", AsyncMock(return_value=bot.BotIntent(action="signals", symbol="TSLA")))
+    handle_signals_mock = AsyncMock()
+    monkeypatch.setattr(bot, "_handle_signals", handle_signals_mock)
+
+    update, context = _fake_update_and_context()
+    update.message.text = "TSLA訊號準不準"
+    _run(bot.natural_language_handler(update, context))
+
+    handle_signals_mock.assert_called_once_with(update, "TSLA")
 
 
 def test_natural_language_handler_dispatches_to_scorecard(monkeypatch):
