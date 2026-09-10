@@ -120,6 +120,10 @@ python intraday_watcher.py --symbol TSLA --force         # 忽略交易時間限
 每日分析固定在實際收盤後 30 分鐘執行：正常交易日是 16:30 ET，13:00 ET
 提前收盤日則改為 13:30 ET，不需要人工維護假日或半日市日期。
 
+Railway 若剛好在排程分鐘重啟，恢復後會檢查 `history.db` 並自動補跑；如果
+watchlist 任一標的在補跑後仍沒有當日快照，Telegram 會立即收到一則完整性
+告警。同一交易日只告警一次，去重狀態與資料庫一起保存在 Volume。
+
 排程設定見下方「選項 C：盤中監控排程」。
 
 ## 2. 設定 .env 安全存放 Bot Token / Chat ID

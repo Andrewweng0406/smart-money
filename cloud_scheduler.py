@@ -15,14 +15,20 @@ plist（`scripts/com.andrewweng.stockgex*.plist`）分別排每日收盤分析�
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import subprocess
 import sys
 import time
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import db_manager
 import market_calendar
+import run_watchlist
+import telegram_notifier
 
 US_EASTERN = ZoneInfo("America/New_York")
 
@@ -36,6 +42,12 @@ INTRADAY_SUMMARY_MINUTE = 0
 # intraday_watcher.py 內部仍有第二層 gate，避免排程或手動呼叫漏防。
 INTRADAY_INTERVAL_MINUTES = 15
 LOOP_SLEEP_SECONDS = 30
+WATCHLIST_PATH = Path("watchlist.json")
+SCHEDULER_STATE_PATH = (
+    Path(os.environ["SCHEDULER_STATE_PATH"])
+    if os.environ.get("SCHEDULER_STATE_PATH")
+    else db_manager.DEFAULT_DB_PATH.with_name("scheduler_state.json")
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("cloud_scheduler")
@@ -46,8 +58,7 @@ def should_trigger_daily(now_et: datetime, last_run_date: date | None) -> bool:
     run_at = market_calendar.daily_analysis_time(now_et.date())
     return (
         run_at is not None
-        and now_et.hour == run_at.hour
-        and now_et.minute == run_at.minute
+        and now_et >= run_at
         and last_run_date != now_et.date()
     )
 
@@ -79,15 +90,76 @@ def should_trigger_intraday(now_et: datetime, last_run_bucket: tuple | None) -> 
     return now_et.minute % INTRADAY_INTERVAL_MINUTES == 0 and last_run_bucket != bucket
 
 
-def _run_job(args: list[str]) -> None:
+def _run_job(args: list[str]) -> bool:
     """執行一次性排程任務（每日分析／盤中監控）。失敗只記錄錯誤，不能讓
     排程迴圈或常駐機器人一起掛掉——呼應專案「加分項優雅降級」的慣例，
     這裡的「加分項」是整個排程機制本身。"""
     logger.info("執行排程任務：%s", " ".join(args))
     try:
         subprocess.run([sys.executable, *args], check=True)
-    except subprocess.CalledProcessError as exc:
+        return True
+    except (subprocess.CalledProcessError, OSError) as exc:
         logger.error("排程任務失敗（%s）：%s", " ".join(args), exc)
+        return False
+
+
+def find_missing_daily_snapshots(
+    symbols: list[str], trading_date: date,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+) -> list[str]:
+    """找出當日尚未成功寫入快照的標的。"""
+    expected_date = trading_date.isoformat()
+    missing = []
+    for symbol in symbols:
+        rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
+        if not rows or rows[0]["date"] != expected_date:
+            missing.append(symbol)
+    return missing
+
+
+def _load_scheduler_state(state_path: Path) -> dict:
+    try:
+        return json.loads(state_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_scheduler_state(state: dict, state_path: Path) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+
+
+def run_daily_analysis(
+    trading_date: date,
+    db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+    state_path: Path = SCHEDULER_STATE_PATH,
+    watchlist_path: Path = WATCHLIST_PATH,
+) -> bool:
+    """補跑每日分析，並以資料庫快照作為真正成功的驗收依據。"""
+    symbols = run_watchlist.load_watchlist(watchlist_path)
+    missing_before = find_missing_daily_snapshots(symbols, trading_date, db_path=db_path)
+    if not missing_before:
+        logger.info("%s 每日快照已齊全，不重複執行", trading_date.isoformat())
+        return True
+
+    job_succeeded = _run_job(["run_watchlist.py", "--notify"])
+    missing_after = find_missing_daily_snapshots(symbols, trading_date, db_path=db_path)
+    if job_succeeded and not missing_after:
+        return True
+
+    state = _load_scheduler_state(state_path)
+    alert_key = trading_date.isoformat()
+    if state.get("last_daily_failure_alert") != alert_key:
+        missing_text = "、".join(missing_after) if missing_after else "無（程序本身回傳失敗）"
+        telegram_notifier.send_text_report(
+            "🚨 每日分析完整性告警\n"
+            f"交易日：{alert_key}\n"
+            f"缺少快照：{missing_text}\n"
+            "系統已嘗試補跑，請檢查 Railway 與資料源日誌。"
+        )
+        state["last_daily_failure_alert"] = alert_key
+        _save_scheduler_state(state, state_path)
+    return False
 
 
 def _start_bot() -> subprocess.Popen:
@@ -116,7 +188,7 @@ def main() -> None:
 
         if should_trigger_daily(now_et, last_daily_run_date):
             last_daily_run_date = now_et.date()
-            _run_job(["run_watchlist.py", "--notify"])
+            run_daily_analysis(now_et.date())
 
         if should_trigger_intraday_summary(now_et, last_intraday_summary_run_date):
             last_intraday_summary_run_date = now_et.date()
