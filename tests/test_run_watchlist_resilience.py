@@ -391,3 +391,36 @@ def test_watchlist_summary_surfaces_unusable_oi_quality():
 
     assert "OI 資料可信度低" in text
     assert "1.00%" in text
+
+
+def test_watchlist_summary_puts_decision_before_raw_levels():
+    row = _summary_row("TSLA")
+    row["decision"] = {
+        "action": "區間上緣，避免追價", "confidence": "中",
+        "summary": "正 Gamma 壓抑波動，價格接近區間上緣。",
+        "upside_trigger": "站穩 Call Wall $110 才重新評估向上突破",
+        "downside_trigger": "跌破 Gamma Flip $95 轉為防守",
+        "why": [],
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "決策：區間上緣，避免追價（信心：中）" in text
+    assert text.index("決策：") < text.index("Max Pain")
+    assert "向上觸發" in text
+    assert "向下風險" in text
+
+
+def test_watchlist_summary_does_not_recommend_strategy_during_low_confidence_observation():
+    row = _summary_row("TSLA", strategy_name="Bull Put Spread")
+    row["decision"] = {
+        "action": "事件前觀望", "confidence": "低",
+        "summary": "事件前不判斷方向", "upside_trigger": "等待事件",
+        "downside_trigger": "等待事件", "why": [],
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "建議策略：Bull Put Spread" not in text
+    assert "暫不執行" in text
+    assert "模型候選：Bull Put Spread" in text

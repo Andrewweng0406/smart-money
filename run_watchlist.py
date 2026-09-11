@@ -21,6 +21,7 @@ from pathlib import Path
 import analyze
 import data_fetcher
 import db_manager
+import decision_engine
 import risk_gauge
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -127,6 +128,20 @@ def run_one_symbol(
         logger.warning("%s 風險計量失敗：%s", symbol, exc)
         risk = None
 
+    try:
+        decision = decision_engine.build_decision_brief(
+            spot=result.spot,
+            put_wall=result.put_wall,
+            call_wall=result.call_wall,
+            gamma_flip=result.gamma_flip,
+            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
+            oi_data_quality=result.oi_data_quality,
+            calendar_warnings=macro_warnings,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 決策摘要計算失敗：%s", symbol, exc)
+        decision = None
+
     return {
         "symbol": symbol, "spot": result.spot, "max_pain": result.max_pain,
         "call_wall": result.call_wall, "put_wall": result.put_wall,
@@ -134,6 +149,7 @@ def run_one_symbol(
         "strategy_name": strategy.strategy_name if strategy else "N/A",
         "mm_pressure": result.mm_pressure, "macro_warnings": macro_warnings,
         "risk": risk, "oi_data_quality": result.oi_data_quality,
+        "decision": decision,
     }
 
 
@@ -287,6 +303,14 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
                 f"  ⚠️ OI 資料可信度低：{oi_quality.get('reason', '資料不完整')}；"
                 "本次 GEX、Wall、PCR 與異常成交只供參考"
             )
+        decision = row.get("decision")
+        if decision:
+            lines.append(
+                f"  🧭 決策：{decision['action']}（信心：{decision['confidence']}）"
+            )
+            lines.append(f"  {decision['summary']}")
+            lines.append(f"  ↑ 向上觸發：{decision['upside_trigger']}")
+            lines.append(f"  ↓ 向下風險：{decision['downside_trigger']}")
         risk = row.get("risk")
         if risk:
             lines.append(f"  🎯 風險 {risk['risk_score']}/100（{risk['risk_label']}）　{risk['regime_text']}")
@@ -304,7 +328,13 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
             if pressure.get("is_death_loop_alert"):
                 lines.append(f"  {pressure['alert_text']}")
         strategy_name = row["strategy_name"]
-        if strategy_name.startswith("無建議（") and strategy_name.endswith("）"):
+        decision_blocks_execution = bool(
+            decision
+            and (decision["confidence"] == "低" or "觀望" in decision["action"])
+        )
+        if decision_blocks_execution and strategy_name not in ("N/A",) and not strategy_name.startswith("無建議（"):
+            lines.append(f"  策略：暫不執行（模型候選：{strategy_name}）")
+        elif strategy_name.startswith("無建議（") and strategy_name.endswith("）"):
             candidate = strategy_name.removeprefix("無建議（").removesuffix("）")
             lines.append(f"  目前沒有可執行策略；候選方向：{candidate}（缺少合適履約價或報價）")
         elif strategy_name == "N/A":

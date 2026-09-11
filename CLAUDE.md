@@ -15,6 +15,7 @@ Telegram 機器人隨時主動查詢（指令或自然語言皆可）。
              options_strategy_engine.py（賣方價差/Iron Condor/買方突圍）
              smart_money.py（IV Skew/PCR/異常大單/莊家壓力分數）
              signal_tiering.py（訊號分級：urgent/watch/silent）
+             decision_engine.py（決策姿態、信心、上下觸發條件）
              backtester.py（歷史勝率統計）
              macro_calendar.py（財報/總經事件倒數）
              strategy_tracker.py（策略到期損益計算/勝率彙總）
@@ -105,6 +106,7 @@ python check_env.py
 | `options_strategy_engine.py` | 賣方價差/Iron Condor/買方突圍，依GEX狀態自動選策略 |
 | `smart_money.py` | IV Skew、Put/Call Ratio、異常大單偵測、莊家壓力分數 |
 | `signal_tiering.py` | 訊號分級政策（urgent/watch/silent）——純計算，不做 I/O、不讀狀態 |
+| `decision_engine.py` | 將資料品質、事件、Gamma/Wall 結構轉成保守決策摘要（純計算） |
 | `db_manager.py` | SQLite 讀寫（history.db：每日快照 + 策略追蹤記分板 + signal_events；異常成交依交易日/合約 upsert） |
 | `backtester.py` | Max Pain偏離度、Gamma Flip支撐/阻力勝率統計 |
 | `signal_auditor.py` | Telegram 實戰訊號績效審核（Wall/Gamma/Pinning/警報日後續表現） |
