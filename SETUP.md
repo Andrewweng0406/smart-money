@@ -495,6 +495,9 @@ railway service connect --repo Andrewweng0406/smart-money --branch main
   `intraday_watcher.MAX_URGENT_PUSHES_PER_DAY` 控制（預設 8，**跨所有標的
   合計**）。要調鬆緊改這一個常數即可，不用重新校準每個訊號的靈敏度。
 - **觀察**：不即時推播，累積後併入 10:00 ET 摘要或當日收盤後 30 分鐘的日報。
+- yfinance 的期權成交量是當日累計值，不是逐筆成交；同一合約每 15 分鐘
+  重複達標只更新同一筆觀察事件。摘要每檔最多顯示 ratio 最高的 5 個異常
+  合約，避免累積數字被誤讀成多筆獨立大單。
 - **靜默**：只寫入 `signal_events` 表，不推播。
 
 分級規則寫在 `signal_tiering.py`（純計算、可用合成資料測試）。幾個要點：

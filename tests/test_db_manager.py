@@ -362,6 +362,33 @@ def test_silent_events_are_never_returned_as_watch(tmp_path):
     assert db_manager.get_undelivered_watch_events("TSLA", db_path=db_path) == []
 
 
+def test_unusual_activity_updates_same_contract_instead_of_inserting_duplicates(tmp_path):
+    db_path = tmp_path / "history.db"
+    common = dict(
+        symbol="SPCX", trading_date="2026-09-09", kind="unusual_activity",
+        classified_tier="watch", delivered_tier="watch", reason="盤中無法判定開平倉",
+        signature="put:150", db_path=db_path,
+    )
+    first_id = db_manager.save_signal_event(
+        detected_at="2026-09-09T14:00:00+00:00",
+        payload={"strike": 150, "side": "put", "volume": 25000, "ratio": 3.7, "text": "舊值"},
+        **common,
+    )
+    second_id = db_manager.save_signal_event(
+        detected_at="2026-09-09T15:00:00+00:00",
+        payload={"strike": 150, "side": "put", "volume": 35000, "ratio": 5.0, "text": "最新值"},
+        **common,
+    )
+
+    rows = db_manager.get_undelivered_watch_events("SPCX", db_path=db_path)
+
+    assert second_id == first_id
+    assert len(rows) == 1
+    assert rows[0]["payload"]["volume"] == 35000
+    assert rows[0]["payload"]["ratio"] == 5.0
+    assert rows[0]["payload"]["text"] == "最新值"
+
+
 def test_marking_delivered_removes_from_queue(tmp_path):
     db_path = tmp_path / "history.db"
     event_id = db_manager.save_signal_event(

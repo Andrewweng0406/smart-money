@@ -310,8 +310,8 @@ def extract_signals(result: dict) -> list[dict]:
                         "volume": item["volume"], "ratio": ratio,
                         "likely_opening": item.get("likely_opening")},
             "signature": f"{item['side']}:{item['strike']}",
-            "text": (f"{symbol} ${item['strike']:.0f} {item['side'].upper()} 出現巨量："
-                     f"成交量 {item['volume']:,.0f} 張（OI的 {ratio_text}）"),
+            "text": (f"{symbol} ${item['strike']:.0f} {item['side'].upper()} 異常活躍："
+                     f"當日累積成交量達 {item['volume']:,.0f} 張（OI的 {ratio_text}）"),
         })
 
     return signals

@@ -133,7 +133,7 @@ def run_one_symbol(
         "gamma_flip": result.gamma_flip, "alert": result.alert,
         "strategy_name": strategy.strategy_name if strategy else "N/A",
         "mm_pressure": result.mm_pressure, "macro_warnings": macro_warnings,
-        "risk": risk,
+        "risk": risk, "oi_data_quality": result.oi_data_quality,
     }
 
 
@@ -184,10 +184,32 @@ def build_watch_section(
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s 讀取觀察名單失敗：%s", symbol, exc)
             continue
+        event_ids.extend(event["id"] for event in events)
+
+        # 舊版每 15 分鐘把同一合約的累積 volume 新增成一列；先按穩定簽章
+        # 合併，才能讓已存在 Volume 裡的歷史佇列在本版上線後立刻恢復可讀。
+        grouped: dict[tuple[str, str], dict] = {}
+        repeat_counts: dict[tuple[str, str], int] = {}
         for event in events:
+            key = (event["kind"], event.get("signature") or str(event["id"]))
+            repeat_counts[key] = repeat_counts.get(key, 0) + 1
+            if key not in grouped or event["detected_at"] > grouped[key]["detected_at"]:
+                grouped[key] = event
+
+        selected = [event for event in grouped.values() if event["kind"] != "unusual_activity"]
+        unusual = sorted(
+            (event for event in grouped.values() if event["kind"] == "unusual_activity"),
+            key=lambda event: (event.get("payload") or {}).get("ratio") or 0,
+            reverse=True,
+        )
+        selected.extend(unusual[:5])
+
+        for event in selected:
             text = (event.get("payload") or {}).get("text") or event["kind"]
-            lines.append(f"• {text}\n  （{event['reason']}）")
-            event_ids.append(event["id"])
+            key = (event["kind"], event.get("signature") or str(event["id"]))
+            repeated = repeat_counts[key]
+            merged_note = f"；盤中 {repeated} 次掃描已合併" if repeated > 1 else ""
+            lines.append(f"• {text}\n  （{event['reason']}{merged_note}）")
 
     if not lines:
         return "", []
@@ -238,17 +260,33 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
     避免這份總表太長。
     """
     lines = [f"📊 Watchlist 綜合評估報告 — {datetime.now():%Y-%m-%d}", ""]
+
+    # CPI/FOMC 這類市場共同事件在每檔分析都會回傳相同文字；集中到報告頂端
+    # 只顯示一次，避免三檔 watchlist 看起來像發生了三個不同事件。
+    shared_warnings = list(dict.fromkeys(
+        warning
+        for row in summaries if "error" not in row
+        for warning in (row.get("macro_warnings") or [])
+    ))
+    for warning in shared_warnings:
+        lines.append(warning)
+    if shared_warnings:
+        lines.append("")
+
     for row in summaries:
         if "error" in row:
             lines.append(f"❌ {row['symbol']}：分析失敗（{row['error']}）")
             lines.append("")
             continue
 
-        for warning in row.get("macro_warnings") or []:
-            lines.append(f"  {warning}")
-
         flip_text = f"${row['gamma_flip']:.0f}" if row["gamma_flip"] is not None else "N/A"
         lines.append(f"◆ {row['symbol']}　現貨 ${row['spot']:.2f}")
+        oi_quality = row.get("oi_data_quality")
+        if oi_quality and not oi_quality.get("usable", True):
+            lines.append(
+                f"  ⚠️ OI 資料可信度低：{oi_quality.get('reason', '資料不完整')}；"
+                "本次 GEX、Wall、PCR 與異常成交只供參考"
+            )
         risk = row.get("risk")
         if risk:
             lines.append(f"  🎯 風險 {risk['risk_score']}/100（{risk['risk_label']}）　{risk['regime_text']}")
@@ -265,7 +303,14 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
             lines.append(f"  莊家收割壓力：{pressure['score']}/100（{pressure['label']}）")
             if pressure.get("is_death_loop_alert"):
                 lines.append(f"  {pressure['alert_text']}")
-        lines.append(f"  建議策略：{row['strategy_name']}")
+        strategy_name = row["strategy_name"]
+        if strategy_name.startswith("無建議（") and strategy_name.endswith("）"):
+            candidate = strategy_name.removeprefix("無建議（").removesuffix("）")
+            lines.append(f"  目前沒有可執行策略；候選方向：{candidate}（缺少合適履約價或報價）")
+        elif strategy_name == "N/A":
+            lines.append("  目前沒有可執行策略")
+        else:
+            lines.append(f"  建議策略：{strategy_name}")
         lines.append("")
 
     return "\n".join(lines).strip()

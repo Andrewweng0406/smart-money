@@ -321,3 +321,73 @@ def test_build_watch_section_spans_multiple_symbols(tmp_path):
 
     assert "TSLA" in text and "MU" in text
     assert len(ids) == 2
+
+
+def _save_unusual_watch_event(db_path, strike, ratio, detected_at):
+    return db_manager.save_signal_event(
+        "SPCX", detected_at, "2026-09-09", "unusual_activity",
+        classified_tier="watch", delivered_tier="watch",
+        reason="盤中無法判定開倉/平倉故不升級", signature=f"call:{strike}",
+        payload={
+            "strike": strike, "side": "call", "volume": ratio * 1000,
+            "ratio": ratio, "text": f"SPCX ${strike} CALL 累積成交量（{ratio:.1f}x）",
+        }, db_path=db_path,
+    )
+
+
+def test_build_watch_section_caps_unusual_contracts_and_keeps_strongest(tmp_path):
+    db_path = tmp_path / "history.db"
+    ids = [
+        _save_unusual_watch_event(db_path, 150 + i, 3.0 + i, f"2026-09-09T14:0{i}:00+00:00")
+        for i in range(6)
+    ]
+
+    text, delivered_ids = run_watchlist.build_watch_section(["SPCX"], db_path=db_path)
+
+    assert text.count("SPCX $") == 5
+    assert "$150" not in text
+    assert "$155" in text
+    assert set(delivered_ids) == set(ids)
+
+
+def _summary_row(symbol, strategy_name="Bull Put Spread", macro_warnings=None, oi_data_quality=None):
+    return {
+        "symbol": symbol, "spot": 100.0, "max_pain": 100.0,
+        "call_wall": 110.0, "put_wall": 90.0, "gamma_flip": 95.0,
+        "alert": None, "strategy_name": strategy_name, "mm_pressure": None,
+        "macro_warnings": macro_warnings or [], "risk": None,
+        "oi_data_quality": oi_data_quality,
+    }
+
+
+def test_watchlist_summary_deduplicates_shared_macro_warning():
+    warning = "⚠️ 距離 CPI 數據公布僅剩 1 天"
+
+    text = run_watchlist.build_watchlist_summary([
+        _summary_row("TSLA", macro_warnings=[warning]),
+        _summary_row("SOXL", macro_warnings=[warning]),
+    ])
+
+    assert text.count(warning) == 1
+
+
+def test_watchlist_summary_explains_unavailable_strategy_without_contradiction():
+    text = run_watchlist.build_watchlist_summary([
+        _summary_row("SOXL", strategy_name="無建議（Bear Call Spread）"),
+    ])
+
+    assert "建議策略：無建議" not in text
+    assert "候選方向：Bear Call Spread" in text
+    assert "目前沒有可執行策略" in text
+
+
+def test_watchlist_summary_surfaces_unusable_oi_quality():
+    text = run_watchlist.build_watchlist_summary([
+        _summary_row("SPCX", oi_data_quality={
+            "usable": False, "total_oi": 100, "total_volume": 10000,
+            "reason": "OI 僅為成交量的 1.00%",
+        }),
+    ])
+
+    assert "OI 資料可信度低" in text
+    assert "1.00%" in text

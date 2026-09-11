@@ -380,6 +380,23 @@ def save_signal_event(
     時的對照組，沒有它就只剩下被推播過的訊號，樣本天生偏誤。
     """
     with _connect(db_path) as conn:
+        if kind == "unusual_activity":
+            existing = conn.execute(
+                "SELECT id FROM signal_events WHERE symbol = ? AND trading_date = ? "
+                "AND kind = ? AND signature = ? ORDER BY id DESC LIMIT 1",
+                (symbol, trading_date, kind, signature),
+            ).fetchone()
+            if existing:
+                event_id = existing[0]
+                # yfinance 的 volume 是當日累計值；每 15 分鐘新增一列會把同一
+                # 合約的持續狀態偽裝成多筆獨立大單，因此保留單列並更新最新強度。
+                conn.execute(
+                    "UPDATE signal_events SET detected_at = ?, classified_tier = ?, "
+                    "delivered_tier = ?, reason = ?, payload_json = ? WHERE id = ?",
+                    (detected_at, classified_tier, delivered_tier, reason, json.dumps(payload), event_id),
+                )
+                return event_id
+
         cursor = conn.execute(
             """INSERT INTO signal_events
                (symbol, detected_at, trading_date, kind, classified_tier,

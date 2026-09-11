@@ -105,7 +105,7 @@ python check_env.py
 | `options_strategy_engine.py` | 賣方價差/Iron Condor/買方突圍，依GEX狀態自動選策略 |
 | `smart_money.py` | IV Skew、Put/Call Ratio、異常大單偵測、莊家壓力分數 |
 | `signal_tiering.py` | 訊號分級政策（urgent/watch/silent）——純計算，不做 I/O、不讀狀態 |
-| `db_manager.py` | SQLite 讀寫（history.db：每日快照 + 策略追蹤記分板 + signal_events 訊號分級事件） |
+| `db_manager.py` | SQLite 讀寫（history.db：每日快照 + 策略追蹤記分板 + signal_events；異常成交依交易日/合約 upsert） |
 | `backtester.py` | Max Pain偏離度、Gamma Flip支撐/阻力勝率統計 |
 | `signal_auditor.py` | Telegram 實戰訊號績效審核（Wall/Gamma/Pinning/警報日後續表現） |
 | `macro_calendar.py` | 財報/FOMC/CPI倒數天數警示 |
