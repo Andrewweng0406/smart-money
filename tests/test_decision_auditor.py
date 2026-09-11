@@ -6,9 +6,13 @@ import decision_auditor
 import pytest
 
 
-def _row(date, spot, action=None, confidence="中", put_wall=90.0, call_wall=110.0):
+def _row(
+    date, spot, action=None, confidence="中", put_wall=90.0,
+    call_wall=110.0, gamma_flip=100.0,
+):
     return {
         "date": date, "spot": spot, "put_wall": put_wall, "call_wall": call_wall,
+        "gamma_flip": gamma_flip,
         "decision_action": action, "decision_confidence": confidence,
         "decision_summary": "測試摘要",
     }
@@ -164,6 +168,7 @@ def test_decision_evidence_reports_all_mature_horizons_with_enough_samples():
     assert "1D 100%（5段）" in evidence["text"]
     assert "3D" in evidence["text"]
     assert "5D" in evidence["text"]
+    assert "1D路徑 5確認/0失效/0未觸發" in evidence["text"]
 
 
 def test_default_audit_report_shows_multi_horizon_and_confidence_calibration(monkeypatch):
@@ -186,3 +191,90 @@ def test_default_audit_report_shows_multi_horizon_and_confidence_calibration(mon
     assert "5D" in text
     assert "信心校準（1D）" in text
     assert "中：100%（5/5段）" in text
+
+
+def test_breakout_path_keeps_first_confirmation_even_if_horizon_close_fails():
+    decision = _row("2026-09-01", 112, "突破觀察，等待站穩")
+    future_rows = [
+        _row("2026-09-02", 114),
+        _row("2026-09-03", 108),
+        _row("2026-09-04", 99),
+    ]
+
+    path = decision_auditor.evaluate_decision_path(decision, future_rows)
+
+    assert path["outcome"] == "confirmed_first"
+    assert path["resolved_date"] == "2026-09-02"
+    assert path["max_upside_excursion_pct"] == pytest.approx(1.7857, rel=1e-3)
+    assert path["max_downside_excursion_pct"] == pytest.approx(-11.6071, rel=1e-3)
+
+
+def test_breakout_path_records_invalidation_before_later_confirmation():
+    decision = _row("2026-09-01", 112, "突破觀察，等待站穩")
+    future_rows = [
+        _row("2026-09-02", 99),
+        _row("2026-09-03", 115),
+    ]
+
+    path = decision_auditor.evaluate_decision_path(decision, future_rows)
+
+    assert path["outcome"] == "invalidated_first"
+    assert path["resolved_date"] == "2026-09-02"
+
+
+def test_path_excursions_use_zero_when_price_never_moves_that_direction():
+    decision = _row("2026-09-01", 100, "事件前觀望")
+
+    only_up = decision_auditor.evaluate_decision_path(
+        decision, [_row("2026-09-02", 102), _row("2026-09-03", 105)],
+    )
+    only_down = decision_auditor.evaluate_decision_path(
+        decision, [_row("2026-09-02", 98), _row("2026-09-03", 95)],
+    )
+
+    assert only_up["max_downside_excursion_pct"] == 0.0
+    assert only_down["max_upside_excursion_pct"] == 0.0
+
+
+def test_range_path_cannot_hide_an_intermediate_wall_break():
+    decision = _row("2026-09-01", 100, "區間應對，不追方向")
+    future_rows = [
+        _row("2026-09-02", 112),
+        _row("2026-09-03", 100),
+    ]
+
+    path = decision_auditor.evaluate_decision_path(decision, future_rows)
+
+    assert path["outcome"] == "invalidated_first"
+    assert path["resolved_date"] == "2026-09-02"
+
+
+def test_audit_event_contains_full_horizon_path_not_only_endpoint():
+    rows = [
+        _row("2026-09-01", 100, "區間應對，不追方向"),
+        _row("2026-09-02", 112),
+        _row("2026-09-03", 100),
+    ]
+
+    audit = decision_auditor.audit_decision_rows(rows, horizon=2, min_sample_size=1)
+    event = audit["actions"]["區間應對，不追方向"]["events"][0]
+
+    assert event["outcome"] == "confirmed"
+    assert event["path"]["outcome"] == "invalidated_first"
+    assert audit["actions"]["區間應對，不追方向"]["path_invalidated_count"] == 1
+
+
+def test_report_exposes_path_counts_without_claiming_a_rate(monkeypatch):
+    monkeypatch.setattr(
+        decision_auditor.db_manager, "get_recent_snapshots",
+        lambda *a, **k: [
+            _row("2026-09-01", 100, "區間應對，不追方向"),
+            _row("2026-09-02", 112),
+            _row("2026-09-03", 100),
+        ],
+    )
+
+    text = decision_auditor.build_decision_audit_report("TSLA", horizon=2)
+
+    assert "期間路徑：先確認 0｜先失效 1｜未觸發 0" in text
+    assert "路徑成功率" not in text

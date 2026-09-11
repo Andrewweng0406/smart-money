@@ -37,6 +37,60 @@ def evaluate_decision(row: dict, future_spot: float, future_date: str) -> dict:
     }
 
 
+def evaluate_decision_path(row: dict, future_rows: list[dict]) -> dict:
+    """評估決策後的完整日收盤路徑；先碰到的確認／失效條件不可被終點洗掉。"""
+    if not future_rows:
+        return {
+            "outcome": "pending", "resolved_date": None,
+            "max_upside_excursion_pct": None, "max_downside_excursion_pct": None,
+        }
+
+    action = row["decision_action"]
+    entry_spot = row["spot"]
+    returns = [
+        (future["spot"] - entry_spot) / entry_spot * 100
+        for future in future_rows
+    ]
+    outcome = "observed" if action not in _SCORED_ACTIONS else "unresolved"
+    resolved_date = None
+
+    for future in future_rows:
+        spot = future["spot"]
+        confirmed = False
+        invalidated = False
+        if action == "突破觀察，等待站穩":
+            confirmed = spot > row["call_wall"]
+            gamma_flip = row.get("gamma_flip")
+            invalidated = bool(gamma_flip and spot < gamma_flip)
+        elif action == "破位風險，優先防守":
+            confirmed = spot < row["put_wall"]
+            invalidated = spot >= row["put_wall"]
+        elif action == "區間上緣，避免追價":
+            invalidated = spot > row["call_wall"]
+        elif action == "區間下緣，等待止跌":
+            invalidated = spot < row["put_wall"]
+        elif action == "區間應對，不追方向":
+            invalidated = not row["put_wall"] <= spot <= row["call_wall"]
+
+        if confirmed or invalidated:
+            outcome = "confirmed_first" if confirmed else "invalidated_first"
+            resolved_date = future["date"]
+            break
+
+    # 區間判斷必須整段都守住才成立；突破／破位若期限內兩條線都未碰到，
+    # 應誠實保留未觸發，不能因最後一天剛好靠近某條線就補判成功。
+    if outcome == "unresolved" and action.startswith("區間"):
+        outcome = "confirmed_first"
+        resolved_date = future_rows[-1]["date"]
+
+    return {
+        "outcome": outcome,
+        "resolved_date": resolved_date,
+        "max_upside_excursion_pct": max(0.0, max(returns)),
+        "max_downside_excursion_pct": min(0.0, min(returns)),
+    }
+
+
 def _episode_indices(rows: list[dict]) -> list[int]:
     """連續相同姿態只算一段，避免每日重複建議把有效樣本灌大。"""
     episodes = []
@@ -54,6 +108,7 @@ def _summarize_events(events: list[dict], min_sample_size: int) -> dict:
     scored = [event for event in matured if event["success"] is not None]
     returns = [event["return_pct"] for event in matured]
     success_count = sum(bool(event["success"]) for event in scored)
+    paths = [event["path"] for event in matured if event.get("path")]
     return {
         "sample_size": len(matured),
         "pending_count": len(events) - len(matured),
@@ -63,6 +118,17 @@ def _summarize_events(events: list[dict], min_sample_size: int) -> dict:
         "success_rate_pct": success_count / len(scored) * 100 if scored else None,
         "avg_return_pct": statistics.mean(returns) if returns else None,
         "avg_abs_return_pct": statistics.mean(abs(value) for value in returns) if returns else None,
+        "path_confirmed_count": sum(path["outcome"] == "confirmed_first" for path in paths),
+        "path_invalidated_count": sum(path["outcome"] == "invalidated_first" for path in paths),
+        "path_unresolved_count": sum(path["outcome"] == "unresolved" for path in paths),
+        "avg_max_upside_excursion_pct": (
+            statistics.mean(path["max_upside_excursion_pct"] for path in paths)
+            if paths else None
+        ),
+        "avg_max_downside_excursion_pct": (
+            statistics.mean(path["max_downside_excursion_pct"] for path in paths)
+            if paths else None
+        ),
         "events": events,
     }
 
@@ -89,9 +155,13 @@ def audit_decision_rows(
         }
         if future_index >= len(ordered):
             event.update(outcome="pending", future_date=None, return_pct=None)
+            event["path"] = evaluate_decision_path(row, [])
         else:
             future = ordered[future_index]
             event = evaluate_decision(row, future["spot"], future["date"])
+            event["path"] = evaluate_decision_path(
+                row, ordered[index + 1:future_index + 1],
+            )
         events_by_action.setdefault(action, []).append(event)
         recent.append(event)
 
@@ -192,10 +262,15 @@ def build_decision_evidence(
             )
         elif stats:
             parts.append(f"{horizon}D 樣本不足（{stats['scored_sample_size']}段）")
+    path_text = (
+        f"{primary_horizon}D路徑 {primary['path_confirmed_count']}確認/"
+        f"{primary['path_invalidated_count']}失效/"
+        f"{primary['path_unresolved_count']}未觸發"
+    )
     return {
         "sufficient_sample": True,
         "sample_size": scored_sample,
-        "text": "同類決策：" + "｜".join(parts),
+        "text": "同類決策：" + "｜".join([*parts, path_text]),
         "horizons": stats_by_horizon,
     }
 
@@ -261,6 +336,16 @@ def build_decision_audit_report(
                 f"  {selected_horizons[0]}D 成功率 {stats['success_rate_pct']:.0f}%"
                 f"（{stats['success_count']}/{stats['scored_sample_size']} 段）"
                 f"｜平均報酬 {_pct(stats['avg_return_pct'])}"
+            )
+        if stats["scored_sample_size"]:
+            lines.append(
+                f"  期間路徑：先確認 {stats['path_confirmed_count']}｜"
+                f"先失效 {stats['path_invalidated_count']}｜"
+                f"未觸發 {stats['path_unresolved_count']}"
+            )
+            lines.append(
+                f"  平均最大上行 {_pct(stats['avg_max_upside_excursion_pct'])}｜"
+                f"平均最大下行 {_pct(stats['avg_max_downside_excursion_pct'])}"
             )
         lines.append("")
 
