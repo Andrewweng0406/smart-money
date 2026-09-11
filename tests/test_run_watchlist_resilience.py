@@ -590,3 +590,20 @@ def test_watchlist_summary_surfaces_matured_decision_result_at_top():
     assert "前次決策驗證" in top
     assert "SPCX：確認成立" in top
     assert "+2.1%" in top
+
+
+def test_watchlist_summary_places_historical_evidence_below_decision():
+    row = _summary_row("TSLA")
+    row["decision"] = {
+        "action": "突破觀察，等待站穩", "confidence": "中", "summary": "等待確認",
+        "upside_trigger": "站穩 $110", "downside_trigger": "跌回 $100", "why": [],
+    }
+    row["decision_evidence"] = {
+        "sufficient_sample": False,
+        "text": "同類歷史樣本不足（2/5 段），暫不估計成功率",
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "歷史證據：同類歷史樣本不足（2/5 段），暫不估計成功率" in text
+    assert text.index("決策：") < text.index("歷史證據：") < text.index("Max Pain")

@@ -11,6 +11,7 @@ import db_manager
 
 
 DEFAULT_HORIZON = 1
+DEFAULT_HORIZONS = (1, 3, 5)
 MIN_SAMPLE_SIZE = 5
 
 _SCORED_ACTIONS = {
@@ -99,13 +100,103 @@ def audit_decision_rows(
         for action, events in events_by_action.items()
     }
     all_events = [event for events in events_by_action.values() for event in events]
+    events_by_confidence: dict[str, list[dict]] = {}
+    for event in all_events:
+        confidence = event.get("confidence") or "未知"
+        events_by_confidence.setdefault(confidence, []).append(event)
+    confidence = {
+        level: _summarize_events(events, min_sample_size)
+        for level, events in events_by_confidence.items()
+    }
     return {
         "row_count": len(ordered), "decision_days": decision_days,
         "episode_count": len(all_events),
         "matured_episodes": sum(event["outcome"] != "pending" for event in all_events),
         "pending_episodes": sum(event["outcome"] == "pending" for event in all_events),
         "horizon": horizon, "min_sample_size": min_sample_size, "actions": actions,
+        "confidence": confidence,
         "recent": list(reversed(recent[-5:])),
+    }
+
+
+def audit_decision_horizons(
+    rows: list[dict], horizons: tuple[int, ...] = DEFAULT_HORIZONS,
+    min_sample_size: int = MIN_SAMPLE_SIZE,
+) -> dict:
+    """一次評估多個交易日視窗；各期限獨立成熟，不能拿 1D 結果冒充 5D。"""
+    if not horizons or any(horizon < 1 for horizon in horizons):
+        raise ValueError("horizons 必須包含至少一個正整數")
+    unique_horizons = tuple(dict.fromkeys(horizons))
+    return {
+        "horizons": {
+            horizon: audit_decision_rows(
+                rows, horizon=horizon, min_sample_size=min_sample_size,
+            )
+            for horizon in unique_horizons
+        },
+        "min_sample_size": min_sample_size,
+    }
+
+
+def build_decision_evidence(
+    rows: list[dict], action: str, horizons: tuple[int, ...] = DEFAULT_HORIZONS,
+    min_sample_size: int = MIN_SAMPLE_SIZE,
+) -> dict:
+    """為今日姿態整理同類歷史證據；純計算，樣本不足時不顯示百分比。"""
+    audit = audit_decision_horizons(
+        rows, horizons=horizons, min_sample_size=min_sample_size,
+    )
+    stats_by_horizon = {
+        horizon: horizon_audit["actions"].get(action)
+        for horizon, horizon_audit in audit["horizons"].items()
+    }
+    primary_horizon = horizons[0]
+    primary = stats_by_horizon.get(primary_horizon)
+    scored_sample = primary["scored_sample_size"] if primary else 0
+    observed_sample = primary["sample_size"] if primary else 0
+
+    if primary and observed_sample and scored_sample == 0:
+        parts = []
+        for horizon, stats in stats_by_horizon.items():
+            if stats and stats["sample_size"]:
+                parts.append(
+                    f"{horizon}D 平均絕對波動 {stats['avg_abs_return_pct']:.1f}%"
+                    f"（{stats['sample_size']}段）"
+                )
+            else:
+                parts.append(f"{horizon}D 待成熟")
+        return {
+            "sufficient_sample": False,
+            "sample_size": observed_sample,
+            "text": "同類姿態不計方向勝率；" + "｜".join(parts),
+            "horizons": stats_by_horizon,
+        }
+    if scored_sample < min_sample_size:
+        samples = "；".join(
+            f"{horizon}D {(stats['scored_sample_size'] if stats else 0)}/{min_sample_size}段"
+            for horizon, stats in stats_by_horizon.items()
+        )
+        return {
+            "sufficient_sample": False,
+            "sample_size": scored_sample,
+            "text": f"同類歷史樣本不足（{samples}），暫不估計成功率",
+            "horizons": stats_by_horizon,
+        }
+
+    parts = []
+    for horizon, stats in stats_by_horizon.items():
+        if stats and stats["sufficient_sample"]:
+            parts.append(
+                f"{horizon}D {stats['success_rate_pct']:.0f}%"
+                f"（{stats['scored_sample_size']}段）"
+            )
+        elif stats:
+            parts.append(f"{horizon}D 樣本不足（{stats['scored_sample_size']}段）")
+    return {
+        "sufficient_sample": True,
+        "sample_size": scored_sample,
+        "text": "同類決策：" + "｜".join(parts),
+        "horizons": stats_by_horizon,
     }
 
 
@@ -129,9 +220,12 @@ def _abs_pct(value: float | None) -> str:
 
 def build_decision_audit_report(
     symbol: str, db_path: Path | str = db_manager.DEFAULT_DB_PATH,
-    horizon: int = DEFAULT_HORIZON,
+    horizon: int | None = None,
 ) -> str:
-    audit = audit_decision_performance(symbol, db_path=db_path, horizon=horizon)
+    rows = db_manager.get_recent_snapshots(symbol, limit=100_000, db_path=db_path)
+    selected_horizons = (horizon,) if horizon is not None else DEFAULT_HORIZONS
+    multi_audit = audit_decision_horizons(rows, horizons=selected_horizons)
+    audit = multi_audit["horizons"][selected_horizons[0]]
     lines = [
         f"🧭 【{symbol} 決策追蹤記分板】",
         f"有決策 {audit['decision_days']} 天，收斂為 {audit['episode_count']} 段；"
@@ -142,10 +236,19 @@ def build_decision_audit_report(
         lines.append("尚無決策紀錄；從新版每日快照開始累積後才可評估。")
         return "\n".join(lines)
 
+    if horizon is None:
+        lines.extend(["多期限驗證（以交易日快照計）", ""])
+
     for action, stats in audit["actions"].items():
         lines.append(action)
-        if stats["sample_size"] == 0:
-            lines.append(f"  尚待未來 {horizon} 個交易日資料")
+        if horizon is None:
+            evidence = build_decision_evidence(
+                rows, action, horizons=selected_horizons,
+                min_sample_size=audit["min_sample_size"],
+            )
+            lines.append(f"  {evidence['text']}")
+        elif stats["sample_size"] == 0:
+            lines.append(f"  尚待未來 {selected_horizons[0]} 個交易日資料")
         elif stats["scored_sample_size"] == 0:
             lines.append(
                 f"  不計方向勝率｜平均絕對波動 {_abs_pct(stats['avg_abs_return_pct'])}"
@@ -155,11 +258,29 @@ def build_decision_audit_report(
             lines.append(f"  樣本不足（{stats['scored_sample_size']} 段），暫不顯示成功率")
         else:
             lines.append(
-                f"  {horizon}D 成功率 {stats['success_rate_pct']:.0f}%"
+                f"  {selected_horizons[0]}D 成功率 {stats['success_rate_pct']:.0f}%"
                 f"（{stats['success_count']}/{stats['scored_sample_size']} 段）"
                 f"｜平均報酬 {_pct(stats['avg_return_pct'])}"
             )
         lines.append("")
+
+    lines.extend([f"信心校準（{selected_horizons[0]}D）", ""])
+    for confidence in ("高", "中", "低", "未知"):
+        stats = audit["confidence"].get(confidence)
+        if not stats or stats["scored_sample_size"] == 0:
+            continue
+        if stats["sufficient_sample"]:
+            lines.append(
+                f"{confidence}：{stats['success_rate_pct']:.0f}%"
+                f"（{stats['success_count']}/{stats['scored_sample_size']}段）"
+            )
+        else:
+            lines.append(f"{confidence}：樣本不足（{stats['scored_sample_size']}段）")
+    if not any(
+        stats["scored_sample_size"] for stats in audit["confidence"].values()
+    ):
+        lines.append("尚無可計分的信心樣本")
+    lines.append("")
 
     lines.append(
         "規則：連續相同姿態只算一段；突破／破位與區間判斷可驗證，"
@@ -175,7 +296,7 @@ def build_decision_audit_report(
 def main() -> None:
     parser = argparse.ArgumentParser(description="決策追蹤記分板")
     parser.add_argument("--symbol", default="TSLA")
-    parser.add_argument("--horizon", type=int, default=DEFAULT_HORIZON)
+    parser.add_argument("--horizon", type=int, default=None)
     args = parser.parse_args()
     print(build_decision_audit_report(args.symbol.upper(), horizon=args.horizon))
 

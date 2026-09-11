@@ -94,6 +94,95 @@ def test_report_refuses_percentage_below_minimum_sample(monkeypatch):
 
     text = decision_auditor.build_decision_audit_report("TSLA")
 
-    assert "樣本不足（1 段）" in text
+    assert "同類歷史樣本不足（1D 1/5段；3D 0/5段；5D 0/5段）" in text
     assert "成功率 100%" not in text
     assert "觀望不會被算成命中" in text
+
+
+def test_multi_horizon_audit_matures_each_horizon_independently():
+    rows = [
+        _row("2026-09-01", 112, "突破觀察，等待站穩", confidence="高"),
+        _row("2026-09-02", 114),
+        _row("2026-09-03", 109),
+        _row("2026-09-04", 108),
+    ]
+
+    audit = decision_auditor.audit_decision_horizons(
+        rows, horizons=(1, 3, 5), min_sample_size=1,
+    )
+
+    assert audit["horizons"][1]["actions"]["突破觀察，等待站穩"]["success_rate_pct"] == 100.0
+    assert audit["horizons"][3]["actions"]["突破觀察，等待站穩"]["success_rate_pct"] == 0.0
+    assert audit["horizons"][5]["pending_episodes"] == 1
+
+
+def test_confidence_calibration_keeps_levels_separate():
+    rows = [
+        _row("2026-09-01", 112, "突破觀察，等待站穩", confidence="高"),
+        _row("2026-09-02", 114),
+        _row("2026-09-03", 112, "突破觀察，等待站穩", confidence="中"),
+        _row("2026-09-04", 108),
+    ]
+
+    audit = decision_auditor.audit_decision_rows(rows, horizon=1, min_sample_size=1)
+
+    assert audit["confidence"]["高"]["success_rate_pct"] == 100.0
+    assert audit["confidence"]["中"]["success_rate_pct"] == 0.0
+
+
+def test_decision_evidence_refuses_rate_when_same_action_sample_is_small():
+    rows = [
+        _row("2026-09-01", 112, "突破觀察，等待站穩"),
+        _row("2026-09-02", 114),
+    ]
+
+    evidence = decision_auditor.build_decision_evidence(
+        rows, "突破觀察，等待站穩", horizons=(1, 3, 5), min_sample_size=5,
+    )
+
+    assert evidence["sufficient_sample"] is False
+    assert evidence["text"] == (
+        "同類歷史樣本不足（1D 1/5段；3D 0/5段；5D 0/5段），暫不估計成功率"
+    )
+    assert "100%" not in evidence["text"]
+
+
+def test_decision_evidence_reports_all_mature_horizons_with_enough_samples():
+    rows = []
+    for day in range(1, 16, 3):
+        rows.extend([
+            _row(f"2026-09-{day:02d}", 112, "突破觀察，等待站穩"),
+            _row(f"2026-09-{day + 1:02d}", 114),
+            _row(f"2026-09-{day + 2:02d}", 116),
+        ])
+
+    evidence = decision_auditor.build_decision_evidence(
+        rows, "突破觀察，等待站穩", horizons=(1, 3, 5), min_sample_size=2,
+    )
+
+    assert evidence["sufficient_sample"] is True
+    assert "1D 100%（5段）" in evidence["text"]
+    assert "3D" in evidence["text"]
+    assert "5D" in evidence["text"]
+
+
+def test_default_audit_report_shows_multi_horizon_and_confidence_calibration(monkeypatch):
+    rows = []
+    for day in range(1, 16, 3):
+        rows.extend([
+            _row(f"2026-09-{day:02d}", 112, "突破觀察，等待站穩", confidence="中"),
+            _row(f"2026-09-{day + 1:02d}", 114),
+            _row(f"2026-09-{day + 2:02d}", 116),
+        ])
+    monkeypatch.setattr(
+        decision_auditor.db_manager, "get_recent_snapshots", lambda *a, **k: rows,
+    )
+
+    text = decision_auditor.build_decision_audit_report("TSLA")
+
+    assert "多期限驗證" in text
+    assert "1D 100%（5段）" in text
+    assert "3D" in text
+    assert "5D" in text
+    assert "信心校準（1D）" in text
+    assert "中：100%（5/5段）" in text

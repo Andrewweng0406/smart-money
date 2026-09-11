@@ -54,6 +54,16 @@ def load_previous_decision_snapshot(symbol: str, current_date: str) -> dict | No
         return None
 
 
+def load_decision_evidence(symbol: str, action: str) -> dict | None:
+    """讀取同類決策的多期限證據；歷史層失敗時不影響今日核心判斷。"""
+    try:
+        rows = db_manager.get_recent_snapshots(symbol, limit=100_000)
+        return decision_auditor.build_decision_evidence(rows, action)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 讀取決策歷史證據失敗：%s", symbol, exc)
+        return None
+
+
 def compare_decisions(current: dict | None, previous: dict | None) -> dict | None:
     """比較兩次決策並回傳穩定的變化類型；純計算，不做 I/O。"""
     if not current:
@@ -127,6 +137,7 @@ def run_one_symbol(
         if trading_date_str else None
     )
     decision_change = compare_decisions(decision, previous_decision)
+    decision_evidence = load_decision_evidence(symbol, decision["action"])
     decision_outcome = (
         decision_auditor.evaluate_decision(
             previous_decision, result.spot, trading_date_str,
@@ -211,6 +222,7 @@ def run_one_symbol(
         "data_quality": result.data_quality,
         "decision": decision, "decision_change": decision_change,
         "decision_outcome": decision_outcome,
+        "decision_evidence": decision_evidence,
     }
 
 
@@ -420,6 +432,9 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
                 f"  🧭 決策：{decision['action']}（信心：{decision['confidence']}）"
             )
             lines.append(f"  {decision['summary']}")
+            evidence = row.get("decision_evidence")
+            if evidence:
+                lines.append(f"  歷史證據：{evidence['text']}")
             lines.append(f"  ↑ 向上觸發：{decision['upside_trigger']}")
             lines.append(f"  ↓ 向下風險：{decision['downside_trigger']}")
         risk = row.get("risk")
