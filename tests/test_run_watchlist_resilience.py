@@ -24,6 +24,7 @@ def _assume_trading_day(monkeypatch):
     每個既有測試都要各自 mock，也避免測試真的打網路查 SPY。"""
     monkeypatch.setattr(data_fetcher, "is_market_trading_day", lambda *a, **k: True)
     monkeypatch.setattr(data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda *a, **k: [])
 
 
 def _fake_result(symbol, spot=100.0, pinning=None):
@@ -92,6 +93,46 @@ def test_run_one_symbol_persists_decision_with_daily_snapshot(monkeypatch, tmp_p
 
     assert captured["decision"] == row["decision"]
     assert captured["decision"]["action"]
+
+
+def test_compare_decisions_marks_confidence_gate_release():
+    current = {"action": "區間應對，不追方向", "confidence": "中"}
+    previous = {
+        "date": "2026-07-31", "decision_action": "事件前觀望",
+        "decision_confidence": "低",
+    }
+
+    change = run_watchlist.compare_decisions(current, previous)
+
+    assert change["changed"] is True
+    assert change["kind"] == "gate_released"
+    assert "事件前觀望 → 區間應對，不追方向" in change["text"]
+
+
+def test_compare_decisions_keeps_unchanged_posture_quiet():
+    current = {"action": "區間應對，不追方向", "confidence": "中"}
+    previous = {
+        "date": "2026-07-31", "decision_action": "區間應對，不追方向",
+        "decision_confidence": "中",
+    }
+
+    change = run_watchlist.compare_decisions(current, previous)
+
+    assert change["changed"] is False
+    assert change["kind"] == "unchanged"
+
+
+def test_load_previous_decision_skips_same_day_rerun(monkeypatch):
+    monkeypatch.setattr(
+        db_manager, "get_recent_snapshots", lambda symbol, limit=10: [
+            {"date": "2026-08-01", "decision_action": "區間應對，不追方向"},
+            {"date": "2026-07-31", "decision_action": "事件前觀望"},
+        ],
+    )
+
+    previous = run_watchlist.load_previous_decision_snapshot("TSLA", "2026-08-01")
+
+    assert previous["date"] == "2026-07-31"
 
 
 def test_main_continues_when_one_symbol_fails_others_succeed(monkeypatch, tmp_path):
@@ -488,3 +529,33 @@ def test_watchlist_summary_leads_with_actionable_symbols():
 
     assert "今日重點觀察：TSLA（區間下緣，等待止跌）" in text
     assert "SOXL（事件前觀望）" not in text.split("◆ TSLA", 1)[0]
+
+
+def test_watchlist_summary_highlights_only_changed_decisions_at_top():
+    tsla = _summary_row("TSLA")
+    tsla["decision_change"] = {
+        "changed": True, "kind": "gate_released",
+        "text": "閘門解除：事件前觀望 → 區間應對，不追方向",
+    }
+    soxl = _summary_row("SOXL")
+    soxl["decision_change"] = {
+        "changed": False, "kind": "unchanged", "text": "維持原判斷",
+    }
+
+    text = run_watchlist.build_watchlist_summary([tsla, soxl])
+    top = text.split("◆ TSLA", 1)[0]
+
+    assert "今日決策變化" in top
+    assert "TSLA：閘門解除" in top
+    assert "SOXL：維持原判斷" not in top
+
+
+def test_watchlist_summary_survives_missing_decision_change():
+    row = _summary_row("TSLA")
+    row["decision"] = None
+    row["decision_change"] = None
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "TSLA" in text
+    assert "今日決策變化" not in text

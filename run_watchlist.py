@@ -35,6 +35,64 @@ def load_watchlist(path: Path) -> list[str]:
     return symbols
 
 
+def load_previous_decision_snapshot(symbol: str, current_date: str) -> dict | None:
+    """讀取今日以前最近一筆有決策的快照；查詢失敗時安靜降級。"""
+    try:
+        rows = db_manager.get_recent_snapshots(symbol, limit=10)
+        return next(
+            (
+                row for row in rows
+                if row.get("date") != current_date and row.get("decision_action")
+            ),
+            None,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # 前日比較只是降低閱讀負擔的加分層，Volume 暫時不可讀時仍應產出
+        # 完整的今日分析，不能讓歷史查詢拖垮核心流程。
+        logger.warning("%s 讀取前次決策失敗：%s", symbol, exc)
+        return None
+
+
+def compare_decisions(current: dict | None, previous: dict | None) -> dict | None:
+    """比較兩次決策並回傳穩定的變化類型；純計算，不做 I/O。"""
+    if not current:
+        return None
+    if not previous:
+        return {
+            "changed": False, "kind": "baseline",
+            "text": "首次建立決策基準",
+        }
+
+    current_action = current.get("action")
+    current_confidence = current.get("confidence")
+    previous_action = previous.get("decision_action")
+    previous_confidence = previous.get("decision_confidence")
+
+    if current_action == previous_action and current_confidence == previous_confidence:
+        return {"changed": False, "kind": "unchanged", "text": "維持原判斷"}
+
+    transition = f"{previous_action} → {current_action}"
+    if previous_confidence == "低" and current_confidence != "低":
+        return {
+            "changed": True, "kind": "gate_released",
+            "text": f"閘門解除：{transition}",
+        }
+    if previous_confidence != "低" and current_confidence == "低":
+        return {
+            "changed": True, "kind": "confidence_reduced",
+            "text": f"信心降級：{transition}",
+        }
+    if current_action != previous_action:
+        return {
+            "changed": True, "kind": "posture_changed",
+            "text": f"姿態改變：{transition}",
+        }
+    return {
+        "changed": True, "kind": "confidence_changed",
+        "text": f"信心改變：{previous_confidence} → {current_confidence}",
+    }
+
+
 def run_one_symbol(
     symbol: str, output_dir: Path, max_expiries: int | None, risk_free_rate: float, use_ai: bool,
     dashboard_dir: Path | None = None, notify: bool = False, is_trading_day: bool | None = None,
@@ -62,11 +120,16 @@ def run_one_symbol(
     # 驗證「當時系統實際叫使用者做什麼」，容易產生事後解讀偏誤。
     decision = analyze.build_decision_brief(result, macro_warnings)
     result.decision = decision
+    trading_date_str = data_fetcher.current_trading_date_str() if is_trading_day else None
+    previous_decision = (
+        load_previous_decision_snapshot(symbol, trading_date_str)
+        if trading_date_str else None
+    )
+    decision_change = compare_decisions(decision, previous_decision)
 
     # 同 analyze.py：只有今天真的是交易日才寫進歷史資料庫/策略追蹤，避免
     # 平日休市日排程照跑，把舊資料當新快照寫進去汙染 backtester 的統計。
     if is_trading_day:
-        trading_date_str = data_fetcher.current_trading_date_str()
         try:
             db_manager.save_snapshot(result, trading_date_str)
         except Exception as exc:  # noqa: BLE001
@@ -138,7 +201,7 @@ def run_one_symbol(
         "strategy_name": strategy.strategy_name if strategy else "N/A",
         "mm_pressure": result.mm_pressure, "macro_warnings": macro_warnings,
         "risk": risk, "oi_data_quality": result.oi_data_quality,
-        "decision": decision,
+        "decision": decision, "decision_change": decision_change,
     }
 
 
@@ -276,6 +339,16 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
     for warning in shared_warnings:
         lines.append(warning)
     if shared_warnings:
+        lines.append("")
+
+    changed_rows = [
+        row for row in summaries
+        if (row.get("decision_change") or {}).get("changed")
+    ]
+    if changed_rows:
+        lines.append("🔄 今日決策變化")
+        for row in changed_rows:
+            lines.append(f"• {row['symbol']}：{row['decision_change']['text']}")
         lines.append("")
 
     successful = [row for row in summaries if "error" not in row]
