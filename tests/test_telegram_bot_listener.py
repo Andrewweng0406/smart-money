@@ -55,7 +55,13 @@ def test_run_report_sync_returns_text_and_chart_path(monkeypatch, tmp_path):
     monkeypatch.setattr(analyze, "build_markdown_report", lambda result, path, **k: path.write_text("報告內容", encoding="utf-8"))
 
     import db_manager
-    monkeypatch.setattr(db_manager, "save_snapshot", lambda *a, **k: None)
+    expected_decision = {"action": "觀望", "confidence": "低"}
+    monkeypatch.setattr(
+        analyze, "build_decision_brief",
+        lambda result, warnings: expected_decision, raising=False,
+    )
+    saved = {}
+    monkeypatch.setattr(db_manager, "save_snapshot", lambda result, *a, **k: saved.update(decision=result.decision))
     monkeypatch.setattr(bot.data_fetcher, "is_market_trading_day", lambda *a, **k: True)
     monkeypatch.setattr(bot.data_fetcher, "current_trading_date_str", lambda: "2026-08-01")
 
@@ -66,6 +72,7 @@ def test_run_report_sync_returns_text_and_chart_path(monkeypatch, tmp_path):
 
     assert report_text == "報告內容"
     assert chart_path.suffix == ".png"
+    assert saved["decision"] == expected_decision
 
 
 def test_run_report_sync_records_strategy_recommendation_when_trading_day(monkeypatch, tmp_path):
@@ -398,6 +405,26 @@ def test_scorecard_command_replies_error_on_failure_without_raising(monkeypatch)
     assert "失敗" in last_call_text
 
 
+# ---------- /decisions ----------
+
+def test_decisions_command_defaults_to_tsla(monkeypatch):
+    captured = {}
+    def fake_report(symbol):
+        captured["symbol"] = symbol
+        return "決策審核"
+
+    monkeypatch.setattr(
+        bot.decision_auditor, "build_decision_audit_report",
+        fake_report,
+    )
+    update, context = _fake_update_and_context()
+
+    _run(bot.decisions_command(update, context))
+
+    assert captured["symbol"] == "TSLA"
+    assert "決策審核" in update.message.reply_text.call_args.args[0]
+
+
 # ---------- /status ----------
 
 def test_status_command_sends_status_text(monkeypatch):
@@ -590,6 +617,18 @@ def test_natural_language_handler_dispatches_to_scorecard(monkeypatch):
     _run(bot.natural_language_handler(update, context))
 
     handle_scorecard_mock.assert_called_once_with(update, "TSLA")
+
+
+def test_natural_language_handler_dispatches_to_decisions(monkeypatch):
+    monkeypatch.setattr(bot, "interpret_intent", AsyncMock(return_value=bot.BotIntent(action="decisions", symbol="SOXL")))
+    handle_mock = AsyncMock()
+    monkeypatch.setattr(bot, "_handle_decisions", handle_mock)
+
+    update, context = _fake_update_and_context()
+    update.message.text = "SOXL 的決策準不準"
+    _run(bot.natural_language_handler(update, context))
+
+    handle_mock.assert_called_once_with(update, "SOXL")
 
 
 def test_natural_language_handler_dispatches_to_status(monkeypatch):

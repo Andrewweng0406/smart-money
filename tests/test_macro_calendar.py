@@ -44,6 +44,14 @@ def test_load_macro_events_reads_valid_json(tmp_path: Path):
     assert load_macro_events(str(path)) == expected
 
 
+def test_load_macro_events_accepts_valid_eastern_release_time(tmp_path: Path):
+    path = tmp_path / "events.json"
+    expected = [{"name": "CPI數據公布", "date": "2026-09-11", "time_et": "08:30"}]
+    path.write_text(json.dumps({"events": expected}), encoding="utf-8")
+
+    assert load_macro_events(str(path)) == expected
+
+
 def test_load_macro_events_returns_empty_for_missing_or_invalid_file(tmp_path: Path):
     assert load_macro_events(str(tmp_path / "missing.json")) == []
 
@@ -91,3 +99,25 @@ def test_get_calendar_warnings_combines_earnings_and_macro_events(monkeypatch):
         "⚠️ 【高波動預警】距離 TSLA 財報 僅剩 1 天，IV 預期飆升，做市商對沖引發的波幅將放大！",
         "⚠️ 【高波動預警】距離 CPI數據公布 僅剩 2 天，IV 預期飆升，做市商對沖引發的波幅將放大！",
     ]
+
+
+def test_macro_warning_stops_after_same_day_release_time(monkeypatch):
+    from zoneinfo import ZoneInfo
+
+    monkeypatch.setattr(macro_calendar, "get_next_earnings_date", lambda symbol: None)
+    monkeypatch.setattr(
+        macro_calendar, "load_macro_events",
+        lambda path: [{"name": "CPI數據公布", "date": "2026-09-11", "time_et": "08:30"}],
+    )
+
+    before = get_calendar_warnings(
+        "TSLA", "unused.json",
+        now=datetime(2026, 9, 11, 8, 29, tzinfo=ZoneInfo("America/New_York")),
+    )
+    after = get_calendar_warnings(
+        "TSLA", "unused.json",
+        now=datetime(2026, 9, 11, 8, 30, tzinfo=ZoneInfo("America/New_York")),
+    )
+
+    assert len(before) == 1
+    assert after == []

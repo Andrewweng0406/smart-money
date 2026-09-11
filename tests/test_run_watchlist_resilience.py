@@ -444,6 +444,20 @@ def test_watchlist_summary_does_not_recommend_strategy_during_low_confidence_obs
     assert "模型候選：Bull Put Spread" in text
 
 
+def test_watchlist_summary_does_not_execute_strategy_at_medium_confidence():
+    row = _summary_row("TSLA", strategy_name="Bear Call Spread")
+    row["decision"] = {
+        "action": "突破觀察，等待站穩", "confidence": "中",
+        "summary": "等待確認", "upside_trigger": "站穩 $110",
+        "downside_trigger": "跌回 $100", "why": [],
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "建議策略：Bear Call Spread" not in text
+    assert "暫不執行（模型候選：Bear Call Spread）" in text
+
+
 def test_watchlist_summary_leads_with_all_observe_conclusion():
     rows = [_summary_row("TSLA"), _summary_row("SOXL")]
     for row in rows:
@@ -472,5 +486,5 @@ def test_watchlist_summary_leads_with_actionable_symbols():
 
     text = run_watchlist.build_watchlist_summary([tsla, soxl])
 
-    assert "今日可關注：TSLA（區間下緣，等待止跌）" in text
+    assert "今日重點觀察：TSLA（區間下緣，等待止跌）" in text
     assert "SOXL（事件前觀望）" not in text.split("◆ TSLA", 1)[0]

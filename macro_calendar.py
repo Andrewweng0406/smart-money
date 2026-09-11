@@ -8,9 +8,10 @@ Reserve 官網 (https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm)
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, time
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 try:
     import yfinance as yf
@@ -78,6 +79,10 @@ def load_macro_events(path: str = "macro_events.json") -> list[dict]:
             if not isinstance(event.get("name"), str) or not isinstance(event.get("date"), str):
                 continue
             datetime.strptime(event["date"], "%Y-%m-%d")
+            if "time_et" in event:
+                if not isinstance(event["time_et"], str):
+                    continue
+                datetime.strptime(event["time_et"], "%H:%M")
             valid_events.append(event)
         return valid_events
     except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
@@ -102,24 +107,38 @@ def build_warning_text(event_name: str, days_until: int) -> str | None:
 
 
 def get_calendar_warnings(
-    symbol: str, macro_events_path: str = "macro_events.json"
+    symbol: str, macro_events_path: str = "macro_events.json", *, now: datetime | None = None,
 ) -> list[str]:
     """整合下一次財報與人工維護的總經事件警示。"""
     try:
         warnings: list[str] = []
+        eastern = ZoneInfo("America/New_York")
+        reference = now or datetime.now(eastern)
+        if reference.tzinfo is None:
+            reference = reference.replace(tzinfo=eastern)
+        else:
+            reference = reference.astimezone(eastern)
 
         earnings_date = get_next_earnings_date(symbol)
         if earnings_date is not None:
             warning = build_warning_text(
-                f"{symbol} 財報", compute_days_until(earnings_date)
+                f"{symbol} 財報", compute_days_until(earnings_date, today=reference.date())
             )
             if warning is not None:
                 warnings.append(warning)
 
         for event in load_macro_events(macro_events_path):
             event_date = datetime.strptime(event["date"], "%Y-%m-%d").date()
+            # 只有日期的舊設定繼續保守警示整個事件日；有官方公布時間時，
+            # 公布後就解除「事件前」硬閘門，否則收盤報告會拿已發生事件
+            # 當成未來風險，直接扭曲決策姿態。
+            if event.get("time_et"):
+                release_time = time.fromisoformat(event["time_et"])
+                release_at = datetime.combine(event_date, release_time, tzinfo=eastern)
+                if reference >= release_at:
+                    continue
             warning = build_warning_text(
-                event["name"], compute_days_until(event_date)
+                event["name"], compute_days_until(event_date, today=reference.date())
             )
             if warning is not None:
                 warnings.append(warning)

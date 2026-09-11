@@ -118,6 +118,26 @@ def test_save_snapshot_stores_decision_brief(tmp_path):
     assert row["decision_downside_trigger"] == decision["downside_trigger"]
 
 
+def test_snapshot_rerun_without_decision_preserves_existing_decision(tmp_path):
+    db_path = tmp_path / "history.db"
+    decision = {
+        "action": "事件前觀望", "confidence": "低", "summary": "等待事件",
+        "upside_trigger": "等待公布", "downside_trigger": "等待公布",
+    }
+    db_manager.save_snapshot(
+        _make_result(spot=300.0, decision=decision), "2026-08-01", db_path=db_path,
+    )
+
+    db_manager.save_snapshot(
+        _make_result(spot=311.21, decision=None), "2026-08-01", db_path=db_path,
+    )
+    row = db_manager.get_recent_snapshots("TSLA", db_path=db_path)[0]
+
+    assert row["spot"] == 311.21
+    assert row["decision_action"] == "事件前觀望"
+    assert row["decision_summary"] == "等待事件"
+
+
 def _make_legs():
     return [
         {"action": "SELL", "option_type": "PUT", "strike_price": 300.0},

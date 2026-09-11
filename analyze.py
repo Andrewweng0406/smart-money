@@ -25,6 +25,7 @@ import plotly.graph_objects as go
 import dashboard_generator
 import data_fetcher
 import db_manager
+import decision_engine
 import line_formatter
 import line_notifier
 import macro_calendar
@@ -92,6 +93,25 @@ class AnalysisResult:
     # 決策摘要跟產生它的市場快照必須綁在同一天，之後回看才不會拿更新後的
     # 價位解釋舊訊號；預設 None 保持既有手動建構 AnalysisResult 的相容性。
     decision: dict | None = None
+
+
+def build_decision_brief(result: AnalysisResult, macro_warnings: list[str]) -> dict | None:
+    """集中產生所有入口共用的決策，失敗時保留核心分析結果。"""
+    try:
+        return decision_engine.build_decision_brief(
+            spot=result.spot,
+            put_wall=result.put_wall,
+            call_wall=result.call_wall,
+            gamma_flip=result.gamma_flip,
+            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
+            oi_data_quality=result.oi_data_quality,
+            calendar_warnings=macro_warnings,
+        )
+    except Exception as exc:  # noqa: BLE001
+        # 決策層是原始 GEX 計算之上的解讀，不能因為額外摘要失敗而讓報告
+        # 或歷史市場快照一起消失；留 None 也能讓資料庫保留既有同日決策。
+        logger.warning("%s 決策摘要計算失敗：%s", result.symbol, exc)
+        return None
 
 
 def _load_previous_oi_snapshot(symbol: str, db_path: Path | str) -> dict[float, dict] | None:
@@ -690,6 +710,8 @@ def main() -> None:
     report_path = output_dir / f"daily_report_{args.symbol}_{date_tag}.md"
 
     strategy = compute_strategy_recommendation(args.symbol, result)
+    macro_warnings = get_macro_warnings(args.symbol)
+    result.decision = build_decision_brief(result, macro_warnings)
 
     # 只有「今天美股真的有開盤交易」才寫進歷史資料庫——launchd 的 Weekday
     # 過濾只能排除週六週日，排不掉感恩節這類平日休市日，如果排程照樣執行
@@ -709,8 +731,6 @@ def main() -> None:
         save_oi_snapshot_if_trading_day(args.symbol, result, trading_date_str)
     else:
         logger.info("今天不是美股交易日，跳過歷史資料庫寫入與策略追蹤紀錄")
-
-    macro_warnings = get_macro_warnings(args.symbol)
 
     ai_commentary = None
     if not args.no_ai:

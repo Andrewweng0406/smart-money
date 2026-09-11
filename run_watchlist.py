@@ -21,7 +21,6 @@ from pathlib import Path
 import analyze
 import data_fetcher
 import db_manager
-import decision_engine
 import risk_gauge
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -61,19 +60,7 @@ def run_one_symbol(
 
     # 決策必須在快照寫入前完成，否則歷史資料只剩原始指標，日後無法嚴謹地
     # 驗證「當時系統實際叫使用者做什麼」，容易產生事後解讀偏誤。
-    try:
-        decision = decision_engine.build_decision_brief(
-            spot=result.spot,
-            put_wall=result.put_wall,
-            call_wall=result.call_wall,
-            gamma_flip=result.gamma_flip,
-            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
-            oi_data_quality=result.oi_data_quality,
-            calendar_warnings=macro_warnings,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("%s 決策摘要計算失敗：%s", symbol, exc)
-        decision = None
+    decision = analyze.build_decision_brief(result, macro_warnings)
     result.decision = decision
 
     # 同 analyze.py：只有今天真的是交易日才寫進歷史資料庫/策略追蹤，避免
@@ -302,7 +289,7 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
         focus = "、".join(
             f"{row['symbol']}（{row['decision']['action']}）" for row in actionable
         )
-        lines.append(f"🔎 今日可關注：{focus}")
+        lines.append(f"🔎 今日重點觀察：{focus}")
     elif successful:
         lines.append("🧭 今日結論：全部觀望，沒有符合執行條件的標的。")
     else:
@@ -350,7 +337,7 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
         strategy_name = row["strategy_name"]
         decision_blocks_execution = bool(
             decision
-            and (decision["confidence"] == "低" or "觀望" in decision["action"])
+            and decision["confidence"] != "高"
         )
         if decision_blocks_execution and strategy_name not in ("N/A",) and not strategy_name.startswith("無建議（"):
             lines.append(f"  策略：暫不執行（模型候選：{strategy_name}）")

@@ -56,6 +56,7 @@ import analyze
 import backtester
 import data_fetcher
 import db_manager
+import decision_auditor
 import options_strategy_engine
 import run_watchlist
 import signal_auditor
@@ -88,6 +89,7 @@ HELP_TEXT = (
     "/backtest <代號> - 歷史籌碼模型回測統計\n"
     "/signals <代號> - Telegram 實戰訊號績效審核（Wall/Gamma/Pinning 警報是否有用）\n"
     "/scorecard <代號> - 策略追蹤記分板（過去推薦的策略實際勝率/損益）\n"
+    "/decisions <代號> - 決策姿態追蹤（當時的觀望／突破／防守是否成立）\n"
     "/status - 排程健康檢查（各標的最後一次成功分析是什麼時候）\n"
     "/help - 顯示這則說明"
 )
@@ -123,7 +125,7 @@ async def _reject_unauthorized_update(
 
 class BotIntent(BaseModel):
     """自然語言意圖判斷結果——Claude 把使用者的口語訊息轉成結構化的動作。"""
-    action: Literal["report", "watchlist", "backtest", "signals", "scorecard", "status", "help", "unknown"]
+    action: Literal["report", "watchlist", "backtest", "signals", "scorecard", "decisions", "status", "help", "unknown"]
     symbol: Optional[str] = None
 
 
@@ -139,6 +141,8 @@ INTENT_SYSTEM_PROMPT = (
     "Pinning、警報日後續是否有用（例如「TSLA訊號準不準」「哪些警報有用」）。\n"
     "- scorecard：查詢某標的過去策略建議的實際勝率/損益戰績（例如「TSLA的策略"
     "推薦準不準」「策略記分板」「勝率多少」）。\n"
+    "- decisions：查詢系統當時給出的觀望／突破／防守決策後續是否成立（例如"
+    "「TSLA 的決策準不準」「決策追蹤」）。\n"
     "- status：查詢排程有沒有正常運作、最後一次成功分析是什麼時候（例如「排程"
     "還活著嗎」「今天跑了嗎」「系統還好嗎」）。\n"
     "- help：使用者在問這個機器人能做什麼、怎麼用。\n"
@@ -154,6 +158,8 @@ def _run_report_sync(symbol: str) -> tuple[str, Path]:
     """
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     result = analyze.fetch_and_aggregate(symbol, max_expiries=8, risk_free_rate=0.045)
+    macro_warnings = analyze.get_macro_warnings(symbol)
+    result.decision = analyze.build_decision_brief(result, macro_warnings)
 
     # 使用者隨時都可能傳訊息問（包括週末/休市日），這種時候 yfinance 只會
     # 回傳上一個交易日的舊資料——只有今天真的是交易日才寫進歷史資料庫，
@@ -176,8 +182,6 @@ def _run_report_sync(symbol: str) -> tuple[str, Path]:
         analyze.save_strategy_recommendation_if_trackable(
             symbol, strategy, data_fetcher.current_trading_date_str(),
         )
-    macro_warnings = analyze.get_macro_warnings(symbol)
-
     import ai_analyst
     ai_commentary = ai_analyst.generate_commentary(
         symbol=symbol, spot=result.spot, max_pain=result.max_pain,
@@ -343,6 +347,19 @@ async def _handle_scorecard(update: Update, symbol: str) -> None:
     await update.message.reply_text(_truncate(scorecard_text))
 
 
+async def _handle_decisions(update: Update, symbol: str) -> None:
+    try:
+        report_text = await asyncio.to_thread(
+            decision_auditor.build_decision_audit_report, symbol,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("查詢 %s 決策追蹤失敗：%s", symbol, exc)
+        await update.message.reply_text(f"❌ 查詢失敗：{exc}")
+        return
+
+    await update.message.reply_text(_truncate(report_text))
+
+
 async def _handle_status(update: Update) -> None:
     try:
         status_text = await asyncio.to_thread(_build_status_sync)
@@ -380,6 +397,11 @@ async def signals_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def scorecard_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     symbol = context.args[0].upper() if context.args else "TSLA"
     await _handle_scorecard(update, symbol)
+
+
+async def decisions_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    symbol = context.args[0].upper() if context.args else "TSLA"
+    await _handle_decisions(update, symbol)
 
 
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -432,6 +454,8 @@ async def natural_language_handler(update: Update, context: ContextTypes.DEFAULT
         await _handle_signals(update, (intent.symbol or "TSLA").upper())
     elif intent.action == "scorecard":
         await _handle_scorecard(update, (intent.symbol or "TSLA").upper())
+    elif intent.action == "decisions":
+        await _handle_decisions(update, (intent.symbol or "TSLA").upper())
     elif intent.action == "status":
         await _handle_status(update)
     elif intent.action == "help":
@@ -468,6 +492,7 @@ def _build_and_run_once(token: str) -> None:
     application.add_handler(CommandHandler("backtest", backtest_command))
     application.add_handler(CommandHandler("signals", signals_command))
     application.add_handler(CommandHandler("scorecard", scorecard_command))
+    application.add_handler(CommandHandler("decisions", decisions_command))
     application.add_handler(CommandHandler("status", status_command))
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
     # 放在所有 CommandHandler 之後——filters.COMMAND 那個 handler 已經攔截了

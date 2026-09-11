@@ -187,7 +187,7 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
     with _connect(db_path) as conn:
         conn.execute(
             """
-            INSERT OR REPLACE INTO daily_snapshots
+            INSERT INTO daily_snapshots
             (symbol, date, spot, max_pain, call_wall, put_wall, gamma_flip,
              gamma_flip_distance_pct, total_net_gex, zero_dte_net_gex,
              zero_dte_share_pct, alert, pin_strike, pinning_oi_concentration_pct,
@@ -195,6 +195,31 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
              decision_action, decision_confidence, decision_summary,
              decision_upside_trigger, decision_downside_trigger)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(symbol, date) DO UPDATE SET
+                spot = excluded.spot,
+                max_pain = excluded.max_pain,
+                call_wall = excluded.call_wall,
+                put_wall = excluded.put_wall,
+                gamma_flip = excluded.gamma_flip,
+                gamma_flip_distance_pct = excluded.gamma_flip_distance_pct,
+                total_net_gex = excluded.total_net_gex,
+                zero_dte_net_gex = excluded.zero_dte_net_gex,
+                zero_dte_share_pct = excluded.zero_dte_share_pct,
+                alert = excluded.alert,
+                pin_strike = excluded.pin_strike,
+                pinning_oi_concentration_pct = excluded.pinning_oi_concentration_pct,
+                pinning_in_positive_gamma = excluded.pinning_in_positive_gamma,
+                pinning_score = excluded.pinning_score,
+                pinning_regime = excluded.pinning_regime,
+                decision_action = COALESCE(excluded.decision_action, daily_snapshots.decision_action),
+                decision_confidence = COALESCE(excluded.decision_confidence, daily_snapshots.decision_confidence),
+                decision_summary = COALESCE(excluded.decision_summary, daily_snapshots.decision_summary),
+                decision_upside_trigger = COALESCE(
+                    excluded.decision_upside_trigger, daily_snapshots.decision_upside_trigger
+                ),
+                decision_downside_trigger = COALESCE(
+                    excluded.decision_downside_trigger, daily_snapshots.decision_downside_trigger
+                )
             """,
             (
                 result.symbol, date_str, result.spot, result.max_pain,
