@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
     pinning_in_positive_gamma INTEGER,
     pinning_score INTEGER,
     pinning_regime TEXT,
+    decision_action TEXT,
+    decision_confidence TEXT,
+    decision_summary TEXT,
+    decision_upside_trigger TEXT,
+    decision_downside_trigger TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, date)
 )
@@ -58,6 +63,11 @@ _DAILY_SNAPSHOTS_NEW_COLUMNS = [
     ("pinning_in_positive_gamma", "INTEGER"),
     ("pinning_score", "INTEGER"),
     ("pinning_regime", "TEXT"),
+    ("decision_action", "TEXT"),
+    ("decision_confidence", "TEXT"),
+    ("decision_summary", "TEXT"),
+    ("decision_upside_trigger", "TEXT"),
+    ("decision_downside_trigger", "TEXT"),
 ]
 
 
@@ -173,6 +183,7 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
     """
     zdte = result.zero_dte_summary
     pinning = result.pinning
+    decision = getattr(result, "decision", None)
     with _connect(db_path) as conn:
         conn.execute(
             """
@@ -180,8 +191,10 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
             (symbol, date, spot, max_pain, call_wall, put_wall, gamma_flip,
              gamma_flip_distance_pct, total_net_gex, zero_dte_net_gex,
              zero_dte_share_pct, alert, pin_strike, pinning_oi_concentration_pct,
-             pinning_in_positive_gamma, pinning_score, pinning_regime)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             pinning_in_positive_gamma, pinning_score, pinning_regime,
+             decision_action, decision_confidence, decision_summary,
+             decision_upside_trigger, decision_downside_trigger)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 result.symbol, date_str, result.spot, result.max_pain,
@@ -193,6 +206,11 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
                 (int(pinning["in_positive_gamma"]) if pinning else None),
                 pinning["score"] if pinning else None,
                 pinning["regime"] if pinning else None,
+                decision.get("action") if decision else None,
+                decision.get("confidence") if decision else None,
+                decision.get("summary") if decision else None,
+                decision.get("upside_trigger") if decision else None,
+                decision.get("downside_trigger") if decision else None,
             ),
         )
 

@@ -22,15 +22,16 @@ class _FakeResult:
     zero_dte_summary: dict
     alert: str | None
     pinning: dict | None = None
+    decision: dict | None = None
 
 
-def _make_result(symbol="TSLA", spot=311.21, alert=None, pinning=None) -> _FakeResult:
+def _make_result(symbol="TSLA", spot=311.21, alert=None, pinning=None, decision=None) -> _FakeResult:
     return _FakeResult(
         symbol=symbol, spot=spot, max_pain=315.0, call_wall=330.0, put_wall=300.0,
         gamma_flip=317.0, gamma_flip_distance_pct=-1.9,
         zero_dte_summary={"total_net_gex": 1_000_000.0, "zero_dte_net_gex": 0.0,
                            "ex_zero_dte_net_gex": 1_000_000.0, "zero_dte_share_pct": 0.0},
-        alert=alert, pinning=pinning,
+        alert=alert, pinning=pinning, decision=decision,
     )
 
 
@@ -94,6 +95,27 @@ def test_save_snapshot_stores_alert_text(tmp_path):
     db_manager.save_snapshot(_make_result(alert="⚠️ 做市商對沖賣壓風險高"), "2026-08-01", db_path=db_path)
     rows = db_manager.get_recent_snapshots("TSLA", db_path=db_path)
     assert rows[0]["alert"] == "⚠️ 做市商對沖賣壓風險高"
+
+
+def test_save_snapshot_stores_decision_brief(tmp_path):
+    db_path = tmp_path / "history.db"
+    decision = {
+        "action": "區間上緣，避免追價", "confidence": "中",
+        "summary": "正 Gamma 壓抑波動，價格接近區間上緣。",
+        "upside_trigger": "站穩 Call Wall $330 才重新評估向上突破",
+        "downside_trigger": "跌破 Gamma Flip $317 轉為防守",
+    }
+
+    db_manager.save_snapshot(
+        _make_result(decision=decision), "2026-08-01", db_path=db_path,
+    )
+    row = db_manager.get_recent_snapshots("TSLA", db_path=db_path)[0]
+
+    assert row["decision_action"] == decision["action"]
+    assert row["decision_confidence"] == "中"
+    assert row["decision_summary"] == decision["summary"]
+    assert row["decision_upside_trigger"] == decision["upside_trigger"]
+    assert row["decision_downside_trigger"] == decision["downside_trigger"]
 
 
 def _make_legs():
@@ -328,6 +350,9 @@ def test_save_snapshot_migrates_pre_pinning_schema_database(tmp_path):
     assert len(rows) == 2
     old_row = next(r for r in rows if r["date"] == "2026-07-31")
     assert old_row["pin_strike"] is None  # 舊資料補上的新欄位是 NULL，不是報錯
+    assert old_row["decision_action"] is None
+    new_row = next(r for r in rows if r["date"] == "2026-08-01")
+    assert "decision_confidence" in new_row
 
 
 # ---------- signal_events ----------

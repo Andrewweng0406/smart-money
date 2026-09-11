@@ -76,6 +76,24 @@ def test_run_one_symbol_returns_summary_row_on_success(monkeypatch, tmp_path):
     assert row["spot"] == 100.0
 
 
+def test_run_one_symbol_persists_decision_with_daily_snapshot(monkeypatch, tmp_path):
+    result = _fake_result("TSLA")
+    captured = {}
+    monkeypatch.setattr(analyze, "fetch_and_aggregate", lambda *a, **k: result)
+    monkeypatch.setattr(db_manager, "save_snapshot", lambda saved, *a, **k: captured.update(decision=saved.decision))
+    monkeypatch.setattr(analyze, "compute_strategy_recommendation", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "get_macro_warnings", lambda symbol: [])
+    monkeypatch.setattr(analyze, "build_chart", lambda *a, **k: None)
+    monkeypatch.setattr(analyze, "build_markdown_report", lambda *a, **k: None)
+
+    row = run_watchlist.run_one_symbol(
+        "TSLA", tmp_path, max_expiries=None, risk_free_rate=0.045, use_ai=False,
+    )
+
+    assert captured["decision"] == row["decision"]
+    assert captured["decision"]["action"]
+
+
 def test_main_continues_when_one_symbol_fails_others_succeed(monkeypatch, tmp_path):
     """三檔標的裡有一檔失敗，其餘兩檔應該照樣跑完、寫進綜合摘要，整體不視為失敗。"""
     watchlist_path = tmp_path / "watchlist.json"
@@ -424,3 +442,35 @@ def test_watchlist_summary_does_not_recommend_strategy_during_low_confidence_obs
     assert "建議策略：Bull Put Spread" not in text
     assert "暫不執行" in text
     assert "模型候選：Bull Put Spread" in text
+
+
+def test_watchlist_summary_leads_with_all_observe_conclusion():
+    rows = [_summary_row("TSLA"), _summary_row("SOXL")]
+    for row in rows:
+        row["decision"] = {
+            "action": "事件前觀望", "confidence": "低", "summary": "等待事件",
+            "upside_trigger": "等待事件", "downside_trigger": "等待事件", "why": [],
+        }
+
+    text = run_watchlist.build_watchlist_summary(rows)
+
+    assert "今日結論：全部觀望，沒有符合執行條件的標的" in text
+    assert text.index("今日結論") < text.index("◆ TSLA")
+
+
+def test_watchlist_summary_leads_with_actionable_symbols():
+    tsla = _summary_row("TSLA")
+    tsla["decision"] = {
+        "action": "區間下緣，等待止跌", "confidence": "中", "summary": "接近支撐",
+        "upside_trigger": "站回 $100", "downside_trigger": "跌破 $90", "why": [],
+    }
+    soxl = _summary_row("SOXL")
+    soxl["decision"] = {
+        "action": "事件前觀望", "confidence": "低", "summary": "等待事件",
+        "upside_trigger": "等待", "downside_trigger": "等待", "why": [],
+    }
+
+    text = run_watchlist.build_watchlist_summary([tsla, soxl])
+
+    assert "今日可關注：TSLA（區間下緣，等待止跌）" in text
+    assert "SOXL（事件前觀望）" not in text.split("◆ TSLA", 1)[0]

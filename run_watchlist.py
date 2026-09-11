@@ -57,6 +57,24 @@ def run_one_symbol(
         is_trading_day = data_fetcher.is_market_trading_day()
 
     strategy = analyze.compute_strategy_recommendation(symbol, result)
+    macro_warnings = analyze.get_macro_warnings(symbol)
+
+    # 決策必須在快照寫入前完成，否則歷史資料只剩原始指標，日後無法嚴謹地
+    # 驗證「當時系統實際叫使用者做什麼」，容易產生事後解讀偏誤。
+    try:
+        decision = decision_engine.build_decision_brief(
+            spot=result.spot,
+            put_wall=result.put_wall,
+            call_wall=result.call_wall,
+            gamma_flip=result.gamma_flip,
+            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
+            oi_data_quality=result.oi_data_quality,
+            calendar_warnings=macro_warnings,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 決策摘要計算失敗：%s", symbol, exc)
+        decision = None
+    result.decision = decision
 
     # 同 analyze.py：只有今天真的是交易日才寫進歷史資料庫/策略追蹤，避免
     # 平日休市日排程照跑，把舊資料當新快照寫進去汙染 backtester 的統計。
@@ -70,8 +88,6 @@ def run_one_symbol(
         analyze.save_oi_snapshot_if_trading_day(symbol, result, trading_date_str)
     else:
         logger.info("今天不是美股交易日，%s 跳過歷史資料庫寫入與策略追蹤紀錄", symbol)
-
-    macro_warnings = analyze.get_macro_warnings(symbol)
 
     if notify:
         # LINE極端警報要立刻發，不等整份 watchlist 摘要都跑完——這是比每日
@@ -127,20 +143,6 @@ def run_one_symbol(
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 風險計量失敗：%s", symbol, exc)
         risk = None
-
-    try:
-        decision = decision_engine.build_decision_brief(
-            spot=result.spot,
-            put_wall=result.put_wall,
-            call_wall=result.call_wall,
-            gamma_flip=result.gamma_flip,
-            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
-            oi_data_quality=result.oi_data_quality,
-            calendar_warnings=macro_warnings,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("%s 決策摘要計算失敗：%s", symbol, exc)
-        decision = None
 
     return {
         "symbol": symbol, "spot": result.spot, "max_pain": result.max_pain,
@@ -288,6 +290,24 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
         lines.append(warning)
     if shared_warnings:
         lines.append("")
+
+    successful = [row for row in summaries if "error" not in row]
+    actionable = [
+        row for row in successful
+        if row.get("decision")
+        and row["decision"].get("confidence") != "低"
+        and "觀望" not in row["decision"].get("action", "")
+    ]
+    if actionable:
+        focus = "、".join(
+            f"{row['symbol']}（{row['decision']['action']}）" for row in actionable
+        )
+        lines.append(f"🔎 今日可關注：{focus}")
+    elif successful:
+        lines.append("🧭 今日結論：全部觀望，沒有符合執行條件的標的。")
+    else:
+        lines.append("⚠️ 今日結論：所有標的分析失敗，沒有足夠資料可供判斷。")
+    lines.append("")
 
     for row in summaries:
         if "error" in row:

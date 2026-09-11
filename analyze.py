@@ -89,6 +89,9 @@ class AnalysisResult:
     mm_pressure: dict | None = None
     pinning: dict | None = None
     oi_data_quality: dict | None = None
+    # 決策摘要跟產生它的市場快照必須綁在同一天，之後回看才不會拿更新後的
+    # 價位解釋舊訊號；預設 None 保持既有手動建構 AnalysisResult 的相容性。
+    decision: dict | None = None
 
 
 def _load_previous_oi_snapshot(symbol: str, db_path: Path | str) -> dict[float, dict] | None:
