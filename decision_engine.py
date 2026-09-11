@@ -19,6 +19,7 @@ def build_decision_brief(
     gamma_flip: float | None,
     total_net_gex: float | None = None,
     oi_data_quality: dict | None = None,
+    data_quality: dict | None = None,
     calendar_warnings: list[str] | None = None,
 ) -> dict[str, str | list[str]]:
     """回傳行動姿態、信心與上下觸發條件，不預測未經驗證的漲跌方向。"""
@@ -29,6 +30,18 @@ def build_decision_brief(
         spot > 0 and put_wall > 0 and call_wall > 0
         and put_wall < call_wall and gamma_flip is not None and gamma_flip > 0
     )
+
+    if data_quality and not data_quality.get("usable", True):
+        score = data_quality.get("score", 0)
+        why.append(f"資料健康 {score}/100：{data_quality.get('reason', '資料不完整')}")
+        return {
+            "action": "觀望",
+            "confidence": "低",
+            "summary": f"期權鏈資料健康僅 {score}/100，暫不使用籌碼結構做交易判斷。",
+            "upside_trigger": "等待資料健康恢復後重新分析",
+            "downside_trigger": "等待資料健康恢復後重新分析",
+            "why": why,
+        }
 
     if oi_data_quality and not oi_data_quality.get("usable", True):
         why.append(f"OI 資料不可信：{oi_data_quality.get('reason', '資料不完整')}")

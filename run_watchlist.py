@@ -21,6 +21,7 @@ from pathlib import Path
 import analyze
 import data_fetcher
 import db_manager
+import decision_auditor
 import risk_gauge
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -126,6 +127,12 @@ def run_one_symbol(
         if trading_date_str else None
     )
     decision_change = compare_decisions(decision, previous_decision)
+    decision_outcome = (
+        decision_auditor.evaluate_decision(
+            previous_decision, result.spot, trading_date_str,
+        )
+        if previous_decision and trading_date_str else None
+    )
 
     # 同 analyze.py：只有今天真的是交易日才寫進歷史資料庫/策略追蹤，避免
     # 平日休市日排程照跑，把舊資料當新快照寫進去汙染 backtester 的統計。
@@ -201,7 +208,9 @@ def run_one_symbol(
         "strategy_name": strategy.strategy_name if strategy else "N/A",
         "mm_pressure": result.mm_pressure, "macro_warnings": macro_warnings,
         "risk": risk, "oi_data_quality": result.oi_data_quality,
+        "data_quality": result.data_quality,
         "decision": decision, "decision_change": decision_change,
+        "decision_outcome": decision_outcome,
     }
 
 
@@ -341,6 +350,21 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
     if shared_warnings:
         lines.append("")
 
+    outcome_rows = [row for row in summaries if row.get("decision_outcome")]
+    if outcome_rows:
+        lines.append("📋 前次決策驗證")
+        for row in outcome_rows:
+            outcome = row["decision_outcome"]
+            return_text = f"{outcome['return_pct']:+.1f}%"
+            if outcome["outcome"] == "confirmed":
+                result_text = "確認成立"
+            elif outcome["outcome"] == "invalidated":
+                result_text = "條件失效"
+            else:
+                result_text = "僅記錄波動（不計勝率）"
+            lines.append(f"• {row['symbol']}：{result_text}，後續 {return_text}")
+        lines.append("")
+
     changed_rows = [
         row for row in summaries
         if (row.get("decision_change") or {}).get("changed")
@@ -377,6 +401,13 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
 
         flip_text = f"${row['gamma_flip']:.0f}" if row["gamma_flip"] is not None else "N/A"
         lines.append(f"◆ {row['symbol']}　現貨 ${row['spot']:.2f}")
+        data_quality = row.get("data_quality")
+        if data_quality:
+            lines.append(
+                f"  資料健康 {data_quality['score']}/100（{data_quality['label']}）"
+            )
+            if not data_quality.get("usable", True):
+                lines.append(f"  ⚠️ {data_quality['reason']}")
         oi_quality = row.get("oi_data_quality")
         if oi_quality and not oi_quality.get("usable", True):
             lines.append(

@@ -409,13 +409,17 @@ def test_build_watch_section_caps_unusual_contracts_and_keeps_strongest(tmp_path
     assert set(delivered_ids) == set(ids)
 
 
-def _summary_row(symbol, strategy_name="Bull Put Spread", macro_warnings=None, oi_data_quality=None):
+def _summary_row(
+    symbol, strategy_name="Bull Put Spread", macro_warnings=None,
+    oi_data_quality=None, data_quality=None,
+):
     return {
         "symbol": symbol, "spot": 100.0, "max_pain": 100.0,
         "call_wall": 110.0, "put_wall": 90.0, "gamma_flip": 95.0,
         "alert": None, "strategy_name": strategy_name, "mm_pressure": None,
         "macro_warnings": macro_warnings or [], "risk": None,
         "oi_data_quality": oi_data_quality,
+        "data_quality": data_quality,
     }
 
 
@@ -450,6 +454,18 @@ def test_watchlist_summary_surfaces_unusable_oi_quality():
 
     assert "OI 資料可信度低" in text
     assert "1.00%" in text
+
+
+def test_watchlist_summary_surfaces_chain_health_score_and_reason():
+    text = run_watchlist.build_watchlist_summary([
+        _summary_row("SPCX", data_quality={
+            "usable": False, "score": 65, "label": "不完整",
+            "reason": "到期日覆蓋 50%，低於 75% 門檻",
+        }),
+    ])
+
+    assert "資料健康 65/100（不完整）" in text
+    assert "到期日覆蓋 50%" in text
 
 
 def test_watchlist_summary_puts_decision_before_raw_levels():
@@ -559,3 +575,18 @@ def test_watchlist_summary_survives_missing_decision_change():
 
     assert "TSLA" in text
     assert "今日決策變化" not in text
+
+
+def test_watchlist_summary_surfaces_matured_decision_result_at_top():
+    row = _summary_row("SPCX")
+    row["decision_outcome"] = {
+        "outcome": "confirmed", "action": "突破觀察，等待站穩",
+        "return_pct": 2.1, "date": "2026-09-10", "future_date": "2026-09-11",
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+    top = text.split("◆ SPCX", 1)[0]
+
+    assert "前次決策驗證" in top
+    assert "SPCX：確認成立" in top
+    assert "+2.1%" in top

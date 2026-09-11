@@ -23,15 +23,18 @@ class _FakeResult:
     alert: str | None
     pinning: dict | None = None
     decision: dict | None = None
+    data_quality: dict | None = None
 
 
-def _make_result(symbol="TSLA", spot=311.21, alert=None, pinning=None, decision=None) -> _FakeResult:
+def _make_result(
+    symbol="TSLA", spot=311.21, alert=None, pinning=None, decision=None, data_quality=None,
+) -> _FakeResult:
     return _FakeResult(
         symbol=symbol, spot=spot, max_pain=315.0, call_wall=330.0, put_wall=300.0,
         gamma_flip=317.0, gamma_flip_distance_pct=-1.9,
         zero_dte_summary={"total_net_gex": 1_000_000.0, "zero_dte_net_gex": 0.0,
                            "ex_zero_dte_net_gex": 1_000_000.0, "zero_dte_share_pct": 0.0},
-        alert=alert, pinning=pinning, decision=decision,
+        alert=alert, pinning=pinning, decision=decision, data_quality=data_quality,
     )
 
 
@@ -136,6 +139,20 @@ def test_snapshot_rerun_without_decision_preserves_existing_decision(tmp_path):
     assert row["spot"] == 311.21
     assert row["decision_action"] == "事件前觀望"
     assert row["decision_summary"] == "等待事件"
+
+
+def test_save_snapshot_stores_data_quality_score(tmp_path):
+    db_path = tmp_path / "history.db"
+    quality = {"score": 72, "label": "降級", "reason": "到期日覆蓋不足"}
+
+    db_manager.save_snapshot(
+        _make_result(data_quality=quality), "2026-08-01", db_path=db_path,
+    )
+    row = db_manager.get_recent_snapshots("TSLA", db_path=db_path)[0]
+
+    assert row["data_quality_score"] == 72
+    assert row["data_quality_label"] == "降級"
+    assert row["data_quality_reason"] == "到期日覆蓋不足"
 
 
 def _make_legs():

@@ -9,6 +9,7 @@ from smart_money import (
     compute_market_maker_pressure_score,
     compute_put_call_ratio,
     detect_unusual_activity,
+    assess_chain_data_quality,
     assess_oi_data_quality,
 )
 
@@ -16,6 +17,7 @@ from smart_money import (
 @dataclass
 class FakeLeg:
     strike: float
+    expiry: str = ""
     call_oi: float = 0
     call_iv: float = 0
     call_volume: float = 0
@@ -211,6 +213,52 @@ def test_assess_oi_data_quality_accepts_oi_that_is_not_too_low():
     result = assess_oi_data_quality(legs)
 
     assert result["usable"] is True
+
+
+def test_assess_chain_data_quality_scores_complete_chain_high():
+    legs = [
+        FakeLeg(strike=100, expiry="2026-10-16", call_oi=1000, put_oi=800,
+                call_volume=100, put_volume=100, call_iv=0.3, put_iv=0.35),
+        FakeLeg(strike=105, expiry="2026-11-20", call_oi=900, put_oi=700,
+                call_volume=100, put_volume=100, call_iv=0.32, put_iv=0.37),
+    ]
+
+    result = assess_chain_data_quality(
+        legs, expected_expiries=["2026-10-16", "2026-11-20"],
+    )
+
+    assert result["usable"] is True
+    assert result["score"] == 100
+    assert result["expiry_coverage_pct"] == 100.0
+    assert result["iv_coverage_pct"] == 100.0
+
+
+def test_assess_chain_data_quality_gates_missing_expiry_even_with_good_oi():
+    legs = [
+        FakeLeg(strike=100, expiry="2026-10-16", call_oi=1000, put_oi=800,
+                call_volume=100, put_volume=100, call_iv=0.3, put_iv=0.35),
+    ]
+
+    result = assess_chain_data_quality(
+        legs, expected_expiries=["2026-10-16", "2026-11-20"],
+    )
+
+    assert result["usable"] is False
+    assert result["expiry_coverage_pct"] == 50.0
+    assert "到期日" in result["reason"]
+
+
+def test_assess_chain_data_quality_gates_missing_iv_on_open_interest():
+    legs = [
+        FakeLeg(strike=100, expiry="2026-10-16", call_oi=1000, put_oi=800,
+                call_volume=100, put_volume=100, call_iv=0.0, put_iv=0.0),
+    ]
+
+    result = assess_chain_data_quality(legs, expected_expiries=["2026-10-16"])
+
+    assert result["usable"] is False
+    assert result["iv_coverage_pct"] == 0.0
+    assert "IV" in result["reason"]
 
 
 def test_detect_unusual_activity_applies_threshold_and_top_n():

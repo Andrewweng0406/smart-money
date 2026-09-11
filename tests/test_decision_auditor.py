@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import decision_auditor
+import pytest
 
 
 def _row(date, spot, action=None, confidence="中", put_wall=90.0, call_wall=110.0):
@@ -68,6 +69,18 @@ def test_latest_decision_is_pending_until_future_snapshot_exists():
     assert audit["matured_episodes"] == 0
     assert audit["pending_episodes"] == 1
     assert audit["recent"][0]["outcome"] == "pending"
+
+
+def test_evaluate_decision_returns_same_result_used_by_audit():
+    previous = _row("2026-09-01", 112, "突破觀察，等待站穩")
+
+    event = decision_auditor.evaluate_decision(
+        previous, future_spot=114, future_date="2026-09-02",
+    )
+
+    assert event["outcome"] == "confirmed"
+    assert event["success"] is True
+    assert event["return_pct"] == pytest.approx(1.7857, rel=1e-3)
 
 
 def test_report_refuses_percentage_below_minimum_sample(monkeypatch):

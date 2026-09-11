@@ -22,6 +22,20 @@ _SCORED_ACTIONS = {
 }
 
 
+def evaluate_decision(row: dict, future_spot: float, future_date: str) -> dict:
+    """用審核器唯一的規則評估一筆已成熟決策；純計算。"""
+    action = row["decision_action"]
+    scorer = _SCORED_ACTIONS.get(action)
+    success = scorer(row, future_spot) if scorer else None
+    return_pct = (future_spot - row["spot"]) / row["spot"] * 100
+    return {
+        "date": row["date"], "future_date": future_date, "action": action,
+        "confidence": row.get("decision_confidence"),
+        "outcome": ("confirmed" if success else "invalidated") if scorer else "observed",
+        "success": success, "return_pct": return_pct,
+    }
+
+
 def _episode_indices(rows: list[dict]) -> list[int]:
     """連續相同姿態只算一段，避免每日重複建議把有效樣本灌大。"""
     episodes = []
@@ -76,13 +90,7 @@ def audit_decision_rows(
             event.update(outcome="pending", future_date=None, return_pct=None)
         else:
             future = ordered[future_index]
-            return_pct = (future["spot"] - row["spot"]) / row["spot"] * 100
-            scorer = _SCORED_ACTIONS.get(action)
-            success = scorer(row, future["spot"]) if scorer else None
-            event.update(
-                outcome=("confirmed" if success else "invalidated") if scorer else "observed",
-                success=success, future_date=future["date"], return_pct=return_pct,
-            )
+            event = evaluate_decision(row, future["spot"], future["date"])
         events_by_action.setdefault(action, []).append(event)
         recent.append(event)
 

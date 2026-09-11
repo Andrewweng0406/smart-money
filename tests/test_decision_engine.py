@@ -13,6 +13,18 @@ def test_unusable_oi_forces_low_confidence_observation():
     assert "OI" in result["why"][0]
 
 
+def test_chain_quality_gate_forces_low_confidence_observation():
+    result = decision_engine.build_decision_brief(
+        spot=100, put_wall=90, call_wall=110, gamma_flip=95,
+        total_net_gex=1_000_000,
+        data_quality={"usable": False, "score": 65, "reason": "到期日覆蓋不足"},
+    )
+
+    assert result["action"] == "觀望"
+    assert result["confidence"] == "低"
+    assert "65/100" in result["summary"]
+
+
 def test_imminent_event_overrides_otherwise_quiet_setup():
     result = decision_engine.build_decision_brief(
         spot=100, put_wall=90, call_wall=110, gamma_flip=95,

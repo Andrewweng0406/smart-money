@@ -90,6 +90,7 @@ class AnalysisResult:
     mm_pressure: dict | None = None
     pinning: dict | None = None
     oi_data_quality: dict | None = None
+    data_quality: dict | None = None
     # 決策摘要跟產生它的市場快照必須綁在同一天，之後回看才不會拿更新後的
     # 價位解釋舊訊號；預設 None 保持既有手動建構 AnalysisResult 的相容性。
     decision: dict | None = None
@@ -105,6 +106,7 @@ def build_decision_brief(result: AnalysisResult, macro_warnings: list[str]) -> d
             gamma_flip=result.gamma_flip,
             total_net_gex=result.zero_dte_summary.get("total_net_gex"),
             oi_data_quality=result.oi_data_quality,
+            data_quality=result.data_quality,
             calendar_warnings=macro_warnings,
         )
     except Exception as exc:  # noqa: BLE001
@@ -189,6 +191,17 @@ def fetch_and_aggregate(
         logger.warning("%s OI 資料品質檢查失敗：%s", symbol, exc)
         oi_data_quality = None
 
+    try:
+        data_quality = smart_money.assess_chain_data_quality(all_raw_legs, expiries)
+        if not data_quality["usable"]:
+            logger.warning(
+                "%s 期權鏈資料健康 %s/100：%s",
+                symbol, data_quality["score"], data_quality["reason"],
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 期權鏈資料健康檢查失敗：%s", symbol, exc)
+        data_quality = None
+
     gex_by_strike = compute_net_gex_by_strike(all_legs, spot=spot, risk_free_rate=risk_free_rate)
     if not gex_by_strike:
         raise RuntimeError(f"{symbol} 期權鏈彙總後沒有有效資料")
@@ -259,6 +272,7 @@ def fetch_and_aggregate(
         iv_skew=iv_skew, put_call_ratio=put_call_ratio,
         unusual_activity=unusual_activity, mm_pressure=mm_pressure, pinning=pinning,
         oi_data_quality=oi_data_quality,
+        data_quality=data_quality,
     )
 
 

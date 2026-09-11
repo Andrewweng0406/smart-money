@@ -16,6 +16,8 @@ DEATH_LOOP_ALERT_TEXT = (
 # OI 長期通常應高於當日成交量；低到只剩成交量的極小比例，多半是尚未公布
 # 或回傳不完整，不應讓資料缺失被誤判成市場最異常的訊號。
 DEFAULT_MIN_OI_TO_VOLUME_RATIO = 0.05
+DEFAULT_MIN_EXPIRY_COVERAGE_RATIO = 0.75
+DEFAULT_MIN_IV_COVERAGE_RATIO = 0.50
 
 
 def assess_oi_data_quality(
@@ -34,6 +36,58 @@ def assess_oi_data_quality(
     else:
         reason = f"OI 僅為成交量的 {total_oi / total_volume:.2%}，低於 {min_oi_to_volume_ratio:.2%} 門檻"
     return {"usable": usable, "total_oi": total_oi, "total_volume": total_volume, "reason": reason}
+
+
+def assess_chain_data_quality(
+    legs: list[Any],
+    expected_expiries: list[str],
+    min_expiry_coverage_ratio: float = DEFAULT_MIN_EXPIRY_COVERAGE_RATIO,
+    min_iv_coverage_ratio: float = DEFAULT_MIN_IV_COVERAGE_RATIO,
+) -> dict:
+    """評估資料完整度；分數只描述輸入品質，不代表訊號勝率。"""
+    oi_quality = assess_oi_data_quality(legs)
+    expected = set(expected_expiries)
+    populated = {getattr(leg, "expiry", "") for leg in legs if getattr(leg, "expiry", "")}
+    expiry_ratio = len(populated & expected) / len(expected) if expected else 0.0
+
+    oi_sides = 0
+    iv_sides = 0
+    for leg in legs:
+        for side in ("call", "put"):
+            if getattr(leg, f"{side}_oi", 0) > 0:
+                oi_sides += 1
+                if getattr(leg, f"{side}_iv", 0) > 0:
+                    iv_sides += 1
+    iv_ratio = iv_sides / oi_sides if oi_sides else 0.0
+
+    # 權重反映各欄位對現有模型的直接影響：OI 是 GEX/Wall 的核心，占一半；
+    # 到期日缺漏會扭曲整體結構，占三成；IV 只影響有 OI 的部位，占兩成。
+    score = round(
+        (50 if oi_quality["usable"] else 0)
+        + expiry_ratio * 30
+        + iv_ratio * 20
+    )
+    reasons = []
+    if not oi_quality["usable"]:
+        reasons.append(oi_quality["reason"])
+    if expiry_ratio < min_expiry_coverage_ratio:
+        reasons.append(
+            f"到期日覆蓋 {expiry_ratio:.0%}，低於 {min_expiry_coverage_ratio:.0%} 門檻"
+        )
+    if iv_ratio < min_iv_coverage_ratio:
+        reasons.append(f"有效 IV 覆蓋 {iv_ratio:.0%}，低於 {min_iv_coverage_ratio:.0%} 門檻")
+
+    usable = not reasons
+    label = "完整" if score >= 90 and usable else ("可用" if usable else "不完整")
+    return {
+        "usable": usable,
+        "score": score,
+        "label": label,
+        "reason": "；".join(reasons) if reasons else "核心期權鏈欄位完整",
+        "expiry_coverage_pct": expiry_ratio * 100,
+        "iv_coverage_pct": iv_ratio * 100,
+        "oi": oi_quality,
+    }
 
 
 def compute_iv_skew(
