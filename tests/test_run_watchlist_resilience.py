@@ -440,8 +440,8 @@ def test_watchlist_summary_explains_unavailable_strategy_without_contradiction()
     ])
 
     assert "建議策略：無建議" not in text
-    assert "候選方向：Bear Call Spread" in text
-    assert "目前沒有可執行策略" in text
+    assert "候選方向：Bear Call Spread" not in text
+    assert "模型候選" not in text
 
 
 def test_watchlist_summary_surfaces_unusable_oi_quality():
@@ -464,7 +464,7 @@ def test_watchlist_summary_surfaces_chain_health_score_and_reason():
         }),
     ])
 
-    assert "資料健康 65/100（不完整）" in text
+    assert "資料 65/100（不完整）" in text
     assert "到期日覆蓋 50%" in text
 
 
@@ -480,10 +480,10 @@ def test_watchlist_summary_puts_decision_before_raw_levels():
 
     text = run_watchlist.build_watchlist_summary([row])
 
-    assert "決策：區間上緣，避免追價（信心：中）" in text
-    assert text.index("決策：") < text.index("Max Pain")
-    assert "向上觸發" in text
-    assert "向下風險" in text
+    assert "TSLA $100.00｜區間上緣，避免追價｜信心 中" in text
+    assert "Max Pain" not in text
+    assert "觸發：" in text
+    assert "失效：" in text
 
 
 def test_watchlist_summary_does_not_recommend_strategy_during_low_confidence_observation():
@@ -497,8 +497,7 @@ def test_watchlist_summary_does_not_recommend_strategy_during_low_confidence_obs
     text = run_watchlist.build_watchlist_summary([row])
 
     assert "建議策略：Bull Put Spread" not in text
-    assert "暫不執行" in text
-    assert "模型候選：Bull Put Spread" in text
+    assert "模型候選：Bull Put Spread" not in text
 
 
 def test_watchlist_summary_does_not_execute_strategy_at_medium_confidence():
@@ -512,7 +511,7 @@ def test_watchlist_summary_does_not_execute_strategy_at_medium_confidence():
     text = run_watchlist.build_watchlist_summary([row])
 
     assert "建議策略：Bear Call Spread" not in text
-    assert "暫不執行（模型候選：Bear Call Spread）" in text
+    assert "模型候選：Bear Call Spread" not in text
 
 
 def test_watchlist_summary_leads_with_all_observe_conclusion():
@@ -592,7 +591,7 @@ def test_watchlist_summary_surfaces_matured_decision_result_at_top():
     assert "+2.1%" in top
 
 
-def test_watchlist_summary_places_historical_evidence_below_decision():
+def test_watchlist_summary_moves_general_history_to_decisions_command():
     row = _summary_row("TSLA")
     row["decision"] = {
         "action": "突破觀察，等待站穩", "confidence": "中", "summary": "等待確認",
@@ -605,8 +604,8 @@ def test_watchlist_summary_places_historical_evidence_below_decision():
 
     text = run_watchlist.build_watchlist_summary([row])
 
-    assert "歷史證據：同類歷史樣本不足（2/5 段），暫不估計成功率" in text
-    assert text.index("決策：") < text.index("歷史證據：") < text.index("Max Pain")
+    assert "歷史證據：" not in text
+    assert "決策記分：/decisions TSLA" in text
 
 
 def test_watchlist_summary_displays_current_market_context():
@@ -627,5 +626,46 @@ def test_watchlist_summary_displays_current_market_context():
 
     text = run_watchlist.build_watchlist_summary([row])
 
-    assert "當前環境：正 Gamma／Wall 區間內／一般交易日／高 0DTE" in text
+    assert "環境：正 Gamma／Wall 區間內／一般交易日／高 0DTE" in text
     assert "適用性：樣本不足；同情境樣本不足（2/20 段）" in text
+
+
+def test_watchlist_summary_is_an_action_brief_not_a_metric_dump():
+    row = _summary_row("TSLA")
+    row["data_quality"] = {"usable": True, "score": 99, "label": "完整", "reason": "正常"}
+    row["decision"] = {
+        "action": "區間應對，不追方向", "confidence": "中",
+        "summary": "正 Gamma 環境偏向均值回歸。",
+        "upside_trigger": "站穩 Call Wall $110 才重新評估向上突破",
+        "downside_trigger": "跌破 Gamma Flip $95 轉為防守",
+        "why": [],
+        "context": {
+            "gamma_regime": "positive", "price_zone": "inside_walls",
+            "event_regime": "normal", "zero_dte_regime": "normal",
+            "data_regime": "usable",
+        },
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "TSLA $100.00｜區間應對，不追方向｜信心 中" in text
+    assert "觸發：站穩 Call Wall $110" in text
+    assert "失效：跌破 Gamma Flip $95" in text
+    assert "有效至下一交易日收盤" in text
+    assert "資料 99/100" in text
+    assert "Max Pain" not in text
+    assert "莊家收割壓力" not in text
+    assert "完整分析：/report TSLA" in text
+
+
+def test_watchlist_summary_omits_unscored_previous_observation():
+    row = _summary_row("TSLA")
+    row["decision_outcome"] = {
+        "outcome": "observed", "action": "事件前觀望", "return_pct": 3.0,
+        "date": "2026-09-10", "future_date": "2026-09-11",
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "前次決策驗證" not in text
+    assert "僅記錄波動" not in text

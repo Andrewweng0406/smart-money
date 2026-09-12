@@ -360,11 +360,8 @@ def run_intraday_summary(
 
 
 def build_watchlist_summary(summaries: list[dict]) -> str:
-    """把每檔標的的摘要組成一份文字報告——這是唯一會推播到 Telegram 的內容，
-    細節（AI評語、完整策略說明、圖表）留在各自的 daily_report_*.md 裡，
-    避免這份總表太長。
-    """
-    lines = [f"📊 Watchlist 綜合評估報告 — {datetime.now():%Y-%m-%d}", ""]
+    """組成以行動為主的 Telegram 簡報；完整指標留在 /report 與 Markdown。"""
+    lines = [f"📊 Watchlist 決策摘要 — {datetime.now():%Y-%m-%d}", ""]
 
     # CPI/FOMC 這類市場共同事件在每檔分析都會回傳相同文字；集中到報告頂端
     # 只顯示一次，避免三檔 watchlist 看起來像發生了三個不同事件。
@@ -378,7 +375,12 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
     if shared_warnings:
         lines.append("")
 
-    outcome_rows = [row for row in summaries if row.get("decision_outcome")]
+    # 觀望只有「後續波動」，沒有可驗證方向；放在主畫面只會增加閱讀負擔，
+    # 因此只有真正可計分的確認／失效才值得佔用每日注意力。
+    outcome_rows = [
+        row for row in summaries
+        if (row.get("decision_outcome") or {}).get("outcome") in {"confirmed", "invalidated"}
+    ]
     if outcome_rows:
         lines.append("📋 前次決策驗證")
         for row in outcome_rows:
@@ -388,8 +390,6 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
                 result_text = "確認成立"
             elif outcome["outcome"] == "invalidated":
                 result_text = "條件失效"
-            else:
-                result_text = "僅記錄波動（不計勝率）"
             lines.append(f"• {row['symbol']}：{result_text}，後續 {return_text}")
         lines.append("")
 
@@ -427,13 +427,18 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
             lines.append("")
             continue
 
-        flip_text = f"${row['gamma_flip']:.0f}" if row["gamma_flip"] is not None else "N/A"
-        lines.append(f"◆ {row['symbol']}　現貨 ${row['spot']:.2f}")
+        decision = row.get("decision")
+        if decision:
+            lines.append(
+                f"◆ {row['symbol']} ${row['spot']:.2f}｜{decision['action']}｜"
+                f"信心 {decision['confidence']}"
+            )
+        else:
+            lines.append(f"◆ {row['symbol']} ${row['spot']:.2f}｜暫無決策")
+
         data_quality = row.get("data_quality")
         if data_quality:
-            lines.append(
-                f"  資料健康 {data_quality['score']}/100（{data_quality['label']}）"
-            )
+            lines.append(f"  資料 {data_quality['score']}/100（{data_quality['label']}）")
             if not data_quality.get("usable", True):
                 lines.append(f"  ⚠️ {data_quality['reason']}")
         oi_quality = row.get("oi_data_quality")
@@ -442,57 +447,35 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
                 f"  ⚠️ OI 資料可信度低：{oi_quality.get('reason', '資料不完整')}；"
                 "本次 GEX、Wall、PCR 與異常成交只供參考"
             )
-        decision = row.get("decision")
         if decision:
-            lines.append(
-                f"  🧭 決策：{decision['action']}（信心：{decision['confidence']}）"
-            )
-            lines.append(f"  {decision['summary']}")
             context = decision.get("context")
             if context:
-                lines.append(f"  當前環境：{market_context.format_context(context)}")
-            evidence = row.get("decision_evidence")
-            if evidence:
-                lines.append(f"  歷史證據：{evidence['text']}")
+                lines.append(f"  環境：{market_context.format_context(context)}")
+            lines.append(f"  觸發：{decision['upside_trigger']}")
+            lines.append(f"  失效：{decision['downside_trigger']}")
             context_evidence = row.get("context_evidence")
             if context_evidence:
                 lines.append(
                     f"  適用性：{context_evidence['applicability']}；"
                     f"{context_evidence['text']}"
                 )
-            lines.append(f"  ↑ 向上觸發：{decision['upside_trigger']}")
-            lines.append(f"  ↓ 向下風險：{decision['downside_trigger']}")
+            lines.append("  有效至下一交易日收盤；條件觸發或失效時提前重評")
+
         risk = row.get("risk")
-        if risk:
-            lines.append(f"  🎯 風險 {risk['risk_score']}/100（{risk['risk_label']}）　{risk['regime_text']}")
+        if risk and risk["risk_score"] >= 50:
+            lines.append(f"  ⚠️ 風險 {risk['risk_score']}/100（{risk['risk_label']}）")
             for item in risk["avoid"]:
                 lines.append(f"  ⚠️ {item}")
-        lines.append(
-            f"  Max Pain ${row['max_pain']:.0f}　Call Wall ${row['call_wall']:.0f}　"
-            f"Put Wall ${row['put_wall']:.0f}　Gamma翻轉點 {flip_text}"
-        )
         if row["alert"]:
             lines.append(f"  {row['alert']}")
-        if row.get("mm_pressure"):
-            pressure = row["mm_pressure"]
-            lines.append(f"  莊家收割壓力：{pressure['score']}/100（{pressure['label']}）")
-            if pressure.get("is_death_loop_alert"):
-                lines.append(f"  {pressure['alert_text']}")
-        strategy_name = row["strategy_name"]
-        decision_blocks_execution = bool(
-            decision
-            and decision["confidence"] != "高"
-        )
-        if decision_blocks_execution and strategy_name not in ("N/A",) and not strategy_name.startswith("無建議（"):
-            lines.append(f"  策略：暫不執行（模型候選：{strategy_name}）")
-        elif strategy_name.startswith("無建議（") and strategy_name.endswith("）"):
-            candidate = strategy_name.removeprefix("無建議（").removesuffix("）")
-            lines.append(f"  目前沒有可執行策略；候選方向：{candidate}（缺少合適履約價或報價）")
-        elif strategy_name == "N/A":
-            lines.append("  目前沒有可執行策略")
-        else:
-            lines.append(f"  建議策略：{strategy_name}")
         lines.append("")
+
+    successful_symbols = [row["symbol"] for row in summaries if "error" not in row]
+    if successful_symbols:
+        report_commands = "　".join(f"/report {symbol}" for symbol in successful_symbols)
+        decision_commands = "　".join(f"/decisions {symbol}" for symbol in successful_symbols)
+        lines.append(f"完整分析：{report_commands}")
+        lines.append(f"決策記分：{decision_commands}")
 
     return "\n".join(lines).strip()
 
