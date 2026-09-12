@@ -40,7 +40,9 @@ def get_next_earnings_date(symbol: str) -> date | None:
             return None
 
         ticker = yf.Ticker(symbol)
-        today = datetime.now().date()
+        # Railway 容器使用 UTC；財報與交易日語意必須跟美股市場同一天，否則
+        # 美東晚間 UTC 已跨日後，會把「今天」財報誤當成過去而直接濾掉。
+        today = datetime.now(ZoneInfo("America/New_York")).date()
         candidates: list[Any] = []
 
         calendar = ticker.calendar

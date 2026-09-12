@@ -2,6 +2,7 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 
 import macro_calendar
 from macro_calendar import (
@@ -68,7 +69,7 @@ def test_get_next_earnings_date_returns_none_when_yfinance_fails(monkeypatch):
 
 
 def test_get_next_earnings_date_selects_earliest_future_candidate(monkeypatch):
-    today = datetime.now().date()
+    today = datetime.now(ZoneInfo("America/New_York")).date()
     fake_ticker = SimpleNamespace(
         calendar={"Earnings Date": [today + timedelta(days=8), today + timedelta(days=3)]}
     )
@@ -80,7 +81,8 @@ def test_get_next_earnings_date_selects_earliest_future_candidate(monkeypatch):
 
 
 def test_get_calendar_warnings_combines_earnings_and_macro_events(monkeypatch):
-    today = datetime.now().date()
+    now = datetime(2026, 8, 1, 12, 0, tzinfo=ZoneInfo("America/New_York"))
+    today = now.date()
     monkeypatch.setattr(
         macro_calendar, "get_next_earnings_date", lambda symbol: today + timedelta(days=1)
     )
@@ -93,7 +95,7 @@ def test_get_calendar_warnings_combines_earnings_and_macro_events(monkeypatch):
         ],
     )
 
-    warnings = get_calendar_warnings("TSLA", "unused.json")
+    warnings = get_calendar_warnings("TSLA", "unused.json", now=now)
 
     assert warnings == [
         "⚠️ 【高波動預警】距離 TSLA 財報 僅剩 1 天，IV 預期飆升，做市商對沖引發的波幅將放大！",
@@ -102,8 +104,6 @@ def test_get_calendar_warnings_combines_earnings_and_macro_events(monkeypatch):
 
 
 def test_macro_warning_stops_after_same_day_release_time(monkeypatch):
-    from zoneinfo import ZoneInfo
-
     monkeypatch.setattr(macro_calendar, "get_next_earnings_date", lambda symbol: None)
     monkeypatch.setattr(
         macro_calendar, "load_macro_events",
