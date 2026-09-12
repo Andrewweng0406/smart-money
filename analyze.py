@@ -29,6 +29,7 @@ import decision_engine
 import line_formatter
 import line_notifier
 import macro_calendar
+import market_context
 import options_strategy_engine
 import risk_gauge
 import pinning_engine
@@ -99,7 +100,7 @@ class AnalysisResult:
 def build_decision_brief(result: AnalysisResult, macro_warnings: list[str]) -> dict | None:
     """集中產生所有入口共用的決策，失敗時保留核心分析結果。"""
     try:
-        return decision_engine.build_decision_brief(
+        decision = decision_engine.build_decision_brief(
             spot=result.spot,
             put_wall=result.put_wall,
             call_wall=result.call_wall,
@@ -109,6 +110,18 @@ def build_decision_brief(result: AnalysisResult, macro_warnings: list[str]) -> d
             data_quality=result.data_quality,
             calendar_warnings=macro_warnings,
         )
+        # 情境必須跟決策一起凍結；尤其事件風險無法從幾週後的日曆可靠重建，
+        # 若只留原始價位，回測時會不知不覺混入事後資訊。
+        decision["context"] = market_context.classify_market_context(
+            spot=result.spot,
+            put_wall=result.put_wall,
+            call_wall=result.call_wall,
+            gamma_flip=result.gamma_flip,
+            zero_dte_share_pct=result.zero_dte_summary.get("zero_dte_share_pct"),
+            event_risk=bool(macro_warnings),
+            data_quality=result.data_quality,
+        )
+        return decision
     except Exception as exc:  # noqa: BLE001
         # 決策層是原始 GEX 計算之上的解讀，不能因為額外摘要失敗而讓報告
         # 或歷史市場快照一起消失；留 None 也能讓資料庫保留既有同日決策。

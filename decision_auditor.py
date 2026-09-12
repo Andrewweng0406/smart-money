@@ -8,11 +8,13 @@ import statistics
 from pathlib import Path
 
 import db_manager
+import market_context
 
 
 DEFAULT_HORIZON = 1
 DEFAULT_HORIZONS = (1, 3, 5)
 MIN_SAMPLE_SIZE = 5
+MIN_CONTEXT_SAMPLE_SIZE = 20
 
 _SCORED_ACTIONS = {
     "突破觀察，等待站穩": lambda row, future: future > row["call_wall"],
@@ -100,6 +102,22 @@ def _episode_indices(rows: list[dict]) -> list[int]:
         if action and action != previous_action:
             episodes.append(index)
         previous_action = action
+    return episodes
+
+
+def _context_episode_indices(rows: list[dict]) -> list[int]:
+    """情境改變時即使姿態文字相同也開新段，否則分組樣本會跨 regime 汙染。"""
+    episodes = []
+    previous_signature = None
+    for index, row in enumerate(rows):
+        action = row.get("decision_action")
+        signature = (
+            (action, *market_context.context_key(market_context.context_from_snapshot(row)))
+            if action else None
+        )
+        if signature and signature != previous_signature:
+            episodes.append(index)
+        previous_signature = signature
     return episodes
 
 
@@ -205,6 +223,97 @@ def audit_decision_horizons(
             for horizon in unique_horizons
         },
         "min_sample_size": min_sample_size,
+    }
+
+
+def audit_decision_contexts(
+    rows: list[dict], horizon: int = 5,
+    min_sample_size: int = MIN_CONTEXT_SAMPLE_SIZE,
+) -> dict:
+    """依決策當時凍結的完整情境分組；純計算，不以現在資料回填舊快照。"""
+    if horizon < 1:
+        raise ValueError("horizon 必須至少為 1")
+    ordered = sorted((row for row in rows if row.get("spot")), key=lambda row: row["date"])
+    events_by_context: dict[tuple[str, ...], list[dict]] = {}
+    contexts: dict[tuple[str, ...], dict] = {}
+
+    for index in _context_episode_indices(ordered):
+        row = ordered[index]
+        context = market_context.context_from_snapshot(row)
+        key = (row["decision_action"], *market_context.context_key(context))
+        future_index = index + horizon
+        if future_index >= len(ordered):
+            event = {
+                "date": row["date"], "action": row["decision_action"],
+                "confidence": row.get("decision_confidence"), "success": None,
+                "outcome": "pending", "future_date": None, "return_pct": None,
+                "path": evaluate_decision_path(row, []),
+            }
+        else:
+            future = ordered[future_index]
+            event = evaluate_decision(row, future["spot"], future["date"])
+            event["path"] = evaluate_decision_path(
+                row, ordered[index + 1:future_index + 1],
+            )
+        events_by_context.setdefault(key, []).append(event)
+        contexts[key] = context
+
+    return {
+        "horizon": horizon,
+        "min_sample_size": min_sample_size,
+        "contexts": {
+            key: {
+                **_summarize_events(events, min_sample_size),
+                "action": key[0],
+                "context": contexts[key],
+            }
+            for key, events in events_by_context.items()
+        },
+    }
+
+
+def assess_context_applicability(
+    stats: dict | None, min_sample_size: int = MIN_CONTEXT_SAMPLE_SIZE,
+) -> str:
+    """把同情境統計轉成保守適用性；門檻未滿時不解讀百分比。"""
+    if not stats or stats["scored_sample_size"] == 0:
+        return "未驗證"
+    if stats["scored_sample_size"] < min_sample_size:
+        return "樣本不足"
+    if stats["success_rate_pct"] >= 60.0:
+        return "可能適用"
+    if stats["success_rate_pct"] <= 40.0:
+        return "不適用"
+    return "表現不穩定"
+
+
+def build_context_evidence(
+    rows: list[dict], action: str, context: dict, horizon: int = 5,
+    min_sample_size: int = MIN_CONTEXT_SAMPLE_SIZE,
+) -> dict:
+    """整理與今日完全相同情境的證據；20 段以前不輸出百分比。"""
+    audit = audit_decision_contexts(
+        rows, horizon=horizon, min_sample_size=min_sample_size,
+    )
+    key = (action, *market_context.context_key(context))
+    stats = audit["contexts"].get(key)
+    sample_size = stats["scored_sample_size"] if stats else 0
+    applicability = assess_context_applicability(stats, min_sample_size)
+    if applicability == "未驗證":
+        text = "同情境尚無成熟可計分樣本"
+    elif applicability == "樣本不足":
+        text = f"同情境樣本不足（{sample_size}/{min_sample_size} 段）"
+    else:
+        text = (
+            f"同情境 {horizon}D {stats['success_rate_pct']:.0f}%"
+            f"（{stats['success_count']}/{sample_size}段）"
+        )
+    return {
+        "applicability": applicability,
+        "sample_size": sample_size,
+        "text": text,
+        "context": context,
+        "stats": stats,
     }
 
 

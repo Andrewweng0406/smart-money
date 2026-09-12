@@ -35,6 +35,27 @@ def test_get_spot_price_raises_clear_error_when_totally_unavailable():
             data_fetcher.get_spot_price("TSLA")
 
 
+def test_get_spot_price_rejects_nan_history_and_uses_finite_fallback():
+    fake_ticker = MagicMock()
+    fake_ticker.history.return_value = pd.DataFrame({"Close": [float("nan")]})
+    fake_ticker.fast_info = {"lastPrice": 123.45}
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        price = data_fetcher.get_spot_price("TSLA")
+
+    assert price == 123.45
+
+
+def test_get_spot_price_raises_when_all_prices_are_non_finite():
+    fake_ticker = MagicMock()
+    fake_ticker.history.return_value = pd.DataFrame({"Close": [float("nan")]})
+    fake_ticker.fast_info = {"lastPrice": float("inf")}
+
+    with patch("data_fetcher.yf.Ticker", return_value=fake_ticker):
+        with pytest.raises(RuntimeError, match="無法取得 TSLA"):
+            data_fetcher.get_spot_price("TSLA")
+
+
 def test_is_market_trading_day_true_on_regular_session():
     assert data_fetcher.is_market_trading_day(date(2026, 8, 3)) is True
 

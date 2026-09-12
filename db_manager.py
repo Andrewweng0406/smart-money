@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
     decision_summary TEXT,
     decision_upside_trigger TEXT,
     decision_downside_trigger TEXT,
+    decision_gamma_regime TEXT,
+    decision_price_zone TEXT,
+    decision_event_regime TEXT,
+    decision_zero_dte_regime TEXT,
+    decision_data_regime TEXT,
     data_quality_score INTEGER,
     data_quality_label TEXT,
     data_quality_reason TEXT,
@@ -71,6 +76,11 @@ _DAILY_SNAPSHOTS_NEW_COLUMNS = [
     ("decision_summary", "TEXT"),
     ("decision_upside_trigger", "TEXT"),
     ("decision_downside_trigger", "TEXT"),
+    ("decision_gamma_regime", "TEXT"),
+    ("decision_price_zone", "TEXT"),
+    ("decision_event_regime", "TEXT"),
+    ("decision_zero_dte_regime", "TEXT"),
+    ("decision_data_regime", "TEXT"),
     ("data_quality_score", "INTEGER"),
     ("data_quality_label", "TEXT"),
     ("data_quality_reason", "TEXT"),
@@ -190,6 +200,7 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
     zdte = result.zero_dte_summary
     pinning = result.pinning
     decision = getattr(result, "decision", None)
+    decision_context = decision.get("context", {}) if decision else {}
     data_quality = getattr(result, "data_quality", None)
     with _connect(db_path) as conn:
         conn.execute(
@@ -201,8 +212,10 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
              pinning_in_positive_gamma, pinning_score, pinning_regime,
              decision_action, decision_confidence, decision_summary,
              decision_upside_trigger, decision_downside_trigger,
+             decision_gamma_regime, decision_price_zone, decision_event_regime,
+             decision_zero_dte_regime, decision_data_regime,
              data_quality_score, data_quality_label, data_quality_reason)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(symbol, date) DO UPDATE SET
                 spot = excluded.spot,
                 max_pain = excluded.max_pain,
@@ -228,6 +241,21 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
                 decision_downside_trigger = COALESCE(
                     excluded.decision_downside_trigger, daily_snapshots.decision_downside_trigger
                 ),
+                decision_gamma_regime = COALESCE(
+                    excluded.decision_gamma_regime, daily_snapshots.decision_gamma_regime
+                ),
+                decision_price_zone = COALESCE(
+                    excluded.decision_price_zone, daily_snapshots.decision_price_zone
+                ),
+                decision_event_regime = COALESCE(
+                    excluded.decision_event_regime, daily_snapshots.decision_event_regime
+                ),
+                decision_zero_dte_regime = COALESCE(
+                    excluded.decision_zero_dte_regime, daily_snapshots.decision_zero_dte_regime
+                ),
+                decision_data_regime = COALESCE(
+                    excluded.decision_data_regime, daily_snapshots.decision_data_regime
+                ),
                 data_quality_score = COALESCE(excluded.data_quality_score, daily_snapshots.data_quality_score),
                 data_quality_label = COALESCE(excluded.data_quality_label, daily_snapshots.data_quality_label),
                 data_quality_reason = COALESCE(excluded.data_quality_reason, daily_snapshots.data_quality_reason)
@@ -247,6 +275,11 @@ def save_snapshot(result, date_str: str, db_path: Path | str = DEFAULT_DB_PATH) 
                 decision.get("summary") if decision else None,
                 decision.get("upside_trigger") if decision else None,
                 decision.get("downside_trigger") if decision else None,
+                decision_context.get("gamma_regime"),
+                decision_context.get("price_zone"),
+                decision_context.get("event_regime"),
+                decision_context.get("zero_dte_regime"),
+                decision_context.get("data_regime"),
                 data_quality.get("score") if data_quality else None,
                 data_quality.get("label") if data_quality else None,
                 data_quality.get("reason") if data_quality else None,

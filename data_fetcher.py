@@ -93,6 +93,15 @@ def _clean(value, *, sane_min: float | None = None, sane_max: float | None = Non
     return f
 
 
+def _positive_finite(value) -> float | None:
+    """價格不能沿用一般欄位的 0 fallback；無效價格必須讓呼叫端改走備援。"""
+    try:
+        price = float(value)
+    except (TypeError, ValueError):
+        return None
+    return price if math.isfinite(price) and price > 0 else None
+
+
 def get_spot_price(symbol: str) -> float:
     """優先用最近一根日K的收盤價（『當日收盤價』的定義），抓不到才退回即時報價。"""
     _throttle()
@@ -100,15 +109,21 @@ def get_spot_price(symbol: str) -> float:
     try:
         hist = ticker.history(period="5d", interval="1d")
         if not hist.empty:
-            return float(hist["Close"].iloc[-1])
+            # Yahoo 偶爾會在盤後回傳「有列但 Close=NaN」；逐列往前找最後一個
+            # 有效收盤，避免 NaN 因為 truthy 一路污染 GEX、決策與 SQLite。
+            for raw_close in reversed(hist["Close"].tolist()):
+                price = _positive_finite(raw_close)
+                if price is not None:
+                    return price
     except Exception as exc:  # noqa: BLE001
         logger.warning("抓取 %s 日K收盤價失敗：%s", symbol, exc)
 
     _throttle()  # 上面那次失敗才會走到這裡的第二次呼叫，一樣要節流
     try:
         price = ticker.fast_info.get("lastPrice")
-        if price:
-            return float(price)
+        price = _positive_finite(price)
+        if price is not None:
+            return price
     except Exception as exc:  # noqa: BLE001
         logger.warning("抓取 %s 即時報價失敗：%s", symbol, exc)
 

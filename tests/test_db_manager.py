@@ -121,6 +121,30 @@ def test_save_snapshot_stores_decision_brief(tmp_path):
     assert row["decision_downside_trigger"] == decision["downside_trigger"]
 
 
+def test_save_snapshot_stores_frozen_decision_context(tmp_path):
+    db_path = tmp_path / "history.db"
+    decision = {
+        "action": "區間應對，不追方向", "confidence": "中",
+        "summary": "測試", "upside_trigger": "向上", "downside_trigger": "向下",
+        "context": {
+            "gamma_regime": "positive", "price_zone": "inside_walls",
+            "event_regime": "normal", "zero_dte_regime": "high",
+            "data_regime": "usable",
+        },
+    }
+
+    db_manager.save_snapshot(
+        _make_result(decision=decision), "2026-08-01", db_path=db_path,
+    )
+    row = db_manager.get_recent_snapshots("TSLA", db_path=db_path)[0]
+
+    assert row["decision_gamma_regime"] == "positive"
+    assert row["decision_price_zone"] == "inside_walls"
+    assert row["decision_event_regime"] == "normal"
+    assert row["decision_zero_dte_regime"] == "high"
+    assert row["decision_data_regime"] == "usable"
+
+
 def test_snapshot_rerun_without_decision_preserves_existing_decision(tmp_path):
     db_path = tmp_path / "history.db"
     decision = {
@@ -390,6 +414,8 @@ def test_save_snapshot_migrates_pre_pinning_schema_database(tmp_path):
     assert old_row["decision_action"] is None
     new_row = next(r for r in rows if r["date"] == "2026-08-01")
     assert "decision_confidence" in new_row
+    assert old_row["decision_event_regime"] is None
+    assert "decision_gamma_regime" in new_row
 
 
 # ---------- signal_events ----------

@@ -22,6 +22,7 @@ import analyze
 import data_fetcher
 import db_manager
 import decision_auditor
+import market_context
 import risk_gauge
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -61,6 +62,19 @@ def load_decision_evidence(symbol: str, action: str) -> dict | None:
         return decision_auditor.build_decision_evidence(rows, action)
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 讀取決策歷史證據失敗：%s", symbol, exc)
+        return None
+
+
+def load_context_evidence(symbol: str, decision: dict) -> dict | None:
+    """讀取相同市場情境的證據；缺少凍結情境或資料庫失敗時優雅略過。"""
+    context = decision.get("context")
+    if not context:
+        return None
+    try:
+        rows = db_manager.get_recent_snapshots(symbol, limit=100_000)
+        return decision_auditor.build_context_evidence(rows, decision["action"], context)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("%s 讀取同情境決策證據失敗：%s", symbol, exc)
         return None
 
 
@@ -138,6 +152,7 @@ def run_one_symbol(
     )
     decision_change = compare_decisions(decision, previous_decision)
     decision_evidence = load_decision_evidence(symbol, decision["action"])
+    context_evidence = load_context_evidence(symbol, decision)
     decision_outcome = (
         decision_auditor.evaluate_decision(
             previous_decision, result.spot, trading_date_str,
@@ -223,6 +238,7 @@ def run_one_symbol(
         "decision": decision, "decision_change": decision_change,
         "decision_outcome": decision_outcome,
         "decision_evidence": decision_evidence,
+        "context_evidence": context_evidence,
     }
 
 
@@ -432,9 +448,18 @@ def build_watchlist_summary(summaries: list[dict]) -> str:
                 f"  🧭 決策：{decision['action']}（信心：{decision['confidence']}）"
             )
             lines.append(f"  {decision['summary']}")
+            context = decision.get("context")
+            if context:
+                lines.append(f"  當前環境：{market_context.format_context(context)}")
             evidence = row.get("decision_evidence")
             if evidence:
                 lines.append(f"  歷史證據：{evidence['text']}")
+            context_evidence = row.get("context_evidence")
+            if context_evidence:
+                lines.append(
+                    f"  適用性：{context_evidence['applicability']}；"
+                    f"{context_evidence['text']}"
+                )
             lines.append(f"  ↑ 向上觸發：{decision['upside_trigger']}")
             lines.append(f"  ↓ 向下風險：{decision['downside_trigger']}")
         risk = row.get("risk")

@@ -278,3 +278,69 @@ def test_report_exposes_path_counts_without_claiming_a_rate(monkeypatch):
 
     assert "期間路徑：先確認 0｜先失效 1｜未觸發 0" in text
     assert "路徑成功率" not in text
+
+
+def test_context_audit_does_not_mix_positive_and_negative_gamma():
+    rows = [
+        {**_row("2026-09-01", 112, "突破觀察，等待站穩"),
+         "decision_gamma_regime": "positive", "decision_price_zone": "above_call_wall",
+         "decision_event_regime": "normal", "decision_zero_dte_regime": "normal",
+         "decision_data_regime": "usable"},
+        _row("2026-09-02", 114),
+        {**_row("2026-09-03", 112, "突破觀察，等待站穩"),
+         "decision_gamma_regime": "negative", "decision_price_zone": "above_call_wall",
+         "decision_event_regime": "normal", "decision_zero_dte_regime": "normal",
+         "decision_data_regime": "usable"},
+        _row("2026-09-04", 108),
+    ]
+
+    audit = decision_auditor.audit_decision_contexts(
+        rows, horizon=1, min_sample_size=1,
+    )
+
+    assert len(audit["contexts"]) == 2
+    rates = sorted(stats["success_rate_pct"] for stats in audit["contexts"].values())
+    assert rates == [0.0, 100.0]
+
+
+def test_context_evidence_requires_twenty_exact_context_episodes():
+    context = {
+        "gamma_regime": "positive", "price_zone": "above_call_wall",
+        "event_regime": "normal", "zero_dte_regime": "normal",
+        "data_regime": "usable",
+    }
+    rows = [
+        {**_row("2026-09-01", 112, "突破觀察，等待站穩"),
+         **{f"decision_{key}": value for key, value in context.items()}},
+        _row("2026-09-02", 114),
+    ]
+
+    evidence = decision_auditor.build_context_evidence(
+        rows, "突破觀察，等待站穩", context, horizon=1,
+    )
+
+    assert evidence["applicability"] == "樣本不足"
+    assert evidence["sample_size"] == 1
+    assert "1/20 段" in evidence["text"]
+    assert "100%" not in evidence["text"]
+
+
+@pytest.mark.parametrize(
+    ("sample_size", "rate", "expected"),
+    [
+        (0, None, "未驗證"),
+        (19, 100.0, "樣本不足"),
+        (20, 60.0, "可能適用"),
+        (20, 40.0, "不適用"),
+        (20, 50.0, "表現不穩定"),
+    ],
+)
+def test_context_applicability_respects_sample_and_rate_boundaries(
+    sample_size, rate, expected,
+):
+    stats = {
+        "scored_sample_size": sample_size,
+        "success_rate_pct": rate,
+    }
+
+    assert decision_auditor.assess_context_applicability(stats) == expected

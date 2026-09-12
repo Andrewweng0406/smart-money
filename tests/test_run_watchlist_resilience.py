@@ -607,3 +607,25 @@ def test_watchlist_summary_places_historical_evidence_below_decision():
 
     assert "歷史證據：同類歷史樣本不足（2/5 段），暫不估計成功率" in text
     assert text.index("決策：") < text.index("歷史證據：") < text.index("Max Pain")
+
+
+def test_watchlist_summary_displays_current_market_context():
+    row = _summary_row("TSLA")
+    row["decision"] = {
+        "action": "區間應對，不追方向", "confidence": "中", "summary": "等待",
+        "upside_trigger": "向上", "downside_trigger": "向下", "why": [],
+        "context": {
+            "gamma_regime": "positive", "price_zone": "inside_walls",
+            "event_regime": "normal", "zero_dte_regime": "high",
+            "data_regime": "usable",
+        },
+    }
+    row["context_evidence"] = {
+        "applicability": "樣本不足", "sample_size": 2,
+        "text": "同情境樣本不足（2/20 段）",
+    }
+
+    text = run_watchlist.build_watchlist_summary([row])
+
+    assert "當前環境：正 Gamma／Wall 區間內／一般交易日／高 0DTE" in text
+    assert "適用性：樣本不足；同情境樣本不足（2/20 段）" in text
