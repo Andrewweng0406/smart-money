@@ -64,6 +64,10 @@ MAX_URGENT_PUSHES_PER_DAY = 8
 # 沒有這層冷卻機制的話，一個持續好幾小時的突破會每15分鐘（一次排程觸發
 # 間隔）就轟炸一次 Telegram，這是實測抓到的真問題。
 ALERT_COOLDOWN_MINUTES = 60
+
+# 回測必須知道資料是由哪一版規則產生；日後調整門檻時，舊樣本不能被誤當成
+# 同一套政策直接混算。
+INTRADAY_POLICY_VERSION = "2026-09-14-v1"
 # 跟 db_manager.DEFAULT_DB_PATH 同一個道理：雲端部署時這個檔案要放進掛載的
 # Volume，冷卻狀態才不會因為容器重新部署就重置（重置的後果是短時間內對同一
 # 事件重複推播）。
@@ -222,7 +226,7 @@ def run_check(
     """
     result = {
         "symbol": symbol, "wall_breach": None, "pinning_alert": None,
-        "unusual_activity": [], "spot": None, "error": None,
+        "unusual_activity": [], "spot": None, "error": None, "component_errors": [],
     }
 
     try:
@@ -237,6 +241,7 @@ def run_check(
         result["wall_breach"] = check_wall_breach(symbol, spot, prev_spot=prev_spot, db_path=db_path)
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 牆位突破檢查失敗：%s", symbol, exc)
+        result["component_errors"].append(f"wall_breach: {exc}")
 
     # Pinning 分數警報只在正式盤中時間（09:30~16:00 ET）評估，見
     # is_regular_market_hours() 的理由；盤前不判斷，不是判斷了但被丟棄。
@@ -245,11 +250,13 @@ def run_check(
             result["pinning_alert"] = check_pinning_alert(symbol, spot, db_path=db_path)
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s Pinning 分數警報檢查失敗：%s", symbol, exc)
+            result["component_errors"].append(f"pinning: {exc}")
 
     try:
         result["unusual_activity"] = check_unusual_activity(symbol)
     except Exception as exc:  # noqa: BLE001
         logger.warning("%s 異常大單檢查失敗：%s", symbol, exc)
+        result["component_errors"].append(f"unusual_activity: {exc}")
 
     return result
 
@@ -477,6 +484,7 @@ def run_watch_cycle(
     notify: bool = False,
     force: bool = False,
     db_path: Path | str = db_manager.DEFAULT_DB_PATH,
+    now: datetime | None = None,
 ) -> None:
     """執行一次盤中檢查週期——CLI 的 main() 跟 analyze.py 的 --watch 都呼叫
     這支函式，避免 analyze.py 要重新進入 intraday_watcher.py 自己的
@@ -489,17 +497,32 @@ def run_watch_cycle(
     history.db，累積的假事件會吃光當日推播預算、讓其他測試莫名其妙失敗
     （實測踩到的真bug，跟 should_send_alert 的 state_path 是同一類問題）。
     """
-    if not force and not is_market_hours():
+    now_et = now.astimezone(US_EASTERN) if now is not None else datetime.now(US_EASTERN)
+    if not force and not is_market_hours(now_et):
         logger.info("目前不是美股股票期權正式交易時間，略過本次檢查")
         return
 
-    trading_date = current_trading_date()
+    trading_date = current_trading_date(now_et)
+    observed_at = now_et.replace(
+        minute=(now_et.minute // 15) * 15, second=0, microsecond=0,
+    ).isoformat()
     state_path = ALERT_STATE_PATH
     prev_spots = dict(_load_alert_state(state_path).get("_prev_spots", {}))
 
     for symbol in symbols:
-        result = run_check(symbol, db_path=db_path, prev_spot=prev_spots.get(symbol))
+        result = run_check(
+            symbol, db_path=db_path, now=now_et, prev_spot=prev_spots.get(symbol),
+        )
         if result["error"]:
+            try:
+                db_manager.save_intraday_observation({
+                    "symbol": symbol, "observed_at": observed_at,
+                    "trading_date": trading_date, "spot": result.get("spot"),
+                    "unusual_activity_count": 0, "scan_error": result["error"],
+                    "policy_version": INTRADAY_POLICY_VERSION,
+                }, db_path=db_path)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("%s 盤中失敗觀測寫入失敗：%s", symbol, exc)
             continue
 
         # 記下這次的 spot 供下一輪做 crossing 比較
@@ -517,6 +540,32 @@ def run_watch_cycle(
             gamma_flip=latest.get("gamma_flip"),
             total_net_gex=latest.get("total_net_gex"),
         )
+
+        unusual = result.get("unusual_activity") or []
+        pinning = result.get("pinning_alert") or {}
+        ratios = [item.get("ratio") for item in unusual if item.get("ratio") is not None]
+        observation = {
+            "symbol": symbol, "observed_at": observed_at, "trading_date": trading_date,
+            "spot": result["spot"], "source_snapshot_date": latest.get("date"),
+            "call_wall": latest.get("call_wall"), "put_wall": latest.get("put_wall"),
+            "gamma_flip": latest.get("gamma_flip"),
+            "total_net_gex": latest.get("total_net_gex"),
+            "negative_gamma": regime.get("negative_gamma"),
+            "regime_source": regime.get("source"), "pin_strike": latest.get("pin_strike"),
+            "pinning_score": pinning.get("score", latest.get("pinning_score")),
+            "unusual_activity_count": len(unusual),
+            "max_unusual_ratio": max(ratios) if ratios else None,
+            "wall_breach_kind": (
+                result["wall_breach"].get("kind") if result.get("wall_breach") else None
+            ),
+            "scan_error": "；".join(result.get("component_errors") or []) or None,
+            "policy_version": INTRADAY_POLICY_VERSION,
+        }
+        try:
+            db_manager.save_intraday_observation(observation, db_path=db_path)
+        except Exception as exc:  # noqa: BLE001
+            # 觀測留存是回測能力，不能因寫入失敗阻斷當下真正重要的緊急警報。
+            logger.warning("%s 盤中觀測寫入失敗：%s", symbol, exc)
 
         urgent = classify_and_route(symbol, result, regime, trading_date, db_path=db_path)
         if not urgent:

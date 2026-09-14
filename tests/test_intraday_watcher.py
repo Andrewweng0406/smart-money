@@ -283,6 +283,7 @@ def test_run_check_continues_when_wall_breach_check_fails(monkeypatch, tmp_path)
     result = intraday_watcher.run_check("TSLA")
     assert result["wall_breach"] is None
     assert len(result["unusual_activity"]) == 1
+    assert result["component_errors"] == ["wall_breach: boom"]
 
 
 def test_run_check_evaluates_pinning_during_regular_hours(monkeypatch):
@@ -496,6 +497,50 @@ def test_run_watch_cycle_suppresses_duplicate_notification_within_cooldown(monke
     intraday_watcher.run_watch_cycle(["TSLA"], notify=True, force=True, db_path=db_path)
 
     send_mock.assert_called_once()
+
+
+def test_run_watch_cycle_persists_quiet_observation(monkeypatch, tmp_path):
+    db_path = tmp_path / "history.db"
+    state_path = tmp_path / "state.json"
+    now = _et(2026, 9, 14, 10, 17)
+    monkeypatch.setattr(intraday_watcher, "ALERT_STATE_PATH", state_path)
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol, **kwargs: {
+        "symbol": symbol, "wall_breach": None, "pinning_alert": None,
+        "unusual_activity": [], "spot": 100.0, "error": None,
+    })
+    monkeypatch.setattr(intraday_watcher.db_manager, "get_recent_snapshots", lambda *a, **k: [{
+        "date": "2026-09-11", "call_wall": 110.0, "put_wall": 90.0,
+        "gamma_flip": 95.0, "total_net_gex": 123.0, "pin_strike": 100.0,
+    }])
+
+    intraday_watcher.run_watch_cycle(
+        ["TSLA"], force=True, db_path=db_path, now=now,
+    )
+    rows = db_manager.get_intraday_observations("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["observed_at"] == "2026-09-14T10:15:00-04:00"
+    assert rows[0]["spot"] == 100.0
+    assert rows[0]["regime_source"] == "gamma_flip"
+    assert rows[0]["unusual_activity_count"] == 0
+
+
+def test_run_watch_cycle_persists_failed_scan_for_coverage_audit(monkeypatch, tmp_path):
+    db_path = tmp_path / "history.db"
+    monkeypatch.setattr(intraday_watcher, "ALERT_STATE_PATH", tmp_path / "state.json")
+    monkeypatch.setattr(intraday_watcher, "run_check", lambda symbol, **kwargs: {
+        "symbol": symbol, "wall_breach": None, "pinning_alert": None,
+        "unusual_activity": [], "spot": None, "error": "報價逾時",
+    })
+
+    intraday_watcher.run_watch_cycle(
+        ["TSLA"], force=True, db_path=db_path, now=_et(2026, 9, 14, 10, 30),
+    )
+    rows = db_manager.get_intraday_observations("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["spot"] is None
+    assert rows[0]["scan_error"] == "報價逾時"
 
 
 # ---------- load_symbols ----------

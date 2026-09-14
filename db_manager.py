@@ -167,6 +167,38 @@ _SIGNAL_EVENTS_INDEXES = [
     "ON signal_events (delivered_tier, delivered_at)",
 ]
 
+# 盤中完整觀測是訊號事件的母體：只存有觸發的 signal_events 會缺少「當時沒有
+# 訊號」的對照組，回測只能看命中案例而無法估計假警報率與漏報率。
+_INTRADAY_OBSERVATIONS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS intraday_observations (
+    symbol TEXT NOT NULL,
+    observed_at TEXT NOT NULL,
+    trading_date TEXT NOT NULL,
+    spot REAL,
+    source_snapshot_date TEXT,
+    call_wall REAL,
+    put_wall REAL,
+    gamma_flip REAL,
+    total_net_gex REAL,
+    negative_gamma INTEGER,
+    regime_source TEXT,
+    pin_strike REAL,
+    pinning_score INTEGER,
+    unusual_activity_count INTEGER NOT NULL DEFAULT 0,
+    max_unusual_ratio REAL,
+    wall_breach_kind TEXT,
+    scan_error TEXT,
+    policy_version TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, observed_at)
+)
+"""
+
+_INTRADAY_OBSERVATIONS_INDEX = (
+    "CREATE INDEX IF NOT EXISTS idx_intraday_observations_symbol_date "
+    "ON intraday_observations (symbol, trading_date, observed_at)"
+)
+
 
 @contextmanager
 def _connect(db_path: Path | str = DEFAULT_DB_PATH):
@@ -176,6 +208,8 @@ def _connect(db_path: Path | str = DEFAULT_DB_PATH):
         conn.execute(_STRATEGY_SCHEMA)
         conn.execute(_OI_SNAPSHOT_SCHEMA)
         conn.execute(_SIGNAL_EVENTS_SCHEMA)
+        conn.execute(_INTRADAY_OBSERVATIONS_SCHEMA)
+        conn.execute(_INTRADAY_OBSERVATIONS_INDEX)
         for statement in _SIGNAL_EVENTS_INDEXES:
             conn.execute(statement)
         _migrate_daily_snapshots(conn)
@@ -519,6 +553,45 @@ def save_signal_event(
              delivered_tier, reason, signature, json.dumps(payload)),
         )
         return cursor.lastrowid
+
+
+def save_intraday_observation(
+    observation: dict, db_path: Path | str = DEFAULT_DB_PATH,
+) -> None:
+    """保存一個固定時間 bucket 的完整盤中觀測；同 bucket 補跑會更新原列。"""
+    columns = (
+        "symbol", "observed_at", "trading_date", "spot", "source_snapshot_date",
+        "call_wall", "put_wall", "gamma_flip", "total_net_gex", "negative_gamma",
+        "regime_source", "pin_strike", "pinning_score", "unusual_activity_count",
+        "max_unusual_ratio", "wall_breach_kind", "scan_error", "policy_version",
+    )
+    values = [observation.get(column) for column in columns]
+    values[9] = (
+        None if observation.get("negative_gamma") is None
+        else int(bool(observation["negative_gamma"]))
+    )
+    updates = ", ".join(f"{column}=excluded.{column}" for column in columns[2:])
+    with _connect(db_path) as conn:
+        conn.execute(
+            f"INSERT INTO intraday_observations ({', '.join(columns)}) "
+            f"VALUES ({', '.join('?' for _ in columns)}) "
+            f"ON CONFLICT(symbol, observed_at) DO UPDATE SET {updates}",
+            values,
+        )
+
+
+def get_intraday_observations(
+    symbol: str, limit: int = 500, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """回傳盤中觀測（舊到新），供覆蓋率稽核與後續回測使用。"""
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM intraday_observations WHERE symbol = ? "
+            "ORDER BY observed_at DESC LIMIT ?",
+            (symbol, limit),
+        ).fetchall()
+    return [dict(row) for row in reversed(rows)]
 
 
 def get_undelivered_watch_events(

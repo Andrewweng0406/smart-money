@@ -88,6 +88,28 @@ def test_check_database_health_confirms_read_write_access(tmp_path):
     assert result == {"healthy": True, "integrity": "ok", "writable": True, "reason": "正常"}
 
 
+def test_save_intraday_observation_upserts_same_symbol_and_bucket(tmp_path):
+    db_path = tmp_path / "history.db"
+    observation = {
+        "symbol": "TSLA", "observed_at": "2026-09-14T10:15:00-04:00",
+        "trading_date": "2026-09-14", "spot": 100.0,
+        "source_snapshot_date": "2026-09-11", "call_wall": 110.0,
+        "put_wall": 90.0, "gamma_flip": 95.0, "total_net_gex": 123.0,
+        "negative_gamma": False, "regime_source": "gamma_flip",
+        "pin_strike": 100.0, "pinning_score": 72,
+        "unusual_activity_count": 1, "max_unusual_ratio": 4.5,
+        "wall_breach_kind": None, "scan_error": None, "policy_version": "v1",
+    }
+
+    db_manager.save_intraday_observation(observation, db_path=db_path)
+    db_manager.save_intraday_observation({**observation, "spot": 101.5}, db_path=db_path)
+    rows = db_manager.get_intraday_observations("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["spot"] == 101.5
+    assert rows[0]["negative_gamma"] == 0
+
+
 def test_different_symbols_do_not_collide(tmp_path):
     db_path = tmp_path / "history.db"
     db_manager.save_snapshot(_make_result(symbol="TSLA"), "2026-08-01", db_path=db_path)
