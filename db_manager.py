@@ -298,6 +298,29 @@ def get_recent_snapshots(symbol: str, limit: int = 30, db_path: Path | str = DEF
     return [dict(row) for row in rows]
 
 
+def check_database_health(db_path: Path | str = DEFAULT_DB_PATH) -> dict:
+    """檢查 SQLite 完整性與寫鎖；不留下探針資料或額外資料表。"""
+    try:
+        with _connect(db_path) as conn:
+            integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
+            conn.commit()
+            conn.execute("BEGIN IMMEDIATE")
+            conn.rollback()
+        healthy = integrity == "ok"
+        return {
+            "healthy": healthy,
+            "integrity": integrity,
+            "writable": True,
+            "reason": "正常" if healthy else f"完整性檢查：{integrity}",
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("SQLite 健康檢查失敗：%s", exc)
+        return {
+            "healthy": False, "integrity": "unknown", "writable": False,
+            "reason": str(exc),
+        }
+
+
 def save_strategy_recommendation(
     symbol: str,
     recommended_date: str,

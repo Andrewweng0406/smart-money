@@ -477,9 +477,19 @@ def test_build_status_sync_reports_todays_run_as_healthy(monkeypatch):
     import db_manager
     import run_watchlist
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
     monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
-    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{"date": today_str}])
+    monkeypatch.setattr(bot.production_health, "expected_snapshot_date", lambda now: datetime(2026, 9, 11).date())
+    monkeypatch.setattr(db_manager, "check_database_health", lambda: {
+        "healthy": True, "integrity": "ok", "writable": True, "reason": "正常",
+    })
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{
+        "date": "2026-09-11", "spot": 100.0, "data_quality_score": 99,
+        "decision_action": "觀望", "decision_confidence": "中",
+        "decision_gamma_regime": "positive", "decision_price_zone": "inside_walls",
+        "decision_event_regime": "normal", "decision_zero_dte_regime": "normal",
+        "decision_data_regime": "usable",
+    }])
+    monkeypatch.setattr(db_manager, "get_oi_snapshot", lambda symbol, date: {100.0: {}})
 
     result = bot._build_status_sync()
 
@@ -492,7 +502,12 @@ def test_build_status_sync_flags_stale_symbol_as_unhealthy(monkeypatch):
     import run_watchlist
 
     monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(bot.production_health, "expected_snapshot_date", lambda now: datetime(2026, 9, 11).date())
+    monkeypatch.setattr(db_manager, "check_database_health", lambda: {
+        "healthy": True, "integrity": "ok", "writable": True, "reason": "正常",
+    })
     monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{"date": "2020-01-01"}])
+    monkeypatch.setattr(db_manager, "get_oi_snapshot", lambda symbol, date: {})
 
     result = bot._build_status_sync()
 
@@ -505,11 +520,61 @@ def test_build_status_sync_flags_symbol_with_no_snapshots(monkeypatch):
     import run_watchlist
 
     monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(bot.production_health, "expected_snapshot_date", lambda now: datetime(2026, 9, 11).date())
+    monkeypatch.setattr(db_manager, "check_database_health", lambda: {
+        "healthy": True, "integrity": "ok", "writable": True, "reason": "正常",
+    })
     monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [])
+    monkeypatch.setattr(db_manager, "get_oi_snapshot", lambda symbol, date: {})
 
     result = bot._build_status_sync()
 
     assert "從來沒有成功寫入過快照" in result
+
+
+def test_build_status_sync_reports_database_oi_and_context_health(monkeypatch):
+    import db_manager
+    import run_watchlist
+
+    monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(bot.production_health, "expected_snapshot_date", lambda now: datetime(2026, 9, 11).date())
+    monkeypatch.setattr(db_manager, "check_database_health", lambda: {
+        "healthy": True, "integrity": "ok", "writable": True, "reason": "正常",
+    })
+    monkeypatch.setattr(db_manager, "get_recent_snapshots", lambda symbol, limit=1: [{
+        "date": "2026-09-11", "spot": 100.0, "data_quality_score": 99,
+        "decision_action": "區間應對，不追方向", "decision_confidence": "中",
+        "decision_gamma_regime": "positive", "decision_price_zone": "inside_walls",
+        "decision_event_regime": "normal", "decision_zero_dte_regime": "normal",
+        "decision_data_regime": "usable",
+    }])
+    monkeypatch.setattr(db_manager, "get_oi_snapshot", lambda symbol, date: {100.0: {}})
+
+    result = bot._build_status_sync()
+
+    assert "整體：健康" in result
+    assert "資料庫：可讀寫，完整性 ok" in result
+    assert "TSLA：2026-09-11｜資料 99/100｜OI 1 個履約價｜決策情境完整" in result
+
+
+def test_build_status_sync_reports_symbol_query_failure(monkeypatch):
+    import db_manager
+    import run_watchlist
+
+    monkeypatch.setattr(run_watchlist, "load_watchlist", lambda path: ["TSLA"])
+    monkeypatch.setattr(bot.production_health, "expected_snapshot_date", lambda now: datetime(2026, 9, 11).date())
+    monkeypatch.setattr(db_manager, "check_database_health", lambda: {
+        "healthy": True, "integrity": "ok", "writable": True, "reason": "正常",
+    })
+    monkeypatch.setattr(
+        db_manager, "get_recent_snapshots",
+        lambda symbol, limit=1: (_ for _ in ()).throw(RuntimeError("讀取逾時")),
+    )
+
+    result = bot._build_status_sync()
+
+    assert "整體：異常" in result
+    assert "TSLA：資料庫讀取失敗：讀取逾時" in result
 
 
 # ---------- 自然語言意圖判斷（interpret_intent） ----------

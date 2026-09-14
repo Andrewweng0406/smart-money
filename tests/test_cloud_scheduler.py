@@ -53,15 +53,45 @@ def test_should_trigger_daily_false_before_analysis_time():
 
 def test_find_missing_daily_snapshots_checks_every_symbol(monkeypatch, tmp_path):
     def fake_recent(symbol, limit, db_path):
-        return [{"date": "2026-08-04"}] if symbol == "TSLA" else [{"date": "2026-08-03"}]
+        return [{
+            "date": "2026-08-04", "spot": 100.0, "data_quality_score": 95,
+            "decision_action": "觀望", "decision_confidence": "中",
+            "decision_gamma_regime": "positive", "decision_price_zone": "inside_walls",
+            "decision_event_regime": "normal", "decision_zero_dte_regime": "normal",
+            "decision_data_regime": "usable",
+        }] if symbol == "TSLA" else [{"date": "2026-08-03"}]
 
     monkeypatch.setattr(cloud_scheduler.db_manager, "get_recent_snapshots", fake_recent)
+    monkeypatch.setattr(
+        cloud_scheduler.db_manager, "get_oi_snapshot",
+        lambda symbol, date, db_path: {100.0: {}} if symbol == "TSLA" else {},
+    )
 
     missing = cloud_scheduler.find_missing_daily_snapshots(
         ["TSLA", "SOXL"], date(2026, 8, 4), db_path=tmp_path / "history.db",
     )
 
     assert missing == ["SOXL"]
+
+
+def test_find_missing_daily_snapshots_rejects_dated_but_incomplete_snapshot(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        cloud_scheduler.db_manager, "get_recent_snapshots",
+        lambda symbol, limit, db_path: [{
+            "date": "2026-08-04", "spot": 100.0, "data_quality_score": 95,
+            "decision_action": "觀望", "decision_confidence": "中",
+        }],
+    )
+    monkeypatch.setattr(
+        cloud_scheduler.db_manager, "get_oi_snapshot",
+        lambda symbol, date, db_path: {100.0: {}},
+    )
+
+    missing = cloud_scheduler.find_missing_daily_snapshots(
+        ["TSLA"], date(2026, 8, 4), db_path=tmp_path / "history.db",
+    )
+
+    assert missing == ["TSLA"]
 
 
 def test_run_daily_analysis_alerts_once_for_missing_snapshots(monkeypatch, tmp_path):

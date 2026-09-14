@@ -58,6 +58,7 @@ import data_fetcher
 import db_manager
 import decision_auditor
 import options_strategy_engine
+import production_health
 import run_watchlist
 import signal_auditor
 import strategy_tracker
@@ -90,7 +91,7 @@ HELP_TEXT = (
     "/signals <代號> - Telegram 實戰訊號績效審核（Wall/Gamma/Pinning 警報是否有用）\n"
     "/scorecard <代號> - 策略追蹤記分板（過去推薦的策略實際勝率/損益）\n"
     "/decisions <代號> - 決策姿態追蹤（當時的觀望／突破／防守是否成立）\n"
-    "/status - 排程健康檢查（各標的最後一次成功分析是什麼時候）\n"
+    "/status - 生產資料健康檢查（快照、OI、決策情境與資料庫）\n"
     "/help - 顯示這則說明"
 )
 
@@ -249,28 +250,49 @@ def _build_scorecard_sync(symbol: str) -> str:
 
 
 def _build_status_sync() -> str:
-    """組出排程健康檢查文字——檢查 watchlist.json 裡每個標的最後一次成功
-    寫入歷史快照是什麼時候，抓「排程默默停了好幾天都沒人發現」這種問題。
-    這裡刻意直接讀資料庫（而不是重新跑一次分析），才能真正反映「排程有沒有
-    在跑」，而不是「現在手動問一次能不能跑」。
-    """
+    """檢查理應完成的交易日資料，而不是用日曆天數猜排程是否健康。"""
     symbols = run_watchlist.load_watchlist(Path("watchlist.json"))
-    now = datetime.now().date()
-    lines = ["🩺 【排程健康檢查】"]
+    expected_date = production_health.expected_snapshot_date(datetime.now().astimezone())
+    expected_date_str = expected_date.isoformat()
+    database = db_manager.check_database_health()
+    symbol_results = []
     for symbol in symbols:
-        rows = db_manager.get_recent_snapshots(symbol, limit=1)
-        if not rows:
-            lines.append(f"❌ {symbol}：從來沒有成功寫入過快照")
-            continue
-        last_date_str = rows[0]["date"]
-        last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
-        days_ago = (now - last_date).days
-        if days_ago <= 0:
-            lines.append(f"✅ {symbol}：今天已經跑過（{last_date_str}）")
-        elif days_ago <= 2:
-            lines.append(f"⚠️ {symbol}：最近一次是 {days_ago} 天前（{last_date_str}），可能只是還沒到排程時間")
+        try:
+            rows = db_manager.get_recent_snapshots(symbol, limit=1)
+            snapshot = rows[0] if rows else None
+            oi = db_manager.get_oi_snapshot(symbol, expected_date_str)
+            symbol_results.append(production_health.assess_symbol_health(
+                symbol, snapshot, expected_date_str, len(oi),
+            ))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 生產資料健康檢查失敗：%s", symbol, exc)
+            symbol_results.append({
+                "symbol": symbol, "healthy": False, "snapshot_date": None,
+                "data_quality_score": None, "oi_strike_count": 0,
+                "issues": [f"資料庫讀取失敗：{exc}"],
+            })
+
+    overall_healthy = database["healthy"] and all(item["healthy"] for item in symbol_results)
+    lines = [
+        "🩺 【生產資料健康檢查】",
+        f"整體：{'健康' if overall_healthy else '異常'}",
+        f"預期快照：{expected_date_str}",
+    ]
+    if database["healthy"]:
+        lines.append(f"資料庫：可讀寫，完整性 {database['integrity']}")
+    else:
+        lines.append(f"❌ 資料庫：{database['reason']}")
+    lines.append("")
+
+    for item in symbol_results:
+        if item["healthy"]:
+            lines.append(
+                f"✅ {item['symbol']}：{item['snapshot_date']}｜"
+                f"資料 {item['data_quality_score']}/100｜"
+                f"OI {item['oi_strike_count']} 個履約價｜決策情境完整"
+            )
         else:
-            lines.append(f"❌ {symbol}：已經 {days_ago} 天沒有新快照了，排程可能停了！（最後一次 {last_date_str}）")
+            lines.append(f"❌ {item['symbol']}：{'；'.join(item['issues'])}")
     return "\n".join(lines)
 
 

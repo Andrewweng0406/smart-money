@@ -82,6 +82,12 @@ def test_get_recent_snapshots_respects_limit(tmp_path):
     assert len(rows) == 2
 
 
+def test_check_database_health_confirms_read_write_access(tmp_path):
+    result = db_manager.check_database_health(tmp_path / "history.db")
+
+    assert result == {"healthy": True, "integrity": "ok", "writable": True, "reason": "正常"}
+
+
 def test_different_symbols_do_not_collide(tmp_path):
     db_path = tmp_path / "history.db"
     db_manager.save_snapshot(_make_result(symbol="TSLA"), "2026-08-01", db_path=db_path)

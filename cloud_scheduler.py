@@ -27,6 +27,7 @@ from zoneinfo import ZoneInfo
 
 import db_manager
 import market_calendar
+import production_health
 import run_watchlist
 import telegram_notifier
 
@@ -107,12 +108,22 @@ def find_missing_daily_snapshots(
     symbols: list[str], trading_date: date,
     db_path: Path | str = db_manager.DEFAULT_DB_PATH,
 ) -> list[str]:
-    """找出當日尚未成功寫入快照的標的。"""
+    """找出當日快照缺失或內容不足以支撐決策追蹤的標的。"""
     expected_date = trading_date.isoformat()
     missing = []
     for symbol in symbols:
-        rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
-        if not rows or rows[0]["date"] != expected_date:
+        try:
+            rows = db_manager.get_recent_snapshots(symbol, limit=1, db_path=db_path)
+            snapshot = rows[0] if rows else None
+            oi = db_manager.get_oi_snapshot(symbol, expected_date, db_path=db_path)
+            health = production_health.assess_symbol_health(
+                symbol, snapshot, expected_date, len(oi),
+            )
+        except Exception as exc:  # noqa: BLE001
+            # 資料庫暫時不可讀時仍應嘗試補跑；若讓例外中止，排程反而失去自癒機會。
+            logger.warning("%s 每日快照完整性檢查失敗：%s", symbol, exc)
+            health = {"healthy": False}
+        if not health["healthy"]:
             missing.append(symbol)
     return missing
 
