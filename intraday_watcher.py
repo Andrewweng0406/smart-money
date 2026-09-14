@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 
 import data_fetcher
 import db_manager
+import intraday_outcome_resolver
 import pinning_engine
 import signal_tiering
 import smart_money
@@ -293,7 +294,8 @@ def extract_signals(result: dict) -> list[dict]:
     if breach:
         signals.append({
             "kind": breach["kind"],
-            "payload": {"wall_price": breach["wall_price"], "spot": breach["spot"]},
+            "payload": {"wall_price": breach["wall_price"], "spot": breach["spot"],
+                        "entry_spot": result.get("spot")},
             "signature": breach["kind"],
             "text": breach["text"],
         })
@@ -303,7 +305,8 @@ def extract_signals(result: dict) -> list[dict]:
         score = pinning.get("score", 0)
         signals.append({
             "kind": signal_tiering.KIND_PINNING_HIGH,
-            "payload": {"score": score, "pin_strike": pinning.get("pin_strike")},
+            "payload": {"score": score, "pin_strike": pinning.get("pin_strike"),
+                        "entry_spot": result.get("spot")},
             "signature": f"pinning:{score}",
             "text": pinning["text"],
         })
@@ -315,7 +318,8 @@ def extract_signals(result: dict) -> list[dict]:
             "kind": signal_tiering.KIND_UNUSUAL_ACTIVITY,
             "payload": {"strike": item["strike"], "side": item["side"],
                         "volume": item["volume"], "ratio": ratio,
-                        "likely_opening": item.get("likely_opening")},
+                        "likely_opening": item.get("likely_opening"),
+                        "entry_spot": result.get("spot")},
             "signature": f"{item['side']}:{item['strike']}",
             "text": (f"{symbol} ${item['strike']:.0f} {item['side'].upper()} 異常活躍："
                      f"當日累積成交量達 {item['volume']:,.0f} 張（OI的 {ratio_text}）"),
@@ -568,6 +572,10 @@ def run_watch_cycle(
             logger.warning("%s 盤中觀測寫入失敗：%s", symbol, exc)
 
         urgent = classify_and_route(symbol, result, regime, trading_date, db_path=db_path)
+        try:
+            intraday_outcome_resolver.resolve_available_outcomes(symbol, db_path=db_path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s 盤中訊號結果結算失敗：%s", symbol, exc)
         if not urgent:
             logger.info("%s 本輪無緊急訊號（現貨 $%.2f）", symbol, result["spot"])
             continue

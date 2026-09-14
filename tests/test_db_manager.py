@@ -110,6 +110,27 @@ def test_save_intraday_observation_upserts_same_symbol_and_bucket(tmp_path):
     assert rows[0]["negative_gamma"] == 0
 
 
+def test_save_signal_outcome_is_idempotent(tmp_path):
+    db_path = tmp_path / "history.db"
+    event_id = db_manager.save_signal_event(
+        "TSLA", "2026-09-14T14:15:00+00:00", "2026-09-14", "call_wall_breach",
+        "urgent", "urgent", "test", "call", {"entry_spot": 100.0}, db_path=db_path,
+    )
+    outcome = {
+        "event_id": event_id, "horizon_minutes": 15,
+        "evaluated_at": "2026-09-14T10:30:00-04:00", "future_spot": 102.0,
+        "return_pct": 2.0, "directional_success": True,
+        "mfe_pct": 2.0, "mae_pct": 0.0,
+    }
+
+    db_manager.save_signal_outcome(outcome, db_path=db_path)
+    db_manager.save_signal_outcome({**outcome, "future_spot": 103.0}, db_path=db_path)
+    rows = db_manager.get_signal_outcomes("TSLA", db_path=db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["future_spot"] == 103.0
+
+
 def test_different_symbols_do_not_collide(tmp_path):
     db_path = tmp_path / "history.db"
     db_manager.save_snapshot(_make_result(symbol="TSLA"), "2026-08-01", db_path=db_path)
@@ -487,12 +508,14 @@ def test_unusual_activity_updates_same_contract_instead_of_inserting_duplicates(
     )
     first_id = db_manager.save_signal_event(
         detected_at="2026-09-09T14:00:00+00:00",
-        payload={"strike": 150, "side": "put", "volume": 25000, "ratio": 3.7, "text": "舊值"},
+        payload={"strike": 150, "side": "put", "volume": 25000, "ratio": 3.7,
+                 "text": "舊值", "entry_spot": 148.0},
         **common,
     )
     second_id = db_manager.save_signal_event(
         detected_at="2026-09-09T15:00:00+00:00",
-        payload={"strike": 150, "side": "put", "volume": 35000, "ratio": 5.0, "text": "最新值"},
+        payload={"strike": 150, "side": "put", "volume": 35000, "ratio": 5.0,
+                 "text": "最新值", "entry_spot": 149.0},
         **common,
     )
 
@@ -503,6 +526,8 @@ def test_unusual_activity_updates_same_contract_instead_of_inserting_duplicates(
     assert rows[0]["payload"]["volume"] == 35000
     assert rows[0]["payload"]["ratio"] == 5.0
     assert rows[0]["payload"]["text"] == "最新值"
+    assert rows[0]["payload"]["entry_spot"] == 148.0
+    assert rows[0]["detected_at"] == "2026-09-09T14:00:00+00:00"
 
 
 def test_marking_delivered_removes_from_queue(tmp_path):

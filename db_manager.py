@@ -199,6 +199,22 @@ _INTRADAY_OBSERVATIONS_INDEX = (
     "ON intraday_observations (symbol, trading_date, observed_at)"
 )
 
+_SIGNAL_OUTCOMES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS signal_outcomes (
+    event_id INTEGER NOT NULL,
+    horizon_minutes INTEGER NOT NULL,
+    evaluated_at TEXT NOT NULL,
+    future_spot REAL NOT NULL,
+    return_pct REAL NOT NULL,
+    directional_success INTEGER,
+    mfe_pct REAL,
+    mae_pct REAL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (event_id, horizon_minutes),
+    FOREIGN KEY (event_id) REFERENCES signal_events(id)
+)
+"""
+
 
 @contextmanager
 def _connect(db_path: Path | str = DEFAULT_DB_PATH):
@@ -210,6 +226,7 @@ def _connect(db_path: Path | str = DEFAULT_DB_PATH):
         conn.execute(_SIGNAL_EVENTS_SCHEMA)
         conn.execute(_INTRADAY_OBSERVATIONS_SCHEMA)
         conn.execute(_INTRADAY_OBSERVATIONS_INDEX)
+        conn.execute(_SIGNAL_OUTCOMES_SCHEMA)
         for statement in _SIGNAL_EVENTS_INDEXES:
             conn.execute(statement)
         _migrate_daily_snapshots(conn)
@@ -529,18 +546,26 @@ def save_signal_event(
     with _connect(db_path) as conn:
         if kind == "unusual_activity":
             existing = conn.execute(
-                "SELECT id FROM signal_events WHERE symbol = ? AND trading_date = ? "
+                "SELECT id, payload_json FROM signal_events WHERE symbol = ? AND trading_date = ? "
                 "AND kind = ? AND signature = ? ORDER BY id DESC LIMIT 1",
                 (symbol, trading_date, kind, signature),
             ).fetchone()
             if existing:
                 event_id = existing[0]
+                try:
+                    existing_payload = json.loads(existing[1] or "{}")
+                except (TypeError, json.JSONDecodeError):
+                    existing_payload = {}
+                updated_payload = {**existing_payload, **payload}
+                if existing_payload.get("entry_spot") is not None:
+                    updated_payload["entry_spot"] = existing_payload["entry_spot"]
                 # yfinance 的 volume 是當日累計值；每 15 分鐘新增一列會把同一
-                # 合約的持續狀態偽裝成多筆獨立大單，因此保留單列並更新最新強度。
+                # 合約的持續狀態偽裝成多筆獨立大單。首次時間與進場價必須固定，
+                # 否則不同 horizon 會從不同起點結算；只更新最新累積強度。
                 conn.execute(
-                    "UPDATE signal_events SET detected_at = ?, classified_tier = ?, "
+                    "UPDATE signal_events SET classified_tier = ?, "
                     "delivered_tier = ?, reason = ?, payload_json = ? WHERE id = ?",
-                    (detected_at, classified_tier, delivered_tier, reason, json.dumps(payload), event_id),
+                    (classified_tier, delivered_tier, reason, json.dumps(updated_payload), event_id),
                 )
                 return event_id
 
@@ -592,6 +617,65 @@ def get_intraday_observations(
             (symbol, limit),
         ).fetchall()
     return [dict(row) for row in reversed(rows)]
+
+
+def save_signal_outcome(outcome: dict, db_path: Path | str = DEFAULT_DB_PATH) -> None:
+    """冪等保存單一訊號 horizon 的事後結果。"""
+    success = outcome.get("directional_success")
+    with _connect(db_path) as conn:
+        conn.execute(
+            """INSERT INTO signal_outcomes
+               (event_id, horizon_minutes, evaluated_at, future_spot, return_pct,
+                directional_success, mfe_pct, mae_pct)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(event_id, horizon_minutes) DO UPDATE SET
+                 evaluated_at=excluded.evaluated_at, future_spot=excluded.future_spot,
+                 return_pct=excluded.return_pct,
+                 directional_success=excluded.directional_success,
+                 mfe_pct=excluded.mfe_pct, mae_pct=excluded.mae_pct""",
+            (
+                outcome["event_id"], outcome["horizon_minutes"], outcome["evaluated_at"],
+                outcome["future_spot"], outcome["return_pct"],
+                None if success is None else int(bool(success)),
+                outcome.get("mfe_pct"), outcome.get("mae_pct"),
+            ),
+        )
+
+
+def get_signal_outcomes(
+    symbol: str, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """回傳一檔標的所有盤中訊號結果，供績效彙總使用。"""
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """SELECT o.*, e.symbol, e.kind, e.detected_at, e.classified_tier
+               FROM signal_outcomes o JOIN signal_events e ON e.id = o.event_id
+               WHERE e.symbol = ? ORDER BY e.detected_at, o.horizon_minutes""",
+            (symbol,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_signal_events(
+    symbol: str, limit: int = 500, db_path: Path | str = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """回傳盤中訊號並解析 payload，供 outcome 結算器使用。"""
+    with _connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM signal_events WHERE symbol = ? ORDER BY detected_at DESC LIMIT ?",
+            (symbol, limit),
+        ).fetchall()
+    events = []
+    for row in reversed(rows):
+        event = dict(row)
+        try:
+            event["payload"] = json.loads(event.get("payload_json") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            event["payload"] = {}
+        events.append(event)
+    return events
 
 
 def get_undelivered_watch_events(
