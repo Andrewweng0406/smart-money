@@ -77,3 +77,39 @@ def test_resolve_available_outcomes_writes_only_reached_horizons(tmp_path):
     assert resolved == 1
     rows = db_manager.get_signal_outcomes("TSLA", db_path=db_path)
     assert [(row["event_id"], row["horizon_minutes"]) for row in rows] == [(event_id, 15)]
+
+
+def test_summarize_outcomes_enforces_sample_floor_and_regime_split():
+    rows = [
+        {
+            "kind": "put_wall_breach", "horizon_minutes": 15,
+            "directional_success": int(i < 4), "return_pct": -1.0,
+            "mfe_pct": 1.5, "mae_pct": -0.5,
+            "negative_gamma": int(i < 3),
+        }
+        for i in range(5)
+    ]
+
+    summary = resolver.summarize_outcomes(rows)
+    stat = summary["put_wall_breach"][15]
+
+    assert stat["sample_size"] == 5
+    assert stat["sufficient_sample"] is True
+    assert stat["success_rate_pct"] == 80.0
+    assert stat["avg_mfe_pct"] == 1.5
+    assert stat["by_regime"]["negative"]["sample_size"] == 3
+    assert stat["by_regime"]["positive"]["sample_size"] == 2
+
+
+def test_build_intraday_report_hides_percentage_when_sample_is_small(monkeypatch):
+    monkeypatch.setattr(resolver.db_manager, "get_signal_outcomes", lambda symbol, db_path: [{
+        "kind": "call_wall_breach", "horizon_minutes": 15,
+        "directional_success": 1, "return_pct": 1.0,
+        "mfe_pct": 1.2, "mae_pct": -0.2, "negative_gamma": 1,
+    }])
+
+    text = resolver.build_intraday_outcome_report("TSLA", db_path="ignored.db")
+
+    assert "盤中訊號實證" in text
+    assert "15m：樣本不足（1 筆）" in text
+    assert "成功率" not in text

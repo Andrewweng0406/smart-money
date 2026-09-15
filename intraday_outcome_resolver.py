@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import statistics
 from zoneinfo import ZoneInfo
 
 import db_manager
@@ -17,6 +18,14 @@ _DIRECTION = {
 }
 
 DEFAULT_HORIZONS_MINUTES = (15, 30, 60)
+MIN_SAMPLE_SIZE = 5
+
+_KIND_LABELS = {
+    "call_wall_breach": "Call Wall 向上穿越",
+    "put_wall_breach": "Put Wall 向下穿越",
+    "pinning_high": "Pinning 高分",
+    "unusual_activity": "異常大單（不判多空）",
+}
 
 
 def _parse_datetime(value: str) -> datetime:
@@ -106,3 +115,87 @@ def resolve_available_outcomes(
             )
             resolved += 1
     return resolved
+
+
+def _mean(rows: list[dict], key: str) -> float | None:
+    values = [row[key] for row in rows if row.get(key) is not None]
+    return statistics.mean(values) if values else None
+
+
+def _regime_stat(rows: list[dict]) -> dict:
+    directional = [row for row in rows if row.get("directional_success") is not None]
+    return {
+        "sample_size": len(rows),
+        "success_rate_pct": (
+            sum(bool(row["directional_success"]) for row in directional)
+            / len(directional) * 100 if directional else None
+        ),
+    }
+
+
+def summarize_outcomes(rows: list[dict], min_sample_size: int = MIN_SAMPLE_SIZE) -> dict:
+    """依訊號與 horizon 彙總，所有百分比都保留明確樣本數。"""
+    grouped: dict[str, dict[int, list[dict]]] = {}
+    for row in rows:
+        grouped.setdefault(row["kind"], {}).setdefault(row["horizon_minutes"], []).append(row)
+
+    summary = {}
+    for kind, horizons in grouped.items():
+        summary[kind] = {}
+        for horizon, samples in horizons.items():
+            directional = [row for row in samples if row.get("directional_success") is not None]
+            summary[kind][horizon] = {
+                "sample_size": len(samples),
+                "sufficient_sample": len(samples) >= min_sample_size,
+                "success_rate_pct": (
+                    sum(bool(row["directional_success"]) for row in directional)
+                    / len(directional) * 100 if directional else None
+                ),
+                "avg_return_pct": _mean(samples, "return_pct"),
+                "avg_mfe_pct": _mean(samples, "mfe_pct"),
+                "avg_mae_pct": _mean(samples, "mae_pct"),
+                "by_regime": {
+                    "negative": _regime_stat([row for row in samples if row.get("negative_gamma") == 1]),
+                    "positive": _regime_stat([row for row in samples if row.get("negative_gamma") == 0]),
+                },
+            }
+    return summary
+
+
+def _pct(value: float | None) -> str:
+    return "N/A" if value is None else f"{value:+.1f}%"
+
+
+def build_intraday_outcome_report(symbol: str, db_path=db_manager.DEFAULT_DB_PATH) -> str:
+    """組出 `/signals` 使用的盤中實證區塊。"""
+    rows = db_manager.get_signal_outcomes(symbol, db_path=db_path)
+    lines = ["📍 盤中訊號實證（15/30/60 分鐘）"]
+    if not rows:
+        lines.append("尚無已結算樣本，先繼續收集。")
+        return "\n".join(lines)
+
+    summary = summarize_outcomes(rows)
+    for kind in _KIND_LABELS:
+        if kind not in summary:
+            continue
+        lines.append(_KIND_LABELS[kind])
+        for horizon, stat in sorted(summary[kind].items()):
+            if not stat["sufficient_sample"]:
+                lines.append(f"  {horizon}m：樣本不足（{stat['sample_size']} 筆）")
+                continue
+            rate = stat["success_rate_pct"]
+            rate_text = "" if rate is None else f"｜成立率 {rate:.0f}%"
+            lines.append(
+                f"  {horizon}m：n={stat['sample_size']}{rate_text}"
+                f"｜報酬 {_pct(stat['avg_return_pct'])}"
+                f"｜MFE {_pct(stat['avg_mfe_pct'])}｜MAE {_pct(stat['avg_mae_pct'])}"
+            )
+            for regime, label in (("negative", "負Gamma"), ("positive", "正Gamma")):
+                regime_stat = stat["by_regime"][regime]
+                if regime_stat["sample_size"] >= MIN_SAMPLE_SIZE and regime_stat["success_rate_pct"] is not None:
+                    lines.append(
+                        f"    {label}：{regime_stat['success_rate_pct']:.0f}%"
+                        f"（n={regime_stat['sample_size']}）"
+                    )
+    lines.append(f"少於 {MIN_SAMPLE_SIZE} 筆不顯示百分比；異常大單不判定多空成立率。")
+    return "\n".join(lines)

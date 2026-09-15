@@ -557,8 +557,9 @@ def save_signal_event(
                 except (TypeError, json.JSONDecodeError):
                     existing_payload = {}
                 updated_payload = {**existing_payload, **payload}
-                if existing_payload.get("entry_spot") is not None:
-                    updated_payload["entry_spot"] = existing_payload["entry_spot"]
+                for frozen_key in ("entry_spot", "negative_gamma", "regime_source"):
+                    if existing_payload.get(frozen_key) is not None:
+                        updated_payload[frozen_key] = existing_payload[frozen_key]
                 # yfinance 的 volume 是當日累計值；每 15 分鐘新增一列會把同一
                 # 合約的持續狀態偽裝成多筆獨立大單。首次時間與進場價必須固定，
                 # 否則不同 horizon 會從不同起點結算；只更新最新累積強度。
@@ -649,12 +650,23 @@ def get_signal_outcomes(
     with _connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
-            """SELECT o.*, e.symbol, e.kind, e.detected_at, e.classified_tier
+            """SELECT o.*, e.symbol, e.kind, e.detected_at, e.classified_tier,
+                      e.payload_json
                FROM signal_outcomes o JOIN signal_events e ON e.id = o.event_id
                WHERE e.symbol = ? ORDER BY e.detected_at, o.horizon_minutes""",
             (symbol,),
         ).fetchall()
-    return [dict(row) for row in rows]
+    outcomes = []
+    for row in rows:
+        outcome = dict(row)
+        try:
+            payload = json.loads(outcome.get("payload_json") or "{}")
+        except (TypeError, json.JSONDecodeError):
+            payload = {}
+        outcome["negative_gamma"] = payload.get("negative_gamma")
+        outcome["regime_source"] = payload.get("regime_source")
+        outcomes.append(outcome)
+    return outcomes
 
 
 def get_signal_events(

@@ -383,11 +383,16 @@ def classify_and_route(
                 reason = f"{reason}｜超出當日推播預算（上限 {MAX_URGENT_PUSHES_PER_DAY}）"
 
         try:
+            persisted_payload = {
+                **signal["payload"],
+                "negative_gamma": regime.get("negative_gamma"),
+                "regime_source": regime.get("source"),
+            }
             db_manager.save_signal_event(
                 symbol, detected_at, trading_date, signal["kind"],
                 classified_tier=signal["tier"], delivered_tier=delivered_tier,
                 reason=reason, signature=signal["signature"],
-                payload={**signal["payload"], "text": signal["text"]},
+                payload={**persisted_payload, "text": signal["text"]},
                 db_path=db_path,
             )
         except Exception as exc:  # noqa: BLE001

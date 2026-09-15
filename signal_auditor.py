@@ -21,6 +21,7 @@ import statistics
 from pathlib import Path
 
 import db_manager
+import intraday_outcome_resolver
 
 logger = logging.getLogger("options_gex")
 
@@ -317,6 +318,9 @@ def build_signal_audit_report(
     horizons: tuple[int, ...] = DEFAULT_HORIZONS,
 ) -> str:
     audit = audit_signal_performance(symbol, db_path=db_path, horizons=horizons)
+    intraday_report = intraday_outcome_resolver.build_intraday_outcome_report(
+        symbol, db_path=db_path,
+    )
     lines = [
         f"🧪 【{symbol} 訊號績效審核】",
         f"歷史快照：{audit['row_count']} 筆",
@@ -325,6 +329,7 @@ def build_signal_audit_report(
 
     if audit["row_count"] < 5:
         lines.append("樣本太少，先繼續累積資料；目前不適合解讀勝率。")
+        lines.extend(["", intraday_report])
         return "\n".join(lines)
 
     for signal_name, label in _SIGNAL_LABELS.items():
@@ -386,6 +391,7 @@ def build_signal_audit_report(
         "不報百分比。"
     )
     lines.append("⚠️ 樣本數小時只當作校準訊號權重，不構成投資建議。")
+    lines.extend(["", intraday_report])
     return "\n".join(lines).strip()
 
 

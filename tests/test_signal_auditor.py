@@ -276,6 +276,23 @@ def test_build_signal_audit_report_handles_small_sample(tmp_path):
     assert "TSLA" in report
 
 
+def test_build_signal_audit_report_keeps_intraday_section_when_daily_sample_is_small(
+    tmp_path, monkeypatch,
+):
+    db_path = tmp_path / "history.db"
+    _save(db_path, "2026-08-03", 100.0)
+    monkeypatch.setattr(
+        signal_auditor.intraday_outcome_resolver,
+        "build_intraday_outcome_report",
+        lambda symbol, db_path: "📍 盤中訊號實證\nCall Wall：15m 成功率 60%",
+    )
+
+    report = signal_auditor.build_signal_audit_report("TSLA", db_path=db_path)
+
+    assert "樣本太少" in report
+    assert "盤中訊號實證" in report
+
+
 def test_build_signal_audit_report_includes_signal_sections(tmp_path):
     """樣本足夠時，報告要印出成功率區塊。
 
