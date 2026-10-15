@@ -22,6 +22,8 @@ import statistics
 from datetime import datetime
 from pathlib import Path
 
+import pandas_market_calendars as mcal
+
 import db_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -107,6 +109,11 @@ def analyze_gamma_flip_winrate(
     # get_recent_snapshots 回傳新到舊，這裡要反過來由舊到新排序，
     # 才能用陣列索引找到「未來第N個交易日」（交易日，不是日曆天數）。
     rows_sorted = sorted(rows, key=lambda r: r["date"])
+    calendar = mcal.get_calendar("NYSE")
+    sessions = [day.date().isoformat() for day in calendar.valid_days(
+        start_date=rows_sorted[0]["date"], end_date=rows_sorted[-1]["date"])]
+    session_index = {day: i for i, day in enumerate(sessions)}
+    by_date = {row["date"]: row for row in rows_sorted}
 
     buckets = {h: {"returns_above": [], "returns_below": [], "wins": 0, "total": 0} for h in horizons}
 
@@ -123,10 +130,14 @@ def analyze_gamma_flip_winrate(
         side = "above" if spot > gamma_flip else "below"
 
         for h in horizons:
-            future_idx = i + h
-            if future_idx >= len(rows_sorted):
+            if h <= 0 or row["date"] not in session_index:
+                continue
+            future_idx = session_index[row["date"]] + h
+            if future_idx >= len(sessions):
                 continue  # 歷史資料還沒累積到那麼多天，這個horizon暫時算不出來
-            future_row = rows_sorted[future_idx]
+            future_row = by_date.get(sessions[future_idx])
+            if future_row is None:
+                continue  # Missing observations must not shorten the trading-day horizon.
             future_spot = future_row["spot"]
 
             held = (side == "above" and future_spot > gamma_flip) or (side == "below" and future_spot < gamma_flip)

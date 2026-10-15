@@ -1,0 +1,34 @@
+{
+  "source": "https://historicaldata.net/file/options_sample_2022H2.zip",
+  "zip_sha256": "8517b069f4d41e44f950dc79a3cdab694359b0fae91664190011e39dd8e48b76",
+  "first_day": "2022-07-01",
+  "last_day": "2022-12-30",
+  "sample_days": 127,
+  "post_split_days": 89,
+  "counts": {
+    "tsla_rows": 625260,
+    "call_rows": 312630,
+    "valid_quotes": 507824,
+    "put_rows": 312630,
+    "invalid_or_missing_quotes": 117436,
+    "jan_2023_call_quotes": 20521,
+    "jan_2024_call_quotes": 20260,
+    "liquid_21_45d_short_call": 10368,
+    "liquid_45_90d_put": 985,
+    "liquid_jan_2024_deep_itm_call": 805
+  },
+  "days_with_both_sides": 127,
+  "post_split_days_with_all_three_candidate_types": 89,
+  "vendor_vs_split_adjusted_local_close_max_abs_diff": 0.005,
+  "representative_aug31_jan2024_call": {
+    "contract": "TSLA240119C00220000",
+    "post_split_days_with_valid_quote": 89,
+    "post_split_days_total": 89
+  },
+  "limitations": [
+    "Secondary-source EOD standing quotes, not verified execution fills",
+    "quote_time is unavailable for this 2022 sample",
+    "2022 sample starts in July: January-March entry cannot be tested",
+    "Pre-split positions require contract-adjustment handling; supplier excludes adjusted roots before August 2026"
+  ]
+}

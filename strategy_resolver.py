@@ -10,10 +10,9 @@
 用「到期日當天」的收盤價（data_fetcher.get_close_price_on_date）結算，
 不是「執行當下」的最新報價——如果這支腳本沒有每天準時執行（漏跑了幾天），
 用現在的價格結算幾天前到期的紀錄會有落差，尤其標的在到期日之後才大幅
-波動的話，用「現在」價格結算會把根本沒發生過的損益算進記分板。抓不到
-到期日當天收盤價（例如資料源缺漏）才退回用「現在」報價當近似值，並在
-結果裡標記 approximate=True。這仍然不是選擇權到期當天交易所公告的官方
-結算價（AM/PM settlement），但比「執行當下」的報價更接近實際情況。
+波動的話，用「現在」價格結算會把根本沒發生過的損益算進記分板。
+這仍然不是選擇權到期當天交易所公告的官方
+結算價（AM/PM settlement）。缺少到期日收盤價時保留待結算，不使用最新報價。
 
 預設會自動遍歷 watchlist.json 裡的所有標的（跟 run_watchlist.py 的行為
 一致），不用每檔標的各自手動執行一次；也可以用 --symbol 只結算單一標的。
@@ -30,7 +29,11 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pandas_market_calendars as mcal
 
 import data_fetcher
 import db_manager
@@ -51,7 +54,12 @@ def resolve_pending(
     list——大部分日子本來就沒有剛好到期的建議。
     """
     if as_of_date is None:
-        as_of_date = data_fetcher.current_trading_date_str()
+        now = datetime.now(ZoneInfo("America/New_York"))
+        schedule = mcal.get_calendar("NYSE").schedule(start_date=now.date(), end_date=now.date())
+        completed_date = now.date()
+        if not schedule.empty and now < schedule.iloc[0]["market_close"].to_pydatetime():
+            completed_date -= timedelta(days=1)
+        as_of_date = completed_date.isoformat()
 
     pending = [r for r in db_manager.get_pending_strategy_recommendations(as_of_date, db_path) if r["symbol"] == symbol]
     if not pending:
@@ -63,9 +71,8 @@ def resolve_pending(
             settlement_spot = data_fetcher.get_close_price_on_date(symbol, record["expiry_date"])
             approximate = False
             if settlement_spot is None:
-                # 抓不到到期日當天的歷史收盤價，退回用「現在」報價當近似值。
-                settlement_spot = data_fetcher.get_spot_price(symbol)
-                approximate = True
+                logger.warning("%s 策略 id=%s 缺少到期日收盤價，保留待結算", symbol, record["id"])
+                continue
 
             legs = json.loads(record["legs_json"])
             result = strategy_tracker.score_outcome(

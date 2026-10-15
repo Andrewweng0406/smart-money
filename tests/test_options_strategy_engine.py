@@ -15,7 +15,7 @@ from options_strategy_engine import (
     build_iron_condor,
     build_long_strangle,
     select_credit_spread_strikes,
-    select_strategy,
+    _select_strategy_template as select_strategy,
 )
 
 SPOT = 100.0

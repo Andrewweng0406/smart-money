@@ -77,6 +77,7 @@ def test_get_close_price_on_date_returns_that_days_close():
         price = data_fetcher.get_close_price_on_date("TSLA", "2026-07-15")
 
     assert price == 305.5
+    fake_ticker.history.assert_called_once_with(start="2026-07-15", end="2026-07-16", auto_adjust=False)
 
 
 def test_get_close_price_on_date_returns_none_when_no_data():

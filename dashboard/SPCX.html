@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPCX GEX Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    :root { color-scheme: dark; --bg: #0d0d0d; --panel: #18191b; --line: #303236; --text: #eceff4; --muted: #969ca6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    main { width: min(1440px, 94vw); margin: 0 auto; padding: 30px 0 50px; }
+    h1 { margin: 0 0 22px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
+    h2 { margin: 0 0 18px; font-size: 1.05rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(145px, 1fr)); gap: 12px; }
+    .kpi, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+    .kpi { padding: 16px; }
+    .kpi-label { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+    .kpi-value { margin-top: 9px; font-size: 1.25rem; font-weight: 700; }
+    .positive { color: #0ca30c; } .negative { color: #d03b3b; }
+    .page-alert, .death-loop-alert { color: #ffdddd; background: #3a1518; border: 1px solid #d03b3b; border-radius: 9px; padding: 13px 15px; }
+    .page-alert { margin-top: 14px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(310px, 1fr); gap: 16px; margin-top: 16px; }
+    .panel { padding: 20px; margin-top: 16px; }
+    .layout .panel { margin-top: 0; }
+    .chart-wrap { position: relative; min-height: 430px; }
+    #gex-chart { width: 100%; height: 430px; }
+    .empty-notice { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); color: var(--muted); z-index: 2; }
+    .pressure-card.danger { border-color: #d03b3b; box-shadow: 0 0 0 1px #d03b3b, 0 0 24px rgba(208,59,59,.18); }
+    .pressure-score { font-size: 3.2rem; font-weight: 800; line-height: 1; }
+    .pressure-label { color: #f2c94c; margin: 8px 0 16px; font-weight: 700; }
+    .insufficient, .muted { color: var(--muted); }
+    .ratios { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .ratio { background: #111214; border-radius: 8px; padding: 12px; }
+    .ratio span { display: block; color: var(--muted); font-size: .75rem; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th, td { padding: 9px 5px; border-bottom: 1px solid #292b2f; text-align: right; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+    .side { text-transform: uppercase; font-weight: 700; } .side.call { color: #2a78d6; } .side.put { color: #e34948; }
+    .macro-panel { border-color: #725f22; }
+    .macro-panel li { margin: 8px 0; }
+    .strategy { color: #79aef2; font-weight: 700; margin-bottom: 14px; }
+    .commentary { color: #d5d8de; line-height: 1.75; white-space: pre-wrap; }
+    .pinning-panel { margin-top: 14px; }
+    .pinning-regime { font-size: 1.4rem; font-weight: 800; margin-bottom: 16px; }
+    .pinning-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; }
+    @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .layout { grid-template-columns: 1fr; } .pinning-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .kpi-grid { grid-template-columns: 1fr; } main { width: 92vw; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SPCX GEX Dashboard</h1>
+    <section class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">現貨價</div><div class="kpi-value">133.11</div></div>
+      <div class="kpi"><div class="kpi-label">Net GEX 狀態</div><div class="kpi-value positive">Positive Gamma</div></div>
+      <div class="kpi"><div class="kpi-label">Max Pain</div><div class="kpi-value">125.00</div></div>
+      <div class="kpi"><div class="kpi-label">Gamma Flip 距離</div><div class="kpi-value">+9.2%</div></div>
+      <div class="kpi"><div class="kpi-label">IV Skew</div><div class="kpi-value">-8.1%</div></div>
+      <div class="kpi"><div class="kpi-label">Pinning 狀態</div><div class="kpi-value"><span class="muted">🔄 Neutral · 中性觀望</span></div></div>
+    </section>
+
+
+        <section class="panel pinning-panel">
+          <h2>Pinning 釘價效應判斷</h2>
+          <div class="pinning-regime muted">🔄 Neutral · 中性觀望</div>
+          <div class="pinning-grid">
+            <div class="ratio"><span>Pin Strike</span>$150（與 Max Pain 不同）</div>
+            <div class="ratio"><span>距離 Pin Strike</span>12.7%</div>
+            <div class="ratio"><span>未平倉量集中度</span>4.4%</div>
+            <div class="ratio"><span>Pinning 分數</span>35 / 100（中）</div>
+          </div>
+        </section>
+
+
+    <div class="layout">
+      <section class="panel">
+        <h2>Net GEX by Strike</h2>
+        <div class="chart-wrap"><div id="gex-chart"></div></div>
+      </section>
+      <section class="panel pressure-card">
+        <h2>Smart Money 風險評級</h2>
+
+          <div class="pressure-score">27</div>
+          <div class="pressure-label">低</div>
+
+
+        <div class="ratios">
+          <div class="ratio"><span>Put/Call Volume</span>0.62</div>
+          <div class="ratio"><span>Put/Call OI</span>0.87</div>
+        </div>
+        <h2>異常期權活動</h2>
+        <table><thead><tr><th>Strike</th><th>Side</th><th>Volume</th><th>OI</th><th>Ratio</th></tr></thead><tbody><tr><td>128.00</td><td><span class="side put">put</span></td><td>7,657</td><td>544</td><td>14.08</td></tr><tr><td>127.00</td><td><span class="side put">put</span></td><td>7,507</td><td>694</td><td>10.82</td></tr><tr><td>129.00</td><td><span class="side put">put</span></td><td>5,254</td><td>703</td><td>7.47</td></tr><tr><td>128.00</td><td><span class="side call">call</span></td><td>7,148</td><td>1,312</td><td>5.45</td></tr><tr><td>136.00</td><td><span class="side call">call</span></td><td>6,673</td><td>1,359</td><td>4.91</td></tr></tbody></table>
+      </section>
+    </div>
+
+
+  </main>
+  <script>
+    const trace = {
+      type: "bar",
+      x: [5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0, 60.0, 61.0, 62.0, 63.0, 64.0, 65.0, 66.0, 67.0, 68.0, 69.0, 70.0, 71.0, 72.0, 73.0, 74.0, 75.0, 76.0, 77.0, 78.0, 79.0, 80.0, 81.0, 82.0, 83.0, 84.0, 85.0, 86.0, 87.0, 88.0, 89.0, 90.0, 91.0, 92.0, 93.0, 94.0, 95.0, 96.0, 97.0, 98.0, 99.0, 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0, 111.0, 112.0, 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 119.0, 120.0, 121.0, 122.0, 123.0, 124.0, 125.0, 126.0, 127.0, 128.0, 129.0, 130.0, 131.0, 132.0, 133.0, 134.0, 135.0, 136.0, 137.0, 138.0, 139.0, 140.0, 141.0, 142.0, 143.0, 144.0, 145.0, 146.0, 147.0, 148.0, 149.0, 150.0, 152.5, 155.0, 157.5, 160.0, 162.5, 165.0, 167.5, 170.0, 172.5, 175.0, 177.5, 180.0, 182.5, 185.0, 190.0, 195.0, 200.0, 205.0, 210.0, 215.0, 220.0, 225.0, 230.0, 235.0, 240.0, 245.0, 250.0, 255.0, 260.0, 265.0, 270.0, 275.0, 280.0, 285.0, 290.0, 295.0, 300.0, 305.0, 310.0, 315.0, 320.0, 325.0, 330.0, 335.0, 340.0, 345.0, 350.0, 355.0, 360.0, 365.0, 370.0, 375.0, 380.0, 385.0, 390.0, 395.0, 400.0, 405.0, 410.0, 415.0, 420.0, 425.0, 430.0, 435.0, 440.0, 445.0, 450.0],
+      y: [0.0, -4.298197775374663, -18.37550491190148, -7.423900873377569, -60.38738159384772, -80.56787674255148, -226.93670575840136, -874.7709311199922, -1482.719010636412, -4880.461521866274, -5525.7521776355225, -21063.761607911136, -174.04965443645406, -730.456086345933, -98.31347873295462, -181.7538065694466, -30936.839828508106, -169.40535838726726, -227.85908990008215, -3847.165602692111, -1028.797635141478, -56841.71779185986, -407.58810109173635, -1138.5515802253635, -589.673560132904, -912.4913414089997, -305795.4963254626, -1881.6426559686888, -1436.9111471129886, -2220.2844542426383, -1863.0111674740342, -331309.2177621954, -6518.657964568249, -2255.2234097922233, -3200.3321567755174, -4819.726328174824, -231794.86467599406, -4399.838740451243, -18388.0920878707, -7168.585821998195, -6023.544199582594, -1195582.8797858637, -6188.975012517604, -22152.317793387767, -18097.675819403565, -11119.007801369406, -885267.0222137573, -54856.1689525627, -23251.946176495643, -26266.676181565606, -154423.79155101677, -3071500.1823263597, -133919.40918598196, -180339.78994887942, -381280.95155204134, -188220.68949275158, -2260665.621310861, -305761.47957191546, -279251.6133164601, -633329.7987694197, -1236048.9591060127, -1958031.8528578747, -35046.838184253895, -26512.02889955259, 171528.24568848358, 62607.78899671591, -743280.9656467359, -390512.4316228503, -71415.86224491341, 83768.6264458322, 173972.29546011845, 3982464.8814518284, 107249.2804107857, 257904.70856234548, 285268.2347597657, 1569110.8391466546, -7184960.543112156, 598157.1186936676, 619622.0943288885, 265135.6925022518, 255879.05142974868, 5501759.985135897, 345702.3267042774, 496114.0345596628, -46491.13469239001, 161605.82846328546, 5075199.752156613, 301381.6301024584, 368224.0478419778, 620091.7642603924, -210294.2254898753, 1939016.615395205, 143736.9301405143, 208964.42921876218, 40291.31411234633, 487324.2124392061, 2149769.057709163, 1869098.703330125, 85203.64220607102, 162589.06616308243, 71032.93749819763, 6053324.217832894, 162996.1723092742, 475070.2554706726, 79728.74602981943, 6114414.013336364, 217432.1150793021, 3004052.182651678, 103109.8895172192, 1246995.4430100154, 196615.4357866328, 1160828.737063692, 40717.426650846865, 1694118.9631823448, 49109.07819679188, 657768.9118546831, 1204644.2337562698, 140767.40887072144, 1719495.1816564188, 33522.582605710995, 221183.68836620316, 83357.74796938675, 267289.6043241624, 252747.60688548704, 191790.25351883424, 74254.87749317962, 135683.96422997434, 32161.80060646116, 1019640.1779461731, 36054.14273323825, 43610.69188941659, 36580.71144919835, 32027.209953921796, 17577.885090374613, 27754.480043035765, 8215.154093011895, 11827.562915747156, 7781.362441215968, 87855.65816143152, 11402.295306955037, 7845.498517267426, 7323.001655701259, 69125.93143021376, 35930.79842533046, 5541.644733876453, 10473.214752644668, 1742.6657968584982, 3564.5546148103103, 5018.255393361579, 4660.097042388496, 3070.741647159042, 896.8556292157091, 2323.5855764883763, 3632.8890090682844, 19595.648983452615, 3027.2803782362635, 1527.6231854346365, 1045.100211234324, 6069.440306502598, 2104.096134491449, 1526.5085180118956, 558.5689222643786, 3813.0326288226465, 1282.761367939789, 2488.5369667898103, 1980.0392341986342, 3566.5801675648927, 6453.3423841246595, 117239.38805210381],
+      marker: { color: ["#2a78d6", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#e34948", "#2a78d6", "#2a78d6", "#e34948", "#e34948", "#e34948", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#e34948", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#e34948", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#e34948", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6", "#2a78d6"] },
+      hovertemplate: "Strike: %{x}<br>Net GEX: %{y:,.2f}<extra></extra>"
+    };
+    const layout = {
+      paper_bgcolor: "#18191b", plot_bgcolor: "#18191b",
+      font: { color: "#cfd3da" }, margin: { l: 70, r: 24, t: 20, b: 60 },
+      xaxis: { title: "Strike", gridcolor: "#292b2f" },
+      yaxis: { title: "Net GEX", gridcolor: "#292b2f", zerolinecolor: "#69707a" },
+      shapes: [{"type": "line", "x0": 133.11000061035156, "x1": 133.11000061035156, "y0": 0, "y1": 1, "yref": "paper", "line": {"color": "#f2c94c", "width": 2, "dash": "dash"}}], showlegend: false
+    };
+    Plotly.newPlot("gex-chart", [trace], layout, { responsive: true, displaylogo: false });
+  </script>
+</body>
+</html>

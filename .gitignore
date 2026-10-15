@@ -6,5 +6,9 @@ __pycache__/
 reports/
 *.db
 .pytest_cache/
+research/raw_options/
+research/cboe_sample_marks.csv
+research/cboe_sample_*frames.jsonl
+/tsla_strategy/
 intraday_alert_state.json
 scheduler_state.json

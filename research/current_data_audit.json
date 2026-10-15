@@ -1,0 +1,17 @@
+{
+  "daily_snapshots": 7,
+  "recommendations": 6,
+  "resolved": 1,
+  "full_chain_snapshots": 0,
+  "issues": [
+    {
+      "id": 19,
+      "issue": "strangle_inconsistent_with_entry_rule"
+    }
+  ],
+  "conclusion": "insufficient_for_strategy_validation",
+  "limitations": [
+    "Legacy recommendations lack contemporaneous full quotes and forecast provenance",
+    "One settled recommendation cannot establish expected returns"
+  ]
+}

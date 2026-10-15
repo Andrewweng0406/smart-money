@@ -3,10 +3,8 @@
 並擴充「買方突圍」與「依 GEX 狀態自動選策略」兩塊。
 
 賣方（收租）策略家族——Bull Put Spread / Bear Call Spread / Iron Condor：
-理論勝率用 Delta 近似（業界標準做法，tastytrade/Option Alpha 的 Probability
-of Profit 也是這樣算）：機率OTM ≈ 1 - |短腿Delta|。這只是 Black-Scholes 假設
-下的理論值，不是回測驗證過的統計勝率，所以刻意回傳一個區間字串（如「70-80%」）
-而不是精確到小數點的數字，避免使用者誤以為這是硬數據。
+模型獲利機率依 Black-Scholes 風險中性分布及損益兩平點估算，未扣交易費用，
+不是回測驗證過的統計勝率。舊規則模板只供研究比較，正式推薦另經風控篩選。
 
 買方（付權利金）策略——Long Strangle：適用在做市商淨空 Gamma（避險行為放大
 波動）的情境，此時繼續當賣方風險偏高。買方策略的風險報酬結構跟賣方完全
@@ -22,6 +20,7 @@ from typing import Literal, Optional
 
 from data_fetcher import StrikeLegRaw
 from gex_engine import black_scholes_delta
+from scipy.stats import norm
 
 # 使用者原始規則（沿用自舊專案）：安全墊落在現價8%~15%之間——在這個範圍內選
 # 「離現價最近」的履約價當短腿，同時滿足最低安全邊際跟最大化權利金這兩個目標。
@@ -57,7 +56,7 @@ class SpreadResult:
     risk_reward_ratio: str
     win_rate_bucket: str
     ai_advice: str
-    win_rate_pop: Optional[float] = None  # 原始機率值（0~100，未分桶），Iron Condor組合兩腳時要用這個算聯合機率
+    win_rate_pop: Optional[float] = None  # 風險中性模型獲利機率（0~100），未扣費用
     leg_win_rates: Optional[dict[str, str]] = None  # 只有Iron Condor會填：{"put": "70-80%", "call": "60-70%"}
 
 
@@ -100,18 +99,28 @@ def _otm_pct(spot: float, strike: float, side: SpreadSide) -> float:
 
 def select_credit_spread_strikes(
     legs: list[StrikeLegRaw], spot: float, side: SpreadSide,
+    time_to_expiry_years: float | None = None,
 ) -> Optional[tuple[StrikeLegRaw, StrikeLegRaw]]:
     """在安全墊 [MIN_OTM_PCT, MAX_OTM_PCT] 範圍內，選「離現價最近」的履約價
     當短腿（安全邊際剛好卡在門檻、拿到的權利金最多）；長腿是短腿再往外一檔
     「實際掛牌」的履約價，保證是一個真的能下單的價差組合。找不到符合安全墊
     範圍的履約價，或短腿已經是最極端一檔時回傳 None。
     """
+    if not math.isfinite(spot) or spot <= 0:
+        return None
     sorted_legs = sorted(legs, key=lambda l: l.strike)
     candidates = [l for l in sorted_legs if MIN_OTM_PCT <= _otm_pct(spot, l.strike, side) <= MAX_OTM_PCT]
+    if time_to_expiry_years is not None:
+        candidates = [l for l in sorted_legs if _otm_pct(spot, l.strike, side) > 0
+                      and 0.15 <= abs(float(black_scholes_delta(spot, l.strike, time_to_expiry_years,
+                          l.put_iv if side == "put" else l.call_iv, side))) <= 0.30]
     if not candidates:
         return None
 
     short_leg = min(candidates, key=lambda l: _otm_pct(spot, l.strike, side))
+    if time_to_expiry_years is not None:
+        short_leg = min(candidates, key=lambda l: abs(abs(float(black_scholes_delta(
+            spot, l.strike, time_to_expiry_years, l.put_iv if side == "put" else l.call_iv, side))) - 0.20))
     short_idx = sorted_legs.index(short_leg)
 
     if side == "put":
@@ -141,11 +150,23 @@ def estimate_win_rate_bucket(delta: float) -> str:
 
 def build_credit_spread(
     legs: list[StrikeLegRaw], spot: float, side: SpreadSide, time_to_expiry_years: float,
+    *, risk_based: bool = False, short_strike_floor: float | None = None,
 ) -> Optional[SpreadResult]:
-    picked = select_credit_spread_strikes(legs, spot, side)
+    if short_strike_floor is not None:
+        if side != "call" or not math.isfinite(short_strike_floor):
+            return None
+        ordered = sorted(legs, key=lambda leg: leg.strike)
+        short_idx = next((i for i, leg in enumerate(ordered)
+                          if leg.strike >= short_strike_floor and leg.strike > spot), None)
+        picked = ((ordered[short_idx], ordered[short_idx + 1])
+                  if short_idx is not None and short_idx + 1 < len(ordered) else None)
+    else:
+        picked = select_credit_spread_strikes(legs, spot, side, time_to_expiry_years if risk_based else None)
     if picked is None:
         return None
     short_leg, long_leg = picked
+    if short_leg.expiry != long_leg.expiry:
+        return None
 
     if side == "put":
         short_bid, long_ask, short_iv = short_leg.put_bid, long_leg.put_ask, short_leg.put_iv
@@ -154,26 +175,28 @@ def build_credit_spread(
         short_bid, long_ask, short_iv = short_leg.call_bid, long_leg.call_ask, short_leg.call_iv
         option_type = "CALL"
 
-    if short_bid <= 0 or long_ask <= 0:
+    if not all(math.isfinite(v) and v > 0 for v in (spot, time_to_expiry_years, short_bid, long_ask)):
         return None  # 無流動性（沒人報價），這種價差實際上下不了單
     credit = short_bid - long_ask
     if credit <= 0:
         return None  # 理論上價差應該收租，算出負值代表報價異常（多半是深度價外流動性太差）
 
     width = abs(long_leg.strike - short_leg.strike)
+    if not math.isfinite(width) or credit >= width:
+        return None
     max_profit = round(credit * OPTIONS_MULTIPLIER, 2)
     max_loss = round((width - credit) * OPTIONS_MULTIPLIER, 2)
     margin_required = max_loss  # 定義風險價差的標準保證金公式：保證金 = 最大虧損
 
     win_rate_bucket = "N/A"
     win_rate_pop: Optional[float] = None
-    if short_iv > 0:
-        delta = float(black_scholes_delta(
-            spot=spot, strike=short_leg.strike, time_to_expiry_years=time_to_expiry_years,
-            iv=short_iv, option_type=option_type.lower(),
-        ))
-        if not math.isnan(delta):
-            win_rate_pop = (1 - abs(delta)) * 100
+    if math.isfinite(short_iv) and short_iv > 0:
+        breakeven = short_leg.strike - credit if side == "put" else short_leg.strike + credit
+        if breakeven <= 0:
+            return None
+        d2 = (math.log(spot / breakeven) + (0.045 - 0.5 * short_iv**2) * time_to_expiry_years) / (short_iv * math.sqrt(time_to_expiry_years))
+        if math.isfinite(d2):
+            win_rate_pop = float(norm.cdf(d2 if side == "put" else -d2)) * 100
             win_rate_bucket = _bucket_pct(win_rate_pop)
 
     otm_pct = _otm_pct(spot, short_leg.strike, side) * 100
@@ -181,7 +204,7 @@ def build_credit_spread(
     strategy_name = "Bull Put Spread（賣出看跌價差）" if side == "put" else "Bear Call Spread（賣出看漲價差）"
     ai_advice = (
         f"短腿履約價 ${short_leg.strike:.0f} 距現價{side_label}約{otm_pct:.1f}%，"
-        f"理論勝率（Delta估算）約{win_rate_bucket}。此為賣方策略，時間流逝（Theta）對你有利，"
+        f"模型獲利機率（風險中性、未扣費用）約{win_rate_bucket}，不是實證勝率。"
         f"只要到期時股價{'高於' if side == 'put' else '低於'} ${short_leg.strike:.0f} 即可拿到最大收益。"
     )
 
@@ -206,9 +229,10 @@ def build_credit_spread(
 
 def build_iron_condor(
     legs: list[StrikeLegRaw], spot: float, time_to_expiry_years: float,
+    *, risk_based: bool = False,
 ) -> Optional[SpreadResult]:
-    put_side = build_credit_spread(legs, spot, "put", time_to_expiry_years)
-    call_side = build_credit_spread(legs, spot, "call", time_to_expiry_years)
+    put_side = build_credit_spread(legs, spot, "put", time_to_expiry_years, risk_based=risk_based)
+    call_side = build_credit_spread(legs, spot, "call", time_to_expiry_years, risk_based=risk_based)
     if put_side is None or call_side is None:
         return None  # 兩側都要能組出價差，任一側不成就不勉強湊一個殘缺的鐵鷹
 
@@ -224,16 +248,27 @@ def build_iron_condor(
     put_width = put_side.max_loss + put_side.max_profit
     call_width = call_side.max_loss + call_side.max_profit
     max_loss = round(max(put_width, call_width) - max_profit, 2)
+    if max_loss <= 0:
+        return None
     margin_required = max_loss
 
     put_short_strike = put_side.legs[0].strike_price
     call_short_strike = call_side.legs[0].strike_price
 
-    # Iron Condor 要拿到 max_profit，兩腳都不能被突破，不是任一腳單獨的存活機率：
-    # combined = 1 - P(跌破put) - P(突破call) = put_pop + call_pop - 100
-    # （兩個突破事件互斥——到期價格不可能同時低於put履約價又高於call履約價）
-    if put_side.win_rate_pop is not None and call_side.win_rate_pop is not None:
-        combined_pop = max(0.0, put_side.win_rate_pop + call_side.win_rate_pop - 100.0)
+    # A single reference volatility keeps both tails in one coherent distribution.
+    valid_iv = [l for l in legs if math.isfinite(l.call_iv) and math.isfinite(l.put_iv)
+                and l.call_iv > 0 and l.put_iv > 0]
+    if valid_iv:
+        reference = min(valid_iv, key=lambda l: abs(l.strike - spot))
+        iv = (reference.call_iv + reference.put_iv) / 2
+        total_credit = max_profit / OPTIONS_MULTIPLIER
+        low, high = put_short_strike - total_credit, call_short_strike + total_credit
+        if low <= 0:
+            return None
+        sigma_t = iv * math.sqrt(time_to_expiry_years)
+        def cdf(k: float) -> float:
+            return float(norm.cdf((math.log(k / spot) - (0.045 - .5 * iv**2) * time_to_expiry_years) / sigma_t))
+        combined_pop = max(0.0, min(100.0, (cdf(high) - cdf(low)) * 100))
         win_rate_bucket = _bucket_pct(combined_pop)
         win_rate_pop: Optional[float] = combined_pop
     else:
@@ -254,7 +289,7 @@ def build_iron_condor(
         ai_advice=(
             f"兩側各設一組價差，只要到期時股價落在 ${put_short_strike:.0f} ~ ${call_short_strike:.0f} "
             f"之間即可拿到最大收益，適合震盪整理格局；若單邊被突破，虧損以較嚴重的那一側為準（兩側不會同時虧損）。"
-            f"理論勝率{win_rate_bucket}是「兩腳都不破」的聯合機率，會比任一腳單獨的存活機率低。"
+            f"模型獲利機率{win_rate_bucket}使用近現價 IV 的共同風險中性分布，未扣費用，不是實證勝率。"
         ),
     )
 
@@ -271,6 +306,8 @@ def build_long_strangle(
     Delta 越高、越容易被觸及，但權利金也越貴——這裡選「剛好滿足門檻」的
     那一檔，在「有機會被觸及」和「權利金不要太貴」之間取平衡）。
     """
+    if not math.isfinite(spot) or spot <= 0 or not math.isfinite(otm_pct) or otm_pct <= 0:
+        return None
     sorted_legs = sorted(legs, key=lambda l: l.strike)
     call_candidates = [l for l in sorted_legs if _otm_pct(spot, l.strike, "call") >= otm_pct and l.call_ask > 0]
     put_candidates = [l for l in sorted_legs if _otm_pct(spot, l.strike, "put") >= otm_pct and l.put_ask > 0]
@@ -279,9 +316,11 @@ def build_long_strangle(
 
     call_leg = min(call_candidates, key=lambda l: l.strike)  # 最近的合格價外 Call
     put_leg = max(put_candidates, key=lambda l: l.strike)  # 最近的合格價外 Put
+    if call_leg.expiry != put_leg.expiry:
+        return None
 
     debit = call_leg.call_ask + put_leg.put_ask
-    if debit <= 0:
+    if not math.isfinite(debit) or debit <= 0:
         return None
 
     breakeven_high = call_leg.strike + debit
@@ -312,11 +351,18 @@ def _format_legs(legs: list[SpreadLegResult]) -> str:
 # 判斷「現貨與兩道牆距離接近（盤整格局）」的門檻：兩側距離百分比差距在這個
 # 範圍內，視為現貨大致落在兩道牆中間，沒有明顯偏向哪一側。
 WALL_BALANCE_THRESHOLD_PCT = 3.0
+RESISTANCE_ENTRY_BAND_PCT = 0.01  # research-only hypothesis, not optimized
 
 
-def select_strategy(
+def near_call_wall(spot: float, call_wall: float) -> bool:
+    return (math.isfinite(spot) and math.isfinite(call_wall) and spot > 0
+            and 0 < call_wall - spot <= spot * RESISTANCE_ENTRY_BAND_PCT)
+
+
+def _select_strategy_template(
     legs: list[StrikeLegRaw], spot: float, time_to_expiry_years: float,
     put_wall: float, call_wall: float, alert: Optional[str],
+    *, risk_based: bool = False, resistance_only: bool = False,
 ) -> StrategyRecommendation:
     """依據當前 GEX 狀態（是否觸發大負GEX警示）與現貨對兩道牆的相對位置，
     判斷「理論上」比較適合哪一種策略——這是規則式的判斷，不是回測驗證過的
@@ -333,7 +379,7 @@ def select_strategy(
        Spread（賣方看漲）。
     4. Call Wall 距現貨較近（上方壓力較強）——推薦 Bear Call Spread（賣方看跌）。
     """
-    if alert:
+    if alert and not resistance_only:
         rationale = (
             "現貨處於大負GEX區域（做市商淨空Gamma，避險行為傾向放大而非抑制波動），"
             "此時裸賣期權風險偏高，改推薦方向不明的買方突圍策略。"
@@ -365,32 +411,38 @@ def select_strategy(
     put_dist_pct = (spot - put_wall) / spot * 100
     call_dist_pct = (call_wall - spot) / spot * 100
 
-    if abs(put_dist_pct - call_dist_pct) <= WALL_BALANCE_THRESHOLD_PCT:
+    if resistance_only:
+        rationale = (f"現價位於 Call Wall（${call_wall:.0f}）下方 1% 內，"
+                     "僅研究於阻力附近建立 Bear Call Spread。")
+        result = build_credit_spread(legs, spot, "call", time_to_expiry_years,
+                                     risk_based=risk_based, short_strike_floor=call_wall)
+        strategy_label = "Bear Call Spread"
+    elif abs(put_dist_pct - call_dist_pct) <= WALL_BALANCE_THRESHOLD_PCT:
         rationale = (
             f"現貨與 Put Wall（距離{put_dist_pct:.1f}%）、Call Wall（距離{call_dist_pct:.1f}%）"
             "兩道牆距離接近，判斷為盤整格局，適合兩邊收租的 Iron Condor。"
         )
-        result = build_iron_condor(legs, spot, time_to_expiry_years)
+        result = build_iron_condor(legs, spot, time_to_expiry_years, risk_based=risk_based)
         strategy_label = "Iron Condor"
     elif put_dist_pct < call_dist_pct:
         rationale = (
             f"Put Wall（${put_wall:.0f}）距現貨較近（{put_dist_pct:.1f}% vs {call_dist_pct:.1f}%），"
             "判斷下方支撐較強，適合賣出看跌價差。"
         )
-        result = build_credit_spread(legs, spot, "put", time_to_expiry_years)
+        result = build_credit_spread(legs, spot, "put", time_to_expiry_years, risk_based=risk_based)
         strategy_label = "Bull Put Spread"
     else:
         rationale = (
             f"Call Wall（${call_wall:.0f}）距現貨較近（{call_dist_pct:.1f}% vs {put_dist_pct:.1f}%），"
             "判斷上方壓力較強，適合賣出看漲價差。"
         )
-        result = build_credit_spread(legs, spot, "call", time_to_expiry_years)
+        result = build_credit_spread(legs, spot, "call", time_to_expiry_years, risk_based=risk_based)
         strategy_label = "Bear Call Spread"
 
     if result is None:
         return StrategyRecommendation(
             strategy_name=f"無建議（{strategy_label}）", rationale=rationale,
-            detail_lines=["安全墊範圍（現貨 8%~15% 外）內找不到有效報價，本日跳過策略建議。"],
+            detail_lines=["選腿範圍內找不到有效價差，本日跳過策略建議。"],
         )
 
     return StrategyRecommendation(
@@ -399,7 +451,7 @@ def select_strategy(
             f"- 動作：{_format_legs(result.legs)}",
             f"- 最大獲利：${result.max_profit:,.0f}　最大虧損：${result.max_loss:,.0f}",
             f"- 風險報酬比：{result.risk_reward_ratio}",
-            f"- 理論勝率：{result.win_rate_bucket}",
+            f"- 模型獲利機率（未扣費用）：{result.win_rate_bucket}",
             f"- {result.ai_advice}",
         ],
         legs=result.legs,
@@ -410,3 +462,89 @@ def select_strategy(
         strategy_type="credit",
         max_loss=result.max_loss / OPTIONS_MULTIPLIER,
     )
+
+
+def select_strategy(
+    legs: list[StrikeLegRaw], spot: float, time_to_expiry_years: float,
+    put_wall: float, call_wall: float, alert: Optional[str], *,
+    total_net_gex: float | None = None,
+    forecast_vol: float | None = None,
+    data_usable: bool = True,
+    fee_per_contract: float = 0.65,
+    slippage_per_share: float = 0.01,
+    min_edge_on_risk: float = 0.02,
+    setup: Literal["gamma_template", "resistance_defense"] = "gamma_template",
+) -> StrategyRecommendation:
+    """Experimental candidate filter; forecast_vol must be estimated before entry.
+
+    GEX is a proxy, not observed dealer inventory. A lognormal zero-drift
+    forecast is a screening model, not evidence of profitable trading.
+    """
+    def skip(reason: str) -> StrategyRecommendation:
+        return StrategyRecommendation("無建議（研究風控）", reason, [reason])
+
+    if setup not in ("gamma_template", "resistance_defense"):
+        raise ValueError("Unknown research setup")
+    if not data_usable or not all(math.isfinite(x) and x > 0 for x in (spot, time_to_expiry_years, put_wall, call_wall)):
+        return skip("資料品質不足或價格無效，暫停策略推薦。")
+    if not put_wall < spot < call_wall:
+        return skip("現價未位於有效 Put Wall / Call Wall 之間，不能推論盤整或支撐壓力。")
+    if setup == "resistance_defense" and not near_call_wall(spot, call_wall):
+        return skip("現價未接近上方 Call Wall（阻力 1% 範圍），不建立防守價差。")
+    if total_net_gex is None or not math.isfinite(total_net_gex) or total_net_gex == 0:
+        return skip("缺少可判讀的 Net GEX，不能由警示文字推論 Gamma 狀態。")
+    if setup == "resistance_defense" and total_net_gex < 0:
+        return skip("Net GEX 為負，阻力突破風險較高，暫不賣出看漲價差。")
+    if forecast_vol is None or not math.isfinite(forecast_vol) or forecast_vol <= 0:
+        return skip("缺少進場前波動預測，尚不能比較期權成本與預期收益。")
+    if not all(math.isfinite(x) and x >= 0 for x in (fee_per_contract, slippage_per_share, min_edge_on_risk)):
+        raise ValueError("Costs and minimum edge must be finite and nonnegative")
+    if not legs or len({leg.expiry for leg in legs}) != 1 or len({leg.strike for leg in legs}) != len(legs):
+        return skip("期權鏈到期日混用或履約價重複。")
+    # Replace the fixed percentage band with an ex-ante 15-30 delta band.
+    filtered = []
+    for leg in legs:
+        values = (leg.strike, leg.call_iv, leg.put_iv, leg.call_bid, leg.call_ask, leg.put_bid, leg.put_ask)
+        if not all(math.isfinite(x) and x >= 0 for x in values) or leg.strike <= 0:
+            continue
+        filtered.append(leg)
+    if not filtered:
+        return skip("沒有有效期權報價。")
+    negative = total_net_gex < 0
+    rec = _select_strategy_template(filtered, spot, time_to_expiry_years, put_wall, call_wall,
+                                    "negative gamma" if negative else None, risk_based=True,
+                                    resistance_only=setup == "resistance_defense")
+    if rec.legs is None:
+        return rec
+    chain = {leg.strike: leg for leg in filtered}
+    for trade_leg in rec.legs:
+        if trade_leg.action == "SELL" and (
+            (trade_leg.option_type == "PUT" and trade_leg.strike_price > put_wall)
+            or (trade_leg.option_type == "CALL" and trade_leg.strike_price < call_wall)
+        ):
+            return skip("Delta 選腿位於支撐壓力保護範圍內側，跳過交易。")
+        raw = chain[trade_leg.strike_price]
+        side = trade_leg.option_type.lower()
+        bid, ask = getattr(raw, f"{side}_bid"), getattr(raw, f"{side}_ask")
+        if bid <= 0 or ask < bid or (ask - bid) / ask > 0.25:
+            return skip("報價無效、交叉或買賣價差超過 25%，跳過交易。")
+    # Exact expectation under the specified lognormal forecast, no random sampling.
+    def intrinsic(k: float, call: bool) -> float:
+        sigma_t = forecast_vol * math.sqrt(time_to_expiry_years)
+        d1 = (math.log(spot / k) + 0.5 * sigma_t**2) / sigma_t
+        d2 = d1 - sigma_t
+        return float(spot * norm.cdf(d1) - k * norm.cdf(d2)) if call else float(k * norm.cdf(-d2) - spot * norm.cdf(-d1))
+    costs = len(rec.legs) * (2 * fee_per_contract / OPTIONS_MULTIPLIER + slippage_per_share)
+    expected = rec.net_premium if rec.strategy_type == "credit" else -rec.net_premium
+    for trade_leg in rec.legs:
+        expected += (1 if trade_leg.action == "BUY" else -1) * intrinsic(trade_leg.strike_price, trade_leg.option_type == "CALL")
+    expected -= costs
+    if expected <= min_edge_on_risk * (rec.max_loss + costs):
+        return skip("扣除費用後模型期望收益不足；保留現金，不強制交易。")
+    if setup == "resistance_defense":
+        rec.rationale = (f"研究候選：現價接近 Call Wall ${call_wall:.0f}，短 Call 置於阻力或其上方；"
+                         "扣費後模型期望為正，但尚未證明樣本外優勢。")
+    else:
+        rec.rationale = "研究候選：依 Net GEX 代理值及進場前波動預測篩選，尚未證明樣本外優勢。"
+    rec.detail_lines.append(f"- 模型期望損益（扣費用）：${expected * OPTIONS_MULTIPLIER:.2f}；須經樣本外驗證。")
+    return rec

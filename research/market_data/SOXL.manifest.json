@@ -1,0 +1,19 @@
+{
+  "provider": "Yahoo Finance via yfinance",
+  "downloaded_at": "2026-10-13T05:47:40.433404+00:00",
+  "as_of": "2026-10-13T06:00:00+00:00",
+  "start": "2015-01-01",
+  "end_exclusive": "2026-10-13",
+  "sha256": "a82103ab7ddbbd64493435ff27163258a123433e294ffb264da0313d5a671ba1",
+  "audit": {
+    "symbol": "SOXL",
+    "rows": 2961,
+    "first": "2015-01-02",
+    "last": "2026-10-12",
+    "missing_sessions": [],
+    "split_events": 2,
+    "status": "usable",
+    "price_semantics": "Yahoo Close is split-adjusted; Adj Close also adjusts distributions",
+    "contract_settlement_ready": false
+  }
+}

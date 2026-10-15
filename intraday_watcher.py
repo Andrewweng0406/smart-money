@@ -609,10 +609,11 @@ def main() -> None:
     parser.add_argument("--watchlist", default="watchlist.json", help="watchlist JSON 路徑，預設 watchlist.json")
     parser.add_argument("--notify", action="store_true", help="偵測到異常時推播到 Telegram")
     parser.add_argument("--force", action="store_true", help="忽略『是否在交易時間』的檢查，強制執行（測試用）")
+    parser.add_argument("--db-path", default=str(db_manager.DEFAULT_DB_PATH), help="SQLite 資料庫路徑，預設 history.db")
     args = parser.parse_args()
 
     symbols = load_symbols(args.symbol, args.watchlist)
-    run_watch_cycle(symbols, notify=args.notify, force=args.force)
+    run_watch_cycle(symbols, notify=args.notify, force=args.force, db_path=args.db_path)
 
 
 if __name__ == "__main__":

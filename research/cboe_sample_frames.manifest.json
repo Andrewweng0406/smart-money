@@ -1,0 +1,25 @@
+{
+  "counts": {
+    "input_rows": 11868,
+    "accepted_rows": 11868
+  },
+  "rejections": {},
+  "frames": 6,
+  "symbols": [
+    "SPY",
+    "TSLA"
+  ],
+  "quote_dates": [
+    "2023-08-25"
+  ],
+  "limitations": [
+    "Only standard stock/ETF roots are admitted",
+    "15:45 quotes and IV are used together; never combine EOD quotes with earlier IV",
+    "Complete source files across dates and expiries are required for GEX",
+    "Expiry closes and daily option marks must be acquired separately"
+  ],
+  "source_file": "/tmp/smart-money-cboe-eod-sample.zip",
+  "source_sha256": "981be1aafe6970e798d5be42f049e6c5b6e507f01cb1509ab513e9bc2e08da24",
+  "member": "UnderlyingOptionsEODCalcs_2023-08-25_cgi_or_historical.csv",
+  "performance_validation_ready": false
+}

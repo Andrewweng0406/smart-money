@@ -136,16 +136,16 @@ def get_close_price_on_date(symbol: str, date_str: str) -> float | None:
     strategy_resolver.py 沒有每天準時執行（例如漏跑了幾天），用「現在」
     的價格結算幾天前到期的紀錄會有落差，這支函式就是抓正確那一天的資料。
     查不到（日期打錯、yfinance資料缺漏、非交易日）回傳 None，呼叫端自行
-    決定要不要退回用當下報價當近似值。
+    保留待結算。履約價使用名目價格，收盤價不可使用股息調整價。
     """
     try:
         target = datetime.strptime(date_str, "%Y-%m-%d").date()
         next_day = target + timedelta(days=1)
         _throttle()
-        hist = yf.Ticker(symbol).history(start=target.isoformat(), end=next_day.isoformat())
+        hist = yf.Ticker(symbol).history(start=target.isoformat(), end=next_day.isoformat(), auto_adjust=False)
         if hist.empty:
             return None
-        return float(hist["Close"].iloc[-1])
+        return _positive_finite(hist["Close"].iloc[-1])
     except Exception as exc:  # noqa: BLE001
         logger.warning("抓取 %s 在 %s 的收盤價失敗：%s", symbol, date_str, exc)
         return None

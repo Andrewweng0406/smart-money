@@ -1,7 +1,6 @@
 """strategy_resolver 的結算流程測試——mock 掉 data_fetcher 的報價函式
 （不打真的網路），驗證：抓待結算紀錄 -> 用到期日收盤價算損益 -> 寫回
-資料庫 -> 標記 resolved 這一整條流程串得起來，以及抓不到到期日收盤價時
-會退回用「現在」報價當近似值。
+資料庫 -> 標記 resolved 這一整條流程串得起來，以及缺少歷史收盤價時保留待結算。
 """
 
 from __future__ import annotations
@@ -61,20 +60,19 @@ def test_resolve_pending_marks_loss_when_settlement_below_both_strikes(tmp_path,
     assert track_record[0]["max_loss_hit"] == 1  # 被雙腳穿透，應該存成「觸及最大虧損」
 
 
-def test_resolve_pending_falls_back_to_current_spot_when_close_price_unavailable(tmp_path, monkeypatch):
-    """抓不到到期日當天的歷史收盤價（例如 resolver 漏跑了好幾天、資料源
-    缺漏）時，退回用「現在」報價當近似值，並標記 approximate=True。
-    """
+def test_resolve_pending_stays_pending_when_close_price_unavailable(tmp_path, monkeypatch):
+    """Missing historical prices must not create invented realized performance."""
     db_path = tmp_path / "history.db"
     _save_bull_put_spread(db_path)
     monkeypatch.setattr(strategy_resolver.data_fetcher, "get_close_price_on_date", lambda symbol, date_str: None)
-    monkeypatch.setattr(strategy_resolver.data_fetcher, "get_spot_price", lambda symbol: 310.0)
+    def unexpected_current_price(symbol):
+        raise AssertionError("Current price is not an expiry settlement")
+    monkeypatch.setattr(strategy_resolver.data_fetcher, "get_spot_price", unexpected_current_price)
 
     resolved = strategy_resolver.resolve_pending("TSLA", as_of_date="2026-08-01", db_path=db_path)
 
-    assert len(resolved) == 1
-    assert resolved[0]["settlement_spot"] == 310.0
-    assert resolved[0]["approximate"] is True
+    assert resolved == []
+    assert len(db_manager.get_pending_strategy_recommendations("2026-08-01", db_path=db_path)) == 1
 
 
 def test_resolve_pending_returns_empty_list_when_nothing_pending(tmp_path, monkeypatch):

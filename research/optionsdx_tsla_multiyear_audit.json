@@ -1,0 +1,460 @@
+{
+  "format": "optionsdx_us_chain_33_fields",
+  "inputs": [
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201901.txt",
+      "rows": 31447
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201902.txt",
+      "rows": 26831
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201903.txt",
+      "rows": 27549
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201904.txt",
+      "rows": 26812
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201905.txt",
+      "rows": 29523
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201906.txt",
+      "rows": 28403
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201907.txt",
+      "rows": 28295
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201908.txt",
+      "rows": 25198
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201909.txt",
+      "rows": 21425
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201910.txt",
+      "rows": 28224
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201911.txt",
+      "rows": 31361
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_201912.txt",
+      "rows": 34427
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202001.txt",
+      "rows": 58937
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202002.txt",
+      "rows": 78709
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202003.txt",
+      "rows": 85879
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202004.txt",
+      "rows": 77475
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202005.txt",
+      "rows": 71009
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202006.txt",
+      "rows": 71295
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202007.txt",
+      "rows": 92291
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202008.txt",
+      "rows": 87275
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202009.txt",
+      "rows": 85201
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202010.txt",
+      "rows": 78333
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202011.txt",
+      "rows": 64486
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202012.txt",
+      "rows": 71954
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202101.txt",
+      "rows": 71679
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202102.txt",
+      "rows": 68003
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202103.txt",
+      "rows": 77488
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202104.txt",
+      "rows": 63217
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202105.txt",
+      "rows": 62786
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202106.txt",
+      "rows": 66883
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202107.txt",
+      "rows": 0
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202201.txt",
+      "rows": 68602
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202202.txt",
+      "rows": 58230
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202203.txt",
+      "rows": 60221
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202204.txt",
+      "rows": 53604
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202205.txt",
+      "rows": 58340
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202206.txt",
+      "rows": 53914
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202207.txt",
+      "rows": 50902
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202208.txt",
+      "rows": 55467
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202209.txt",
+      "rows": 46724
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202210.txt",
+      "rows": 41537
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202211.txt",
+      "rows": 40745
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202212.txt",
+      "rows": 38478
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202301.txt",
+      "rows": 41668
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202302.txt",
+      "rows": 39848
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202303.txt",
+      "rows": 47768
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202304.txt",
+      "rows": 36632
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202305.txt",
+      "rows": 40002
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202306.txt",
+      "rows": 40107
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202307.txt",
+      "rows": 41252
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202308.txt",
+      "rows": 46915
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202309.txt",
+      "rows": 42671
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202310.txt",
+      "rows": 45447
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202311.txt",
+      "rows": 40571
+    },
+    {
+      "source": "research/raw_options/optionsdx/tsla_eod_202312.txt",
+      "rows": 37725
+    }
+  ],
+  "counts": {
+    "rows": 2799765,
+    "valid_identity_rows": 2799765,
+    "valid_c_quotes": 2795651,
+    "valid_p_quotes": 2792998,
+    "invalid_p_quotes": 6767,
+    "invalid_c_quotes": 4114,
+    "same_day_or_expired_rows": 34673,
+    "empty_sources": 1
+  },
+  "years": {
+    "2019": {
+      "rows": 339495,
+      "days_with_rows": 252,
+      "expected_market_sessions": 252,
+      "missing_market_sessions": 0,
+      "missing_market_dates": [],
+      "non_market_dates": [],
+      "complete_market_year": true,
+      "vendor_spot_to_local_split_adjusted_close_median": 15.0,
+      "days_with_local_close": 252,
+      "days_with_plausible_tsla_split_scale": 252
+    },
+    "2020": {
+      "rows": 922844,
+      "days_with_rows": 250,
+      "expected_market_sessions": 253,
+      "missing_market_sessions": 3,
+      "missing_market_dates": [
+        "2020-06-18",
+        "2020-11-27",
+        "2020-12-24"
+      ],
+      "non_market_dates": [],
+      "complete_market_year": false,
+      "vendor_spot_to_local_split_adjusted_close_median": 14.9972,
+      "days_with_local_close": 250,
+      "days_with_plausible_tsla_split_scale": 250
+    },
+    "2021": {
+      "rows": 410056,
+      "days_with_rows": 124,
+      "expected_market_sessions": 252,
+      "missing_market_sessions": 128,
+      "missing_market_dates": [
+        "2021-07-01",
+        "2021-07-02",
+        "2021-07-06",
+        "2021-07-07",
+        "2021-07-08",
+        "2021-07-09",
+        "2021-07-12",
+        "2021-07-13",
+        "2021-07-14",
+        "2021-07-15",
+        "2021-07-16",
+        "2021-07-19",
+        "2021-07-20",
+        "2021-07-21",
+        "2021-07-22",
+        "2021-07-23",
+        "2021-07-26",
+        "2021-07-27",
+        "2021-07-28",
+        "2021-07-29",
+        "2021-07-30",
+        "2021-08-02",
+        "2021-08-03",
+        "2021-08-04",
+        "2021-08-05",
+        "2021-08-06",
+        "2021-08-09",
+        "2021-08-10",
+        "2021-08-11",
+        "2021-08-12",
+        "2021-08-13",
+        "2021-08-16",
+        "2021-08-17",
+        "2021-08-18",
+        "2021-08-19",
+        "2021-08-20",
+        "2021-08-23",
+        "2021-08-24",
+        "2021-08-25",
+        "2021-08-26",
+        "2021-08-27",
+        "2021-08-30",
+        "2021-08-31",
+        "2021-09-01",
+        "2021-09-02",
+        "2021-09-03",
+        "2021-09-07",
+        "2021-09-08",
+        "2021-09-09",
+        "2021-09-10",
+        "2021-09-13",
+        "2021-09-14",
+        "2021-09-15",
+        "2021-09-16",
+        "2021-09-17",
+        "2021-09-20",
+        "2021-09-21",
+        "2021-09-22",
+        "2021-09-23",
+        "2021-09-24",
+        "2021-09-27",
+        "2021-09-28",
+        "2021-09-29",
+        "2021-09-30",
+        "2021-10-01",
+        "2021-10-04",
+        "2021-10-05",
+        "2021-10-06",
+        "2021-10-07",
+        "2021-10-08",
+        "2021-10-11",
+        "2021-10-12",
+        "2021-10-13",
+        "2021-10-14",
+        "2021-10-15",
+        "2021-10-18",
+        "2021-10-19",
+        "2021-10-20",
+        "2021-10-21",
+        "2021-10-22",
+        "2021-10-25",
+        "2021-10-26",
+        "2021-10-27",
+        "2021-10-28",
+        "2021-10-29",
+        "2021-11-01",
+        "2021-11-02",
+        "2021-11-03",
+        "2021-11-04",
+        "2021-11-05",
+        "2021-11-08",
+        "2021-11-09",
+        "2021-11-10",
+        "2021-11-11",
+        "2021-11-12",
+        "2021-11-15",
+        "2021-11-16",
+        "2021-11-17",
+        "2021-11-18",
+        "2021-11-19",
+        "2021-11-22",
+        "2021-11-23",
+        "2021-11-24",
+        "2021-11-26",
+        "2021-11-29",
+        "2021-11-30",
+        "2021-12-01",
+        "2021-12-02",
+        "2021-12-03",
+        "2021-12-06",
+        "2021-12-07",
+        "2021-12-08",
+        "2021-12-09",
+        "2021-12-10",
+        "2021-12-13",
+        "2021-12-14",
+        "2021-12-15",
+        "2021-12-16",
+        "2021-12-17",
+        "2021-12-20",
+        "2021-12-21",
+        "2021-12-22",
+        "2021-12-23",
+        "2021-12-27",
+        "2021-12-28",
+        "2021-12-29",
+        "2021-12-30",
+        "2021-12-31"
+      ],
+      "non_market_dates": [],
+      "complete_market_year": false,
+      "vendor_spot_to_local_split_adjusted_close_median": 3.0,
+      "days_with_local_close": 124,
+      "days_with_plausible_tsla_split_scale": 124
+    },
+    "2022": {
+      "rows": 626764,
+      "days_with_rows": 256,
+      "expected_market_sessions": 251,
+      "missing_market_sessions": 4,
+      "missing_market_dates": [
+        "2022-05-11",
+        "2022-06-17",
+        "2022-06-24",
+        "2022-12-16"
+      ],
+      "non_market_dates": [
+        "2022-01-17",
+        "2022-02-21",
+        "2022-04-15",
+        "2022-05-30",
+        "2022-06-20",
+        "2022-07-04",
+        "2022-09-05",
+        "2022-11-24",
+        "2022-12-26"
+      ],
+      "complete_market_year": false,
+      "vendor_spot_to_local_split_adjusted_close_median": 2.9995,
+      "days_with_local_close": 247,
+      "days_with_plausible_tsla_split_scale": 247
+    },
+    "2023": {
+      "rows": 500606,
+      "days_with_rows": 250,
+      "expected_market_sessions": 250,
+      "missing_market_sessions": 0,
+      "missing_market_dates": [],
+      "non_market_dates": [],
+      "complete_market_year": true,
+      "vendor_spot_to_local_split_adjusted_close_median": 1.0,
+      "days_with_local_close": 250,
+      "days_with_plausible_tsla_split_scale": 250
+    }
+  },
+  "top_quote_times_new_york": [
+    [
+      "16:00",
+      2799765
+    ]
+  ],
+  "has_side_specific_open_interest_fields": false,
+  "can_attempt_oi_walls": false,
+  "limitations": [
+    "Published 33-field US schema does not include side-specific open interest",
+    "The published US schema has no underlying-symbol field; price-scale checks cannot prove identity",
+    "A free EOD archive still needs completeness and timestamp checks",
+    "Bid/ask rows do not prove executable fills or adjusted-contract handling",
+    "Spot/stock-close ratios are diagnostic, not direct quote validation"
+  ]
+}

@@ -98,10 +98,10 @@ def test_gamma_flip_winrate_no_touch_events(tmp_path):
 def test_gamma_flip_winrate_records_win_when_level_holds(tmp_path):
     db_path = tmp_path / "history.db"
     # 第0天觸及翻轉點（現貨在翻轉點之下，距離在門檻內），接下來3天都守在下方（win）
-    _save(db_path, "TSLA", "2026-08-01", spot=99.0, gamma_flip=100.0)
-    _save(db_path, "TSLA", "2026-08-02", spot=97.0, gamma_flip=100.0)
-    _save(db_path, "TSLA", "2026-08-03", spot=95.0, gamma_flip=100.0)
-    _save(db_path, "TSLA", "2026-08-04", spot=94.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-03", spot=99.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-04", spot=97.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-05", spot=95.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-06", spot=94.0, gamma_flip=100.0)
 
     result = backtester.analyze_gamma_flip_winrate("TSLA", db_path=db_path, horizons=(1, 3))
 
@@ -114,8 +114,8 @@ def test_gamma_flip_winrate_records_win_when_level_holds(tmp_path):
 def test_gamma_flip_winrate_records_loss_when_level_breaks(tmp_path):
     db_path = tmp_path / "history.db"
     # 第0天觸及翻轉點（現貨在翻轉點之上），隔天直接跌破（loss）
-    _save(db_path, "TSLA", "2026-08-01", spot=101.0, gamma_flip=100.0)
-    _save(db_path, "TSLA", "2026-08-02", spot=90.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-03", spot=101.0, gamma_flip=100.0)
+    _save(db_path, "TSLA", "2026-08-04", spot=90.0, gamma_flip=100.0)
 
     result = backtester.analyze_gamma_flip_winrate("TSLA", db_path=db_path, horizons=(1,))
 
@@ -142,6 +142,15 @@ def test_gamma_flip_winrate_no_data_returns_empty_horizons(tmp_path):
 
 
 # ---------- Report text ----------
+
+
+def test_gamma_flip_missing_snapshots_do_not_shorten_horizon(tmp_path):
+    db_path = tmp_path / "history.db"
+    _save(db_path, "TSLA", "2026-08-03", spot=99, gamma_flip=100)
+    _save(db_path, "TSLA", "2026-08-06", spot=97, gamma_flip=100)
+    result = backtester.analyze_gamma_flip_winrate("TSLA", db_path, horizons=(1, 3))
+    assert result["horizons"][1]["sample_size"] == 0
+    assert result["horizons"][3]["sample_size"] == 1
 
 def test_generate_backtest_report_handles_empty_database(tmp_path):
     db_path = tmp_path / "history.db"

@@ -1,0 +1,3026 @@
+{
+  "study": "TSLA_stock_proxy_candidate_comparison_not_option_backtest",
+  "source_file": "research/market_data/TSLA.csv",
+  "source_sha256": "54098b3ab64a09241fe13fe398fda0ecb640cf023bf1921c8c7e4344f47682f8",
+  "rules": {
+    "capital": 100000,
+    "tranche_capital": 16666.666666666668,
+    "entry_months": [
+      1,
+      2,
+      3,
+      6,
+      7,
+      8
+    ],
+    "cost_bps_per_side": 5,
+    "dip_lookback_sessions": 20,
+    "trend_sma_sessions": 200,
+    "spring_exit": "last June close",
+    "summer_exit": "last December close",
+    "selection": "annual wins; trade win rate with >=80% participation; or lowest drawdown with >=50% participation and positive training mean"
+  },
+  "years": [
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "candidates": [
+    "month_first",
+    "month_last",
+    "dip_5",
+    "dip_10",
+    "dip_15",
+    "trend_200_first",
+    "trend_200_dip_10"
+  ],
+  "annual": {
+    "month_first": {
+      "2016": {
+        "year": 2016,
+        "return_pct": 0.842,
+        "max_daily_nav_drawdown_pct": 19.279,
+        "ending_nav": 100841.64,
+        "trade_count": 6,
+        "winning_trades": 2,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-04"
+          },
+          {
+            "month": 2,
+            "entry": "2016-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2016-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-01"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 22.138,
+        "max_daily_nav_drawdown_pct": 9.552,
+        "ending_nav": 122138.41,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-03"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-01"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 5.363,
+        "max_daily_nav_drawdown_pct": 18.515,
+        "ending_nav": 105363.25,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-02"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-01"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": 35.899,
+        "max_daily_nav_drawdown_pct": 22.294,
+        "ending_nav": 135899.43,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2019-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2019-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2019-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2019-08-01"
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 146.456,
+        "max_daily_nav_drawdown_pct": 34.476,
+        "ending_nav": 246456.24,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-03"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-03"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 23.687,
+        "max_daily_nav_drawdown_pct": 18.044,
+        "ending_nav": 123686.76,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-04"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-02"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -41.408,
+        "max_daily_nav_drawdown_pct": 48.523,
+        "ending_nav": 58591.62,
+        "trade_count": 6,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2022-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2022-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2022-08-01"
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 36.408,
+        "max_daily_nav_drawdown_pct": 15.848,
+        "ending_nav": 136407.72,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2023-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2023-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2023-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-03"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-01"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 48.154,
+        "max_daily_nav_drawdown_pct": 16.284,
+        "ending_nav": 148154.13,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2024-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2024-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2024-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-01"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 17.804,
+        "max_daily_nav_drawdown_pct": 19.374,
+        "ending_nav": 117804.14,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-03"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-02"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-01"
+          }
+        ]
+      }
+    },
+    "month_last": {
+      "2016": {
+        "year": 2016,
+        "return_pct": 0.98,
+        "max_daily_nav_drawdown_pct": 18.842,
+        "ending_nav": 100979.95,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-29"
+          },
+          {
+            "month": 2,
+            "entry": "2016-02-29"
+          },
+          {
+            "month": 3,
+            "entry": "2016-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-29"
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-31"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 14.545,
+        "max_daily_nav_drawdown_pct": 9.884,
+        "ending_nav": 114545.0,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-31"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 7.329,
+        "max_daily_nav_drawdown_pct": 14.755,
+        "ending_nav": 107328.61,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-29"
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-29"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-31"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": 27.915,
+        "max_daily_nav_drawdown_pct": 20.932,
+        "ending_nav": 127915.06,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2019-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-29"
+          },
+          {
+            "month": 6,
+            "entry": "2019-06-28"
+          },
+          {
+            "month": 7,
+            "entry": "2019-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2019-08-30"
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 107.904,
+        "max_daily_nav_drawdown_pct": 20.501,
+        "ending_nav": 207904.21,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-31"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 23.366,
+        "max_daily_nav_drawdown_pct": 17.348,
+        "ending_nav": 123365.91,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-29"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-26"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-30"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-31"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -41.263,
+        "max_daily_nav_drawdown_pct": 49.029,
+        "ending_nav": 58736.69,
+        "trade_count": 6,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2022-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2022-07-29"
+          },
+          {
+            "month": 8,
+            "entry": "2022-08-31"
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 14.663,
+        "max_daily_nav_drawdown_pct": 13.821,
+        "ending_nav": 114663.23,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2023-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2023-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2023-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-31"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 47.012,
+        "max_daily_nav_drawdown_pct": 13.409,
+        "ending_nav": 147011.61,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2024-02-29"
+          },
+          {
+            "month": 3,
+            "entry": "2024-03-28"
+          },
+          {
+            "month": 6,
+            "entry": "2024-06-28"
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-30"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 21.822,
+        "max_daily_nav_drawdown_pct": 14.008,
+        "ending_nav": 121822.42,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-29"
+          }
+        ]
+      }
+    },
+    "dip_5": {
+      "2016": {
+        "year": 2016,
+        "return_pct": 0.996,
+        "max_daily_nav_drawdown_pct": 19.017,
+        "ending_nav": 100995.51,
+        "trade_count": 6,
+        "winning_trades": 2,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-05"
+          },
+          {
+            "month": 2,
+            "entry": "2016-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2016-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-23"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 16.294,
+        "max_daily_nav_drawdown_pct": 9.74,
+        "ending_nav": 116294.34,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-24"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-28"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-03"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-01"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 5.896,
+        "max_daily_nav_drawdown_pct": 18.428,
+        "ending_nav": 105895.55,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-06"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-02"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-01"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": 36.2,
+        "max_daily_nav_drawdown_pct": 21.966,
+        "ending_nav": 136199.54,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2019-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-04"
+          },
+          {
+            "month": 6,
+            "entry": "2019-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2019-07-26"
+          },
+          {
+            "month": 8,
+            "entry": "2019-08-01"
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 124.87,
+        "max_daily_nav_drawdown_pct": 32.935,
+        "ending_nav": 224869.95,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-21"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-06"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-12"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-24"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-03"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 23.245,
+        "max_daily_nav_drawdown_pct": 18.463,
+        "ending_nav": 123244.55,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-12"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-08"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-18"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -40.06,
+        "max_daily_nav_drawdown_pct": 48.259,
+        "ending_nav": 59940.09,
+        "trade_count": 6,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-06"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2022-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2022-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2022-08-08"
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 32.936,
+        "max_daily_nav_drawdown_pct": 15.042,
+        "ending_nav": 132935.75,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2023-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2023-02-13"
+          },
+          {
+            "month": 3,
+            "entry": "2023-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-22"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-21"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-01"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 46.088,
+        "max_daily_nav_drawdown_pct": 14.587,
+        "ending_nav": 146088.06,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-04"
+          },
+          {
+            "month": 2,
+            "entry": "2024-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2024-03-05"
+          },
+          {
+            "month": 6,
+            "entry": "2024-06-04"
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-12"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-01"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 17.704,
+        "max_daily_nav_drawdown_pct": 19.374,
+        "ending_nav": 117703.86,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-03"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-01"
+          }
+        ]
+      }
+    },
+    "dip_10": {
+      "2016": {
+        "year": 2016,
+        "return_pct": 0.132,
+        "max_daily_nav_drawdown_pct": 17.792,
+        "ending_nav": 100131.98,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-08"
+          },
+          {
+            "month": 2,
+            "entry": "2016-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2016-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-23"
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-29"
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-31"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 19.408,
+        "max_daily_nav_drawdown_pct": 9.982,
+        "ending_nav": 119407.69,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-06"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-01"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 5.703,
+        "max_daily_nav_drawdown_pct": 18.152,
+        "ending_nav": 105703.11,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-09"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-19"
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-25"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-05"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-01"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": 36.553,
+        "max_daily_nav_drawdown_pct": 21.64,
+        "ending_nav": 136553.1,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2019-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-05"
+          },
+          {
+            "month": 6,
+            "entry": "2019-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2019-07-26"
+          },
+          {
+            "month": 8,
+            "entry": "2019-08-02"
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 107.941,
+        "max_daily_nav_drawdown_pct": 31.824,
+        "ending_nav": 207940.72,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-06"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-27"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-03"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 21.212,
+        "max_daily_nav_drawdown_pct": 18.118,
+        "ending_nav": 121212.34,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-29"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-30"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-31"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -38.329,
+        "max_daily_nav_drawdown_pct": 47.817,
+        "ending_nav": 61670.62,
+        "trade_count": 6,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-07"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-07"
+          },
+          {
+            "month": 6,
+            "entry": "2022-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2022-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2022-08-31"
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 32.269,
+        "max_daily_nav_drawdown_pct": 14.84,
+        "ending_nav": 132269.28,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2023-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2023-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2023-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-27"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-21"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-02"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 45.706,
+        "max_daily_nav_drawdown_pct": 13.97,
+        "ending_nav": 145705.86,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-10"
+          },
+          {
+            "month": 2,
+            "entry": "2024-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2024-03-06"
+          },
+          {
+            "month": 6,
+            "entry": "2024-06-28"
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-25"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-01"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 17.531,
+        "max_daily_nav_drawdown_pct": 19.579,
+        "ending_nav": 117530.91,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-04"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-06"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-02"
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-29"
+          }
+        ]
+      }
+    },
+    "dip_15": {
+      "2016": {
+        "year": 2016,
+        "return_pct": 0.524,
+        "max_daily_nav_drawdown_pct": 17.801,
+        "ending_nav": 100523.58,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-14"
+          },
+          {
+            "month": 2,
+            "entry": "2016-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2016-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-23"
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-29"
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-31"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 15.069,
+        "max_daily_nav_drawdown_pct": 9.948,
+        "ending_nav": 115069.45,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-31"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-07"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-31"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 3.578,
+        "max_daily_nav_drawdown_pct": 15.273,
+        "ending_nav": 103578.39,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-26"
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-29"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-05"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-20"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": 37.975,
+        "max_daily_nav_drawdown_pct": 21.665,
+        "ending_nav": 137975.46,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2019-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-19"
+          },
+          {
+            "month": 6,
+            "entry": "2019-06-03"
+          },
+          {
+            "month": 7,
+            "entry": "2019-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2019-08-15"
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 109.068,
+        "max_daily_nav_drawdown_pct": 31.824,
+        "ending_nav": 209068.39,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-06"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-12"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 21.615,
+        "max_daily_nav_drawdown_pct": 17.575,
+        "ending_nav": 121615.38,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-29"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-23"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-30"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-31"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -40.069,
+        "max_daily_nav_drawdown_pct": 49.437,
+        "ending_nav": 59931.22,
+        "trade_count": 6,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-20"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-15"
+          },
+          {
+            "month": 6,
+            "entry": "2022-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2022-07-29"
+          },
+          {
+            "month": 8,
+            "entry": "2022-08-31"
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 34.849,
+        "max_daily_nav_drawdown_pct": 14.986,
+        "ending_nav": 134849.48,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2023-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2023-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2023-03-09"
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-31"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-10"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 49.589,
+        "max_daily_nav_drawdown_pct": 12.167,
+        "ending_nav": 149588.92,
+        "trade_count": 6,
+        "winning_trades": 5,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-16"
+          },
+          {
+            "month": 2,
+            "entry": "2024-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2024-03-14"
+          },
+          {
+            "month": 6,
+            "entry": "2024-06-28"
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-25"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-02"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 20.547,
+        "max_daily_nav_drawdown_pct": 18.489,
+        "ending_nav": 120546.81,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-10"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-06"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-08"
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-29"
+          }
+        ]
+      }
+    },
+    "trend_200_first": {
+      "2016": {
+        "year": 2016,
+        "return_pct": -2.506,
+        "max_daily_nav_drawdown_pct": 10.085,
+        "ending_nav": 97494.03,
+        "trade_count": 3,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2016-01-04"
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": "2016-06-01"
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": "2016-08-01"
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 11.058,
+        "max_daily_nav_drawdown_pct": 10.42,
+        "ending_nav": 111058.14,
+        "trade_count": 5,
+        "winning_trades": 2,
+        "entries": [
+          {
+            "month": 1,
+            "entry": null
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-03"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-01"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": 0.142,
+        "max_daily_nav_drawdown_pct": 9.068,
+        "ending_nav": 100141.64,
+        "trade_count": 3,
+        "winning_trades": 1,
+        "entries": [
+          {
+            "month": 1,
+            "entry": null
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2018-03-01"
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-02"
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": -8.715,
+        "max_daily_nav_drawdown_pct": 15.293,
+        "ending_nav": 91285.22,
+        "trade_count": 2,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-02"
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": "2019-03-01"
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 146.456,
+        "max_daily_nav_drawdown_pct": 34.476,
+        "ending_nav": 246456.24,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-03"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-03"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 23.687,
+        "max_daily_nav_drawdown_pct": 18.044,
+        "ending_nav": 123686.76,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-04"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-01"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-02"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -15.643,
+        "max_daily_nav_drawdown_pct": 24.338,
+        "ending_nav": 84357.45,
+        "trade_count": 3,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-03"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-01"
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": 0.569,
+        "max_daily_nav_drawdown_pct": 16.248,
+        "ending_nav": 100568.63,
+        "trade_count": 3,
+        "winning_trades": 1,
+        "entries": [
+          {
+            "month": 1,
+            "entry": null
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-03"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-01"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 10.935,
+        "max_daily_nav_drawdown_pct": 7.146,
+        "ending_nav": 110935.2,
+        "trade_count": 2,
+        "winning_trades": 1,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-02"
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-01"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 9.728,
+        "max_daily_nav_drawdown_pct": 19.374,
+        "ending_nav": 109728.25,
+        "trade_count": 5,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-03"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-02"
+          },
+          {
+            "month": 7,
+            "entry": "2025-07-01"
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      }
+    },
+    "trend_200_dip_10": {
+      "2016": {
+        "year": 2016,
+        "return_pct": -1.513,
+        "max_daily_nav_drawdown_pct": 3.799,
+        "ending_nav": 98487.05,
+        "trade_count": 1,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": null
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": "2016-07-29"
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2017": {
+        "year": 2017,
+        "return_pct": 19.408,
+        "max_daily_nav_drawdown_pct": 9.982,
+        "ending_nav": 119407.69,
+        "trade_count": 6,
+        "winning_trades": 4,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2017-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2017-02-28"
+          },
+          {
+            "month": 3,
+            "entry": "2017-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2017-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2017-07-06"
+          },
+          {
+            "month": 8,
+            "entry": "2017-08-01"
+          }
+        ]
+      },
+      "2018": {
+        "year": 2018,
+        "return_pct": -0.042,
+        "max_daily_nav_drawdown_pct": 16.604,
+        "ending_nav": 99957.96,
+        "trade_count": 5,
+        "winning_trades": 1,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2018-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2018-02-28"
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": "2018-06-25"
+          },
+          {
+            "month": 7,
+            "entry": "2018-07-11"
+          },
+          {
+            "month": 8,
+            "entry": "2018-08-16"
+          }
+        ]
+      },
+      "2019": {
+        "year": 2019,
+        "return_pct": -4.669,
+        "max_daily_nav_drawdown_pct": 8.863,
+        "ending_nav": 95330.66,
+        "trade_count": 1,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2019-01-02"
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2020": {
+        "year": 2020,
+        "return_pct": 107.941,
+        "max_daily_nav_drawdown_pct": 31.824,
+        "ending_nav": 207940.72,
+        "trade_count": 6,
+        "winning_trades": 6,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2020-01-31"
+          },
+          {
+            "month": 2,
+            "entry": "2020-02-06"
+          },
+          {
+            "month": 3,
+            "entry": "2020-03-02"
+          },
+          {
+            "month": 6,
+            "entry": "2020-06-30"
+          },
+          {
+            "month": 7,
+            "entry": "2020-07-27"
+          },
+          {
+            "month": 8,
+            "entry": "2020-08-03"
+          }
+        ]
+      },
+      "2021": {
+        "year": 2021,
+        "return_pct": 21.212,
+        "max_daily_nav_drawdown_pct": 18.118,
+        "ending_nav": 121212.34,
+        "trade_count": 6,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2021-01-29"
+          },
+          {
+            "month": 2,
+            "entry": "2021-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2021-03-01"
+          },
+          {
+            "month": 6,
+            "entry": "2021-06-01"
+          },
+          {
+            "month": 7,
+            "entry": "2021-07-30"
+          },
+          {
+            "month": 8,
+            "entry": "2021-08-31"
+          }
+        ]
+      },
+      "2022": {
+        "year": 2022,
+        "return_pct": -16.637,
+        "max_daily_nav_drawdown_pct": 24.008,
+        "ending_nav": 83363.33,
+        "trade_count": 3,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2022-01-07"
+          },
+          {
+            "month": 2,
+            "entry": "2022-02-01"
+          },
+          {
+            "month": 3,
+            "entry": "2022-03-31"
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": null
+          }
+        ]
+      },
+      "2023": {
+        "year": 2023,
+        "return_pct": -1.273,
+        "max_daily_nav_drawdown_pct": 14.817,
+        "ending_nav": 98727.06,
+        "trade_count": 3,
+        "winning_trades": 0,
+        "entries": [
+          {
+            "month": 1,
+            "entry": null
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": "2023-06-27"
+          },
+          {
+            "month": 7,
+            "entry": "2023-07-21"
+          },
+          {
+            "month": 8,
+            "entry": "2023-08-02"
+          }
+        ]
+      },
+      "2024": {
+        "year": 2024,
+        "return_pct": 25.618,
+        "max_daily_nav_drawdown_pct": 8.443,
+        "ending_nav": 125618.11,
+        "trade_count": 3,
+        "winning_trades": 2,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2024-01-10"
+          },
+          {
+            "month": 2,
+            "entry": null
+          },
+          {
+            "month": 3,
+            "entry": null
+          },
+          {
+            "month": 6,
+            "entry": null
+          },
+          {
+            "month": 7,
+            "entry": "2024-07-25"
+          },
+          {
+            "month": 8,
+            "entry": "2024-08-01"
+          }
+        ]
+      },
+      "2025": {
+        "year": 2025,
+        "return_pct": 8.068,
+        "max_daily_nav_drawdown_pct": 19.579,
+        "ending_nav": 108067.63,
+        "trade_count": 5,
+        "winning_trades": 3,
+        "entries": [
+          {
+            "month": 1,
+            "entry": "2025-01-02"
+          },
+          {
+            "month": 2,
+            "entry": "2025-02-04"
+          },
+          {
+            "month": 3,
+            "entry": "2025-03-03"
+          },
+          {
+            "month": 6,
+            "entry": "2025-06-10"
+          },
+          {
+            "month": 7,
+            "entry": null
+          },
+          {
+            "month": 8,
+            "entry": "2025-08-29"
+          }
+        ]
+      }
+    }
+  },
+  "full_period": {
+    "month_first": {
+      "years": 10,
+      "positive_years": 9,
+      "mean_account_return_pct": 29.534,
+      "median_account_return_pct": 22.913,
+      "worst_account_return_pct": -41.408,
+      "worst_daily_nav_drawdown_pct": 48.523,
+      "trades": 60,
+      "winning_trades": 33,
+      "trade_win_rate_pct": 55.0,
+      "participation_pct": 100.0
+    },
+    "month_last": {
+      "years": 10,
+      "positive_years": 9,
+      "mean_account_return_pct": 22.427,
+      "median_account_return_pct": 18.242,
+      "worst_account_return_pct": -41.263,
+      "worst_daily_nav_drawdown_pct": 49.029,
+      "trades": 60,
+      "winning_trades": 37,
+      "trade_win_rate_pct": 61.67,
+      "participation_pct": 100.0
+    },
+    "dip_5": {
+      "years": 10,
+      "positive_years": 9,
+      "mean_account_return_pct": 26.417,
+      "median_account_return_pct": 20.474,
+      "worst_account_return_pct": -40.06,
+      "worst_daily_nav_drawdown_pct": 48.259,
+      "trades": 60,
+      "winning_trades": 34,
+      "trade_win_rate_pct": 56.67,
+      "participation_pct": 100.0
+    },
+    "dip_10": {
+      "years": 10,
+      "positive_years": 9,
+      "mean_account_return_pct": 24.813,
+      "median_account_return_pct": 20.31,
+      "worst_account_return_pct": -38.329,
+      "worst_daily_nav_drawdown_pct": 47.817,
+      "trades": 60,
+      "winning_trades": 36,
+      "trade_win_rate_pct": 60.0,
+      "participation_pct": 100.0
+    },
+    "dip_15": {
+      "years": 10,
+      "positive_years": 9,
+      "mean_account_return_pct": 25.274,
+      "median_account_return_pct": 21.081,
+      "worst_account_return_pct": -40.069,
+      "worst_daily_nav_drawdown_pct": 49.437,
+      "trades": 60,
+      "winning_trades": 35,
+      "trade_win_rate_pct": 58.33,
+      "participation_pct": 100.0
+    },
+    "trend_200_first": {
+      "years": 10,
+      "positive_years": 7,
+      "mean_account_return_pct": 17.571,
+      "median_account_return_pct": 5.149,
+      "worst_account_return_pct": -15.643,
+      "worst_daily_nav_drawdown_pct": 34.476,
+      "trades": 38,
+      "winning_trades": 17,
+      "trade_win_rate_pct": 44.74,
+      "participation_pct": 63.33
+    },
+    "trend_200_dip_10": {
+      "years": 10,
+      "positive_years": 5,
+      "mean_account_return_pct": 15.811,
+      "median_account_return_pct": 4.013,
+      "worst_account_return_pct": -16.637,
+      "worst_daily_nav_drawdown_pct": 31.824,
+      "trades": 39,
+      "winning_trades": 19,
+      "trade_win_rate_pct": 48.72,
+      "participation_pct": 65.0
+    }
+  },
+  "without_2020": {
+    "month_first": {
+      "years": 9,
+      "positive_years": 8,
+      "mean_account_return_pct": 16.543,
+      "median_account_return_pct": 22.138,
+      "worst_account_return_pct": -41.408,
+      "worst_daily_nav_drawdown_pct": 48.523,
+      "trades": 54,
+      "winning_trades": 27,
+      "trade_win_rate_pct": 50.0,
+      "participation_pct": 100.0
+    },
+    "month_last": {
+      "years": 9,
+      "positive_years": 8,
+      "mean_account_return_pct": 12.93,
+      "median_account_return_pct": 14.663,
+      "worst_account_return_pct": -41.263,
+      "worst_daily_nav_drawdown_pct": 49.029,
+      "trades": 54,
+      "winning_trades": 31,
+      "trade_win_rate_pct": 57.41,
+      "participation_pct": 100.0
+    },
+    "dip_5": {
+      "years": 9,
+      "positive_years": 8,
+      "mean_account_return_pct": 15.478,
+      "median_account_return_pct": 17.704,
+      "worst_account_return_pct": -40.06,
+      "worst_daily_nav_drawdown_pct": 48.259,
+      "trades": 54,
+      "winning_trades": 28,
+      "trade_win_rate_pct": 51.85,
+      "participation_pct": 100.0
+    },
+    "dip_10": {
+      "years": 9,
+      "positive_years": 8,
+      "mean_account_return_pct": 15.576,
+      "median_account_return_pct": 19.408,
+      "worst_account_return_pct": -38.329,
+      "worst_daily_nav_drawdown_pct": 47.817,
+      "trades": 54,
+      "winning_trades": 30,
+      "trade_win_rate_pct": 55.56,
+      "participation_pct": 100.0
+    },
+    "dip_15": {
+      "years": 9,
+      "positive_years": 8,
+      "mean_account_return_pct": 15.964,
+      "median_account_return_pct": 20.547,
+      "worst_account_return_pct": -40.069,
+      "worst_daily_nav_drawdown_pct": 49.437,
+      "trades": 54,
+      "winning_trades": 29,
+      "trade_win_rate_pct": 53.7,
+      "participation_pct": 100.0
+    },
+    "trend_200_first": {
+      "years": 9,
+      "positive_years": 6,
+      "mean_account_return_pct": 3.251,
+      "median_account_return_pct": 0.569,
+      "worst_account_return_pct": -15.643,
+      "worst_daily_nav_drawdown_pct": 24.338,
+      "trades": 32,
+      "winning_trades": 11,
+      "trade_win_rate_pct": 34.38,
+      "participation_pct": 59.26
+    },
+    "trend_200_dip_10": {
+      "years": 9,
+      "positive_years": 4,
+      "mean_account_return_pct": 5.575,
+      "median_account_return_pct": -0.042,
+      "worst_account_return_pct": -16.637,
+      "worst_daily_nav_drawdown_pct": 24.008,
+      "trades": 33,
+      "winning_trades": 13,
+      "trade_win_rate_pct": 39.39,
+      "participation_pct": 61.11
+    }
+  },
+  "recent_2021_2025": {
+    "month_first": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 16.929,
+      "median_account_return_pct": 23.687,
+      "worst_account_return_pct": -41.408,
+      "worst_daily_nav_drawdown_pct": 48.523,
+      "trades": 30,
+      "winning_trades": 15,
+      "trade_win_rate_pct": 50.0,
+      "participation_pct": 100.0
+    },
+    "month_last": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 13.12,
+      "median_account_return_pct": 21.822,
+      "worst_account_return_pct": -41.263,
+      "worst_daily_nav_drawdown_pct": 49.029,
+      "trades": 30,
+      "winning_trades": 18,
+      "trade_win_rate_pct": 60.0,
+      "participation_pct": 100.0
+    },
+    "dip_5": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 15.983,
+      "median_account_return_pct": 23.245,
+      "worst_account_return_pct": -40.06,
+      "worst_daily_nav_drawdown_pct": 48.259,
+      "trades": 30,
+      "winning_trades": 15,
+      "trade_win_rate_pct": 50.0,
+      "participation_pct": 100.0
+    },
+    "dip_10": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 15.678,
+      "median_account_return_pct": 21.212,
+      "worst_account_return_pct": -38.329,
+      "worst_daily_nav_drawdown_pct": 47.817,
+      "trades": 30,
+      "winning_trades": 15,
+      "trade_win_rate_pct": 50.0,
+      "participation_pct": 100.0
+    },
+    "dip_15": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 17.306,
+      "median_account_return_pct": 21.615,
+      "worst_account_return_pct": -40.069,
+      "worst_daily_nav_drawdown_pct": 49.437,
+      "trades": 30,
+      "winning_trades": 16,
+      "trade_win_rate_pct": 53.33,
+      "participation_pct": 100.0
+    },
+    "trend_200_first": {
+      "years": 5,
+      "positive_years": 4,
+      "mean_account_return_pct": 5.855,
+      "median_account_return_pct": 9.728,
+      "worst_account_return_pct": -15.643,
+      "worst_daily_nav_drawdown_pct": 24.338,
+      "trades": 19,
+      "winning_trades": 8,
+      "trade_win_rate_pct": 42.11,
+      "participation_pct": 63.33
+    },
+    "trend_200_dip_10": {
+      "years": 5,
+      "positive_years": 3,
+      "mean_account_return_pct": 7.398,
+      "median_account_return_pct": 8.068,
+      "worst_account_return_pct": -16.637,
+      "worst_daily_nav_drawdown_pct": 24.008,
+      "trades": 20,
+      "winning_trades": 8,
+      "trade_win_rate_pct": 40.0,
+      "participation_pct": 66.67
+    }
+  },
+  "paired_year_uncertainty_vs_month_first": {
+    "month_last": {
+      "mean_difference_percentage_points": -7.107,
+      "descriptive_95pct_interval": [
+        -15.754,
+        -0.459
+      ]
+    },
+    "dip_5": {
+      "mean_difference_percentage_points": -3.117,
+      "descriptive_95pct_interval": [
+        -7.617,
+        -0.115
+      ]
+    },
+    "dip_10": {
+      "mean_difference_percentage_points": -4.722,
+      "descriptive_95pct_interval": [
+        -12.637,
+        -0.011
+      ]
+    },
+    "dip_15": {
+      "mean_difference_percentage_points": -4.26,
+      "descriptive_95pct_interval": [
+        -12.155,
+        0.637
+      ]
+    },
+    "trend_200_first": {
+      "mean_difference_percentage_points": -11.963,
+      "descriptive_95pct_interval": [
+        -24.391,
+        0.716
+      ]
+    },
+    "trend_200_dip_10": {
+      "mean_difference_percentage_points": -13.723,
+      "descriptive_95pct_interval": [
+        -25.658,
+        -1.402
+      ]
+    }
+  },
+  "retrospective_max_annual_win_candidate": "month_first",
+  "walk_forward": {
+    "folds": [
+      {
+        "test_year": 2021,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020
+        ],
+        "selected": "month_first",
+        "selected_return_pct": 23.687,
+        "selected_trades": 6,
+        "month_first_return_pct": 23.687
+      },
+      {
+        "test_year": 2022,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021
+        ],
+        "selected": "month_first",
+        "selected_return_pct": -41.408,
+        "selected_trades": 6,
+        "month_first_return_pct": -41.408
+      },
+      {
+        "test_year": 2023,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022
+        ],
+        "selected": "month_first",
+        "selected_return_pct": 36.408,
+        "selected_trades": 6,
+        "month_first_return_pct": 36.408
+      },
+      {
+        "test_year": 2024,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023
+        ],
+        "selected": "month_first",
+        "selected_return_pct": 48.154,
+        "selected_trades": 6,
+        "month_first_return_pct": 48.154
+      },
+      {
+        "test_year": 2025,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ],
+        "selected": "month_first",
+        "selected_return_pct": 17.804,
+        "selected_trades": 6,
+        "month_first_return_pct": 17.804
+      }
+    ],
+    "selected_positive_years": 4,
+    "fixed_positive_years": 4,
+    "selected_mean_return_pct": 16.929,
+    "fixed_mean_return_pct": 16.929,
+    "selected_worst_return_pct": -41.408,
+    "selection_counts": {
+      "month_first": 5
+    }
+  },
+  "trade_win_walk_forward": {
+    "folds": [
+      {
+        "test_year": 2021,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020
+        ],
+        "selected": "dip_10",
+        "selected_return_pct": 21.212,
+        "selected_trades": 6,
+        "month_first_return_pct": 23.687
+      },
+      {
+        "test_year": 2022,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021
+        ],
+        "selected": "dip_10",
+        "selected_return_pct": -38.329,
+        "selected_trades": 6,
+        "month_first_return_pct": -41.408
+      },
+      {
+        "test_year": 2023,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022
+        ],
+        "selected": "dip_10",
+        "selected_return_pct": 32.269,
+        "selected_trades": 6,
+        "month_first_return_pct": 36.408
+      },
+      {
+        "test_year": 2024,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023
+        ],
+        "selected": "dip_10",
+        "selected_return_pct": 45.706,
+        "selected_trades": 6,
+        "month_first_return_pct": 48.154
+      },
+      {
+        "test_year": 2025,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ],
+        "selected": "dip_10",
+        "selected_return_pct": 17.531,
+        "selected_trades": 6,
+        "month_first_return_pct": 17.804
+      }
+    ],
+    "selected_positive_years": 4,
+    "fixed_positive_years": 4,
+    "selected_mean_return_pct": 15.678,
+    "fixed_mean_return_pct": 16.929,
+    "selected_worst_return_pct": -38.329,
+    "selection_counts": {
+      "dip_10": 5
+    }
+  },
+  "drawdown_walk_forward": {
+    "folds": [
+      {
+        "test_year": 2021,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020
+        ],
+        "selected": "month_last",
+        "selected_return_pct": 23.366,
+        "selected_trades": 6,
+        "month_first_return_pct": 23.687
+      },
+      {
+        "test_year": 2022,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021
+        ],
+        "selected": "month_last",
+        "selected_return_pct": -41.263,
+        "selected_trades": 6,
+        "month_first_return_pct": -41.408
+      },
+      {
+        "test_year": 2023,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022
+        ],
+        "selected": "trend_200_dip_10",
+        "selected_return_pct": -1.273,
+        "selected_trades": 3,
+        "month_first_return_pct": 36.408
+      },
+      {
+        "test_year": 2024,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023
+        ],
+        "selected": "trend_200_dip_10",
+        "selected_return_pct": 25.618,
+        "selected_trades": 3,
+        "month_first_return_pct": 48.154
+      },
+      {
+        "test_year": 2025,
+        "training_years": [
+          2016,
+          2017,
+          2018,
+          2019,
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ],
+        "selected": "trend_200_dip_10",
+        "selected_return_pct": 8.068,
+        "selected_trades": 5,
+        "month_first_return_pct": 17.804
+      }
+    ],
+    "selected_positive_years": 3,
+    "fixed_positive_years": 4,
+    "selected_mean_return_pct": 2.903,
+    "fixed_mean_return_pct": 16.929,
+    "selected_worst_return_pct": -41.263,
+    "selection_counts": {
+      "month_last": 2,
+      "trend_200_dip_10": 3
+    }
+  },
+  "limitations": [
+    "Stock closes only, not LEAPS calls, puts, or PMCC option P&L",
+    "Candidate years have been inspected; forward folds are chronological but not pristine holdouts",
+    "Fixed six-tranche budget and zero-yield cash; trend filter can abstain",
+    "Annual account resets; results are not compounded"
+  ]
+}

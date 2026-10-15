@@ -1,0 +1,854 @@
+{
+  "study": "TSLA_stock_price_seasonality_not_option_backtest",
+  "source_file": "research/market_data/TSLA.csv",
+  "source_sha256": "54098b3ab64a09241fe13fe398fda0ecb640cf023bf1921c8c7e4344f47682f8",
+  "rules": {
+    "months": [
+      1,
+      2,
+      3,
+      6,
+      7,
+      8
+    ],
+    "prior_sessions_for_high": 20,
+    "dip_threshold_pct": 10,
+    "execution": "next session close after prior-close signal",
+    "fallback": "last session of month",
+    "cost_bps_per_side": 5,
+    "capital": 100000,
+    "tranche_capital": 16666.666666666668,
+    "spring_exit": "last June session",
+    "summer_exit": "last December session"
+  },
+  "complete_years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "annual": [
+    {
+      "year": 2015,
+      "windows": {
+        "april_to_june_pct": 43.003,
+        "late_august_to_december_pct": -3.634
+      },
+      "dip_schedule": {
+        "return_pct": 12.751,
+        "max_daily_nav_drawdown_pct": 9.441,
+        "ending_nav": 112750.63
+      },
+      "first_session_schedule": {
+        "return_pct": 10.413,
+        "max_daily_nav_drawdown_pct": 11.185,
+        "ending_nav": 110413.3
+      },
+      "dip_minus_fixed_pct_points": 2.338,
+      "dip_triggers": 3,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2015-01-30",
+          "dip_triggered": false,
+          "fixed_entry": "2015-01-02",
+          "exit": "2015-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 2,
+          "dip_entry": "2015-02-27",
+          "dip_triggered": false,
+          "fixed_entry": "2015-02-02",
+          "exit": "2015-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 3,
+          "dip_entry": "2015-03-03",
+          "dip_triggered": true,
+          "fixed_entry": "2015-03-02",
+          "exit": "2015-06-30",
+          "forward_20_session_stock_pct": -5.407
+        },
+        {
+          "month": 6,
+          "dip_entry": "2015-06-30",
+          "dip_triggered": false,
+          "fixed_entry": "2015-06-01",
+          "exit": "2015-12-31",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 7,
+          "dip_entry": "2015-07-28",
+          "dip_triggered": true,
+          "fixed_entry": "2015-07-01",
+          "exit": "2015-12-31",
+          "forward_20_session_stock_pct": -16.913
+        },
+        {
+          "month": 8,
+          "dip_entry": "2015-08-07",
+          "dip_triggered": true,
+          "fixed_entry": "2015-08-03",
+          "exit": "2015-12-31",
+          "forward_20_session_stock_pct": -0.239
+        }
+      ]
+    },
+    {
+      "year": 2016,
+      "windows": {
+        "april_to_june_pct": -10.653,
+        "late_august_to_december_pct": 0.792
+      },
+      "dip_schedule": {
+        "return_pct": 0.132,
+        "max_daily_nav_drawdown_pct": 17.792,
+        "ending_nav": 100131.98
+      },
+      "first_session_schedule": {
+        "return_pct": 0.842,
+        "max_daily_nav_drawdown_pct": 19.279,
+        "ending_nav": 100841.64
+      },
+      "dip_minus_fixed_pct_points": -0.71,
+      "dip_triggers": 3,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2016-01-08",
+          "dip_triggered": true,
+          "fixed_entry": "2016-01-04",
+          "exit": "2016-06-30",
+          "forward_20_session_stock_pct": -29.863
+        },
+        {
+          "month": 2,
+          "dip_entry": "2016-02-01",
+          "dip_triggered": true,
+          "fixed_entry": "2016-02-01",
+          "exit": "2016-06-30",
+          "forward_20_session_stock_pct": -5.377
+        },
+        {
+          "month": 3,
+          "dip_entry": "2016-03-31",
+          "dip_triggered": false,
+          "fixed_entry": "2016-03-01",
+          "exit": "2016-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 6,
+          "dip_entry": "2016-06-23",
+          "dip_triggered": true,
+          "fixed_entry": "2016-06-01",
+          "exit": "2016-12-30",
+          "forward_20_session_stock_pct": 13.172
+        },
+        {
+          "month": 7,
+          "dip_entry": "2016-07-29",
+          "dip_triggered": false,
+          "fixed_entry": "2016-07-01",
+          "exit": "2016-12-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 8,
+          "dip_entry": "2016-08-31",
+          "dip_triggered": false,
+          "fixed_entry": "2016-08-01",
+          "exit": "2016-12-30",
+          "forward_20_session_stock_pct": null
+        }
+      ]
+    },
+    {
+      "year": 2017,
+      "windows": {
+        "april_to_june_pct": 21.134,
+        "late_august_to_december_pct": -12.518
+      },
+      "dip_schedule": {
+        "return_pct": 19.408,
+        "max_daily_nav_drawdown_pct": 9.982,
+        "ending_nav": 119407.69
+      },
+      "first_session_schedule": {
+        "return_pct": 22.138,
+        "max_daily_nav_drawdown_pct": 9.552,
+        "ending_nav": 122138.41
+      },
+      "dip_minus_fixed_pct_points": -2.73,
+      "dip_triggers": 4,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2017-01-31",
+          "dip_triggered": false,
+          "fixed_entry": "2017-01-03",
+          "exit": "2017-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 2,
+          "dip_entry": "2017-02-28",
+          "dip_triggered": true,
+          "fixed_entry": "2017-02-01",
+          "exit": "2017-06-30",
+          "forward_20_session_stock_pct": 10.984
+        },
+        {
+          "month": 3,
+          "dip_entry": "2017-03-01",
+          "dip_triggered": true,
+          "fixed_entry": "2017-03-01",
+          "exit": "2017-06-30",
+          "forward_20_session_stock_pct": 10.943
+        },
+        {
+          "month": 6,
+          "dip_entry": "2017-06-30",
+          "dip_triggered": false,
+          "fixed_entry": "2017-06-01",
+          "exit": "2017-12-29",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 7,
+          "dip_entry": "2017-07-06",
+          "dip_triggered": true,
+          "fixed_entry": "2017-07-03",
+          "exit": "2017-12-29",
+          "forward_20_session_stock_pct": 12.389
+        },
+        {
+          "month": 8,
+          "dip_entry": "2017-08-01",
+          "dip_triggered": true,
+          "fixed_entry": "2017-08-01",
+          "exit": "2017-12-29",
+          "forward_20_session_stock_pct": 8.696
+        }
+      ]
+    },
+    {
+      "year": 2018,
+      "windows": {
+        "april_to_june_pct": 35.833,
+        "late_august_to_december_pct": 10.323
+      },
+      "dip_schedule": {
+        "return_pct": 5.703,
+        "max_daily_nav_drawdown_pct": 18.152,
+        "ending_nav": 105703.11
+      },
+      "first_session_schedule": {
+        "return_pct": 5.363,
+        "max_daily_nav_drawdown_pct": 18.515,
+        "ending_nav": 105363.25
+      },
+      "dip_minus_fixed_pct_points": 0.34,
+      "dip_triggers": 5,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2018-01-31",
+          "dip_triggered": false,
+          "fixed_entry": "2018-01-02",
+          "exit": "2018-06-29",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 2,
+          "dip_entry": "2018-02-09",
+          "dip_triggered": true,
+          "fixed_entry": "2018-02-01",
+          "exit": "2018-06-29",
+          "forward_20_session_stock_pct": 11.304
+        },
+        {
+          "month": 3,
+          "dip_entry": "2018-03-19",
+          "dip_triggered": true,
+          "fixed_entry": "2018-03-01",
+          "exit": "2018-06-29",
+          "forward_20_session_stock_pct": -8.25
+        },
+        {
+          "month": 6,
+          "dip_entry": "2018-06-25",
+          "dip_triggered": true,
+          "fixed_entry": "2018-06-01",
+          "exit": "2018-12-31",
+          "forward_20_session_stock_pct": -10.684
+        },
+        {
+          "month": 7,
+          "dip_entry": "2018-07-05",
+          "dip_triggered": true,
+          "fixed_entry": "2018-07-02",
+          "exit": "2018-12-31",
+          "forward_20_session_stock_pct": 13.061
+        },
+        {
+          "month": 8,
+          "dip_entry": "2018-08-01",
+          "dip_triggered": true,
+          "fixed_entry": "2018-08-01",
+          "exit": "2018-12-31",
+          "forward_20_session_stock_pct": 1.386
+        }
+      ]
+    },
+    {
+      "year": 2019,
+      "windows": {
+        "april_to_june_pct": -22.726,
+        "late_august_to_december_pct": 85.422
+      },
+      "dip_schedule": {
+        "return_pct": 36.553,
+        "max_daily_nav_drawdown_pct": 21.64,
+        "ending_nav": 136553.1
+      },
+      "first_session_schedule": {
+        "return_pct": 35.899,
+        "max_daily_nav_drawdown_pct": 22.294,
+        "ending_nav": 135899.43
+      },
+      "dip_minus_fixed_pct_points": 0.654,
+      "dip_triggers": 6,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2019-01-02",
+          "dip_triggered": true,
+          "fixed_entry": "2019-01-02",
+          "exit": "2019-06-28",
+          "forward_20_session_stock_pct": -1.0
+        },
+        {
+          "month": 2,
+          "dip_entry": "2019-02-01",
+          "dip_triggered": true,
+          "fixed_entry": "2019-02-01",
+          "exit": "2019-06-28",
+          "forward_20_session_stock_pct": -8.6
+        },
+        {
+          "month": 3,
+          "dip_entry": "2019-03-05",
+          "dip_triggered": true,
+          "fixed_entry": "2019-03-01",
+          "exit": "2019-06-28",
+          "forward_20_session_stock_pct": 3.377
+        },
+        {
+          "month": 6,
+          "dip_entry": "2019-06-03",
+          "dip_triggered": true,
+          "fixed_entry": "2019-06-03",
+          "exit": "2019-12-31",
+          "forward_20_session_stock_pct": 26.932
+        },
+        {
+          "month": 7,
+          "dip_entry": "2019-07-26",
+          "dip_triggered": true,
+          "fixed_entry": "2019-07-01",
+          "exit": "2019-12-31",
+          "forward_20_session_stock_pct": -7.297
+        },
+        {
+          "month": 8,
+          "dip_entry": "2019-08-02",
+          "dip_triggered": true,
+          "fixed_entry": "2019-08-01",
+          "exit": "2019-12-31",
+          "forward_20_session_stock_pct": -3.725
+        }
+      ]
+    },
+    {
+      "year": 2020,
+      "windows": {
+        "april_to_june_pct": 124.232,
+        "late_august_to_december_pct": 41.61
+      },
+      "dip_schedule": {
+        "return_pct": 107.941,
+        "max_daily_nav_drawdown_pct": 31.824,
+        "ending_nav": 207940.72
+      },
+      "first_session_schedule": {
+        "return_pct": 146.456,
+        "max_daily_nav_drawdown_pct": 34.476,
+        "ending_nav": 246456.24
+      },
+      "dip_minus_fixed_pct_points": -38.515,
+      "dip_triggers": 4,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2020-01-31",
+          "dip_triggered": false,
+          "fixed_entry": "2020-01-02",
+          "exit": "2020-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 2,
+          "dip_entry": "2020-02-06",
+          "dip_triggered": true,
+          "fixed_entry": "2020-02-03",
+          "exit": "2020-06-30",
+          "forward_20_session_stock_pct": -6.072
+        },
+        {
+          "month": 3,
+          "dip_entry": "2020-03-02",
+          "dip_triggered": true,
+          "fixed_entry": "2020-03-02",
+          "exit": "2020-06-30",
+          "forward_20_session_stock_pct": -32.475
+        },
+        {
+          "month": 6,
+          "dip_entry": "2020-06-30",
+          "dip_triggered": false,
+          "fixed_entry": "2020-06-01",
+          "exit": "2020-12-31",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 7,
+          "dip_entry": "2020-07-27",
+          "dip_triggered": true,
+          "fixed_entry": "2020-07-01",
+          "exit": "2020-12-31",
+          "forward_20_session_stock_pct": 30.826
+        },
+        {
+          "month": 8,
+          "dip_entry": "2020-08-03",
+          "dip_triggered": true,
+          "fixed_entry": "2020-08-03",
+          "exit": "2020-12-31",
+          "forward_20_session_stock_pct": 67.785
+        }
+      ]
+    },
+    {
+      "year": 2021,
+      "windows": {
+        "april_to_june_pct": 2.713,
+        "late_august_to_december_pct": 43.639
+      },
+      "dip_schedule": {
+        "return_pct": 21.212,
+        "max_daily_nav_drawdown_pct": 18.118,
+        "ending_nav": 121212.34
+      },
+      "first_session_schedule": {
+        "return_pct": 23.687,
+        "max_daily_nav_drawdown_pct": 18.044,
+        "ending_nav": 123686.76
+      },
+      "dip_minus_fixed_pct_points": -2.475,
+      "dip_triggers": 3,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2021-01-29",
+          "dip_triggered": false,
+          "fixed_entry": "2021-01-04",
+          "exit": "2021-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 2,
+          "dip_entry": "2021-02-01",
+          "dip_triggered": true,
+          "fixed_entry": "2021-02-01",
+          "exit": "2021-06-30",
+          "forward_20_session_stock_pct": -18.262
+        },
+        {
+          "month": 3,
+          "dip_entry": "2021-03-01",
+          "dip_triggered": true,
+          "fixed_entry": "2021-03-01",
+          "exit": "2021-06-30",
+          "forward_20_session_stock_pct": -14.913
+        },
+        {
+          "month": 6,
+          "dip_entry": "2021-06-01",
+          "dip_triggered": true,
+          "fixed_entry": "2021-06-01",
+          "exit": "2021-12-31",
+          "forward_20_session_stock_pct": 9.114
+        },
+        {
+          "month": 7,
+          "dip_entry": "2021-07-30",
+          "dip_triggered": false,
+          "fixed_entry": "2021-07-01",
+          "exit": "2021-12-31",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 8,
+          "dip_entry": "2021-08-31",
+          "dip_triggered": false,
+          "fixed_entry": "2021-08-02",
+          "exit": "2021-12-31",
+          "forward_20_session_stock_pct": null
+        }
+      ]
+    },
+    {
+      "year": 2022,
+      "windows": {
+        "april_to_june_pct": -37.91,
+        "late_august_to_december_pct": -55.306
+      },
+      "dip_schedule": {
+        "return_pct": -38.329,
+        "max_daily_nav_drawdown_pct": 47.817,
+        "ending_nav": 61670.62
+      },
+      "first_session_schedule": {
+        "return_pct": -41.408,
+        "max_daily_nav_drawdown_pct": 48.523,
+        "ending_nav": 58591.62
+      },
+      "dip_minus_fixed_pct_points": 3.079,
+      "dip_triggers": 6,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2022-01-07",
+          "dip_triggered": true,
+          "fixed_entry": "2022-01-03",
+          "exit": "2022-06-30",
+          "forward_20_session_stock_pct": -11.648
+        },
+        {
+          "month": 2,
+          "dip_entry": "2022-02-01",
+          "dip_triggered": true,
+          "fixed_entry": "2022-02-01",
+          "exit": "2022-06-30",
+          "forward_20_session_stock_pct": -5.515
+        },
+        {
+          "month": 3,
+          "dip_entry": "2022-03-07",
+          "dip_triggered": true,
+          "fixed_entry": "2022-03-01",
+          "exit": "2022-06-30",
+          "forward_20_session_stock_pct": 42.366
+        },
+        {
+          "month": 6,
+          "dip_entry": "2022-06-01",
+          "dip_triggered": true,
+          "fixed_entry": "2022-06-01",
+          "exit": "2022-12-30",
+          "forward_20_session_stock_pct": -9.043
+        },
+        {
+          "month": 7,
+          "dip_entry": "2022-07-01",
+          "dip_triggered": true,
+          "fixed_entry": "2022-07-01",
+          "exit": "2022-12-30",
+          "forward_20_session_stock_pct": 30.807
+        },
+        {
+          "month": 8,
+          "dip_entry": "2022-08-31",
+          "dip_triggered": true,
+          "fixed_entry": "2022-08-01",
+          "exit": "2022-12-30",
+          "forward_20_session_stock_pct": -2.685
+        }
+      ]
+    },
+    {
+      "year": 2023,
+      "windows": {
+        "april_to_june_pct": 34.4,
+        "late_august_to_december_pct": -3.72
+      },
+      "dip_schedule": {
+        "return_pct": 32.269,
+        "max_daily_nav_drawdown_pct": 14.84,
+        "ending_nav": 132269.28
+      },
+      "first_session_schedule": {
+        "return_pct": 36.408,
+        "max_daily_nav_drawdown_pct": 15.848,
+        "ending_nav": 136407.72
+      },
+      "dip_minus_fixed_pct_points": -4.139,
+      "dip_triggers": 5,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2023-01-03",
+          "dip_triggered": true,
+          "fixed_entry": "2023-01-03",
+          "exit": "2023-06-30",
+          "forward_20_session_stock_pct": 67.817
+        },
+        {
+          "month": 2,
+          "dip_entry": "2023-02-28",
+          "dip_triggered": false,
+          "fixed_entry": "2023-02-01",
+          "exit": "2023-06-30",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 3,
+          "dip_entry": "2023-03-03",
+          "dip_triggered": true,
+          "fixed_entry": "2023-03-01",
+          "exit": "2023-06-30",
+          "forward_20_session_stock_pct": 4.889
+        },
+        {
+          "month": 6,
+          "dip_entry": "2023-06-27",
+          "dip_triggered": true,
+          "fixed_entry": "2023-06-01",
+          "exit": "2023-12-29",
+          "forward_20_session_stock_pct": 5.651
+        },
+        {
+          "month": 7,
+          "dip_entry": "2023-07-21",
+          "dip_triggered": true,
+          "fixed_entry": "2023-07-03",
+          "exit": "2023-12-29",
+          "forward_20_session_stock_pct": -17.126
+        },
+        {
+          "month": 8,
+          "dip_entry": "2023-08-02",
+          "dip_triggered": true,
+          "fixed_entry": "2023-08-01",
+          "exit": "2023-12-29",
+          "forward_20_session_stock_pct": 1.098
+        }
+      ]
+    },
+    {
+      "year": 2024,
+      "windows": {
+        "april_to_june_pct": 12.932,
+        "late_august_to_december_pct": 88.613
+      },
+      "dip_schedule": {
+        "return_pct": 45.706,
+        "max_daily_nav_drawdown_pct": 13.97,
+        "ending_nav": 145705.86
+      },
+      "first_session_schedule": {
+        "return_pct": 48.154,
+        "max_daily_nav_drawdown_pct": 16.284,
+        "ending_nav": 148154.13
+      },
+      "dip_minus_fixed_pct_points": -2.448,
+      "dip_triggers": 5,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2024-01-10",
+          "dip_triggered": true,
+          "fixed_entry": "2024-01-02",
+          "exit": "2024-06-28",
+          "forward_20_session_stock_pct": -18.971
+        },
+        {
+          "month": 2,
+          "dip_entry": "2024-02-01",
+          "dip_triggered": true,
+          "fixed_entry": "2024-02-01",
+          "exit": "2024-06-28",
+          "forward_20_session_stock_pct": 7.296
+        },
+        {
+          "month": 3,
+          "dip_entry": "2024-03-06",
+          "dip_triggered": true,
+          "fixed_entry": "2024-03-01",
+          "exit": "2024-06-28",
+          "forward_20_session_stock_pct": -3.076
+        },
+        {
+          "month": 6,
+          "dip_entry": "2024-06-28",
+          "dip_triggered": false,
+          "fixed_entry": "2024-06-03",
+          "exit": "2024-12-31",
+          "forward_20_session_stock_pct": null
+        },
+        {
+          "month": 7,
+          "dip_entry": "2024-07-25",
+          "dip_triggered": true,
+          "fixed_entry": "2024-07-01",
+          "exit": "2024-12-31",
+          "forward_20_session_stock_pct": -4.354
+        },
+        {
+          "month": 8,
+          "dip_entry": "2024-08-01",
+          "dip_triggered": true,
+          "fixed_entry": "2024-08-01",
+          "exit": "2024-12-31",
+          "forward_20_session_stock_pct": -4.879
+        }
+      ]
+    },
+    {
+      "year": 2025,
+      "windows": {
+        "april_to_june_pct": 18.327,
+        "late_august_to_december_pct": 34.699
+      },
+      "dip_schedule": {
+        "return_pct": 17.531,
+        "max_daily_nav_drawdown_pct": 19.579,
+        "ending_nav": 117530.91
+      },
+      "first_session_schedule": {
+        "return_pct": 17.804,
+        "max_daily_nav_drawdown_pct": 19.374,
+        "ending_nav": 117804.14
+      },
+      "dip_minus_fixed_pct_points": -0.273,
+      "dip_triggers": 5,
+      "entries": [
+        {
+          "month": 1,
+          "dip_entry": "2025-01-02",
+          "dip_triggered": true,
+          "fixed_entry": "2025-01-02",
+          "exit": "2025-06-30",
+          "forward_20_session_stock_pct": 1.16
+        },
+        {
+          "month": 2,
+          "dip_entry": "2025-02-04",
+          "dip_triggered": true,
+          "fixed_entry": "2025-02-03",
+          "exit": "2025-06-30",
+          "forward_20_session_stock_pct": -28.839
+        },
+        {
+          "month": 3,
+          "dip_entry": "2025-03-03",
+          "dip_triggered": true,
+          "fixed_entry": "2025-03-03",
+          "exit": "2025-06-30",
+          "forward_20_session_stock_pct": -8.955
+        },
+        {
+          "month": 6,
+          "dip_entry": "2025-06-06",
+          "dip_triggered": true,
+          "fixed_entry": "2025-06-02",
+          "exit": "2025-12-31",
+          "forward_20_session_stock_pct": 0.905
+        },
+        {
+          "month": 7,
+          "dip_entry": "2025-07-02",
+          "dip_triggered": true,
+          "fixed_entry": "2025-07-01",
+          "exit": "2025-12-31",
+          "forward_20_session_stock_pct": -2.338
+        },
+        {
+          "month": 8,
+          "dip_entry": "2025-08-29",
+          "dip_triggered": false,
+          "fixed_entry": "2025-08-01",
+          "exit": "2025-12-31",
+          "forward_20_session_stock_pct": null
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "april_to_june": {
+      "observations": 11,
+      "positive_observations": 8,
+      "mean_pct": 20.117,
+      "median_pct": 18.327,
+      "min_pct": -37.91,
+      "max_pct": 124.232
+    },
+    "late_august_to_december": {
+      "observations": 11,
+      "positive_observations": 7,
+      "mean_pct": 20.902,
+      "median_pct": 10.323,
+      "min_pct": -55.306,
+      "max_pct": 88.613
+    },
+    "dip_schedule": {
+      "observations": 11,
+      "positive_observations": 10,
+      "mean_pct": 23.716,
+      "median_pct": 19.408,
+      "min_pct": -38.329,
+      "max_pct": 107.941
+    },
+    "first_session_schedule": {
+      "observations": 11,
+      "positive_observations": 10,
+      "mean_pct": 27.796,
+      "median_pct": 22.138,
+      "min_pct": -41.408,
+      "max_pct": 146.456
+    },
+    "dip_minus_fixed": {
+      "observations": 11,
+      "positive_observations": 4,
+      "mean_pct": -4.08,
+      "median_pct": -0.71,
+      "min_pct": -38.515,
+      "max_pct": 3.079
+    },
+    "trigger_forward_20_sessions": {
+      "observations": 49,
+      "positive_observations": 22,
+      "mean_pct": 1.948,
+      "median_pct": -2.338,
+      "min_pct": -32.475,
+      "max_pct": 67.817
+    }
+  },
+  "limitations": [
+    "Split-adjusted TSLA stock closes, not historical option quotes",
+    "No LEAPS premium, implied volatility, put payoff, short call or assignment modeled",
+    "The seasonal rule was specified after viewing the broad TSLA history; no untouched holdout",
+    "Five basis points per side is a stock-proxy cost assumption, not option execution cost"
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "study": "same_snapshot_diagnostics_not_backtest",
+  "candidates": [
+    {
+      "symbol": "SPY",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-09-22",
+      "forecast_vol": 0.11735499239399765,
+      "strategy": "無建議（研究風控）",
+      "reason": "扣除費用後模型期望收益不足；保留現金，不強制交易。",
+      "detail_lines": [
+        "扣除費用後模型期望收益不足；保留現金，不強制交易。"
+      ],
+      "screen_passed": false
+    },
+    {
+      "symbol": "SPY",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-09-29",
+      "forecast_vol": 0.11735499239399765,
+      "strategy": "無建議（研究風控）",
+      "reason": "扣除費用後模型期望收益不足；保留現金，不強制交易。",
+      "detail_lines": [
+        "扣除費用後模型期望收益不足；保留現金，不強制交易。"
+      ],
+      "screen_passed": false
+    },
+    {
+      "symbol": "SPY",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-10-06",
+      "forecast_vol": 0.11735499239399765,
+      "strategy": "無建議（研究風控）",
+      "reason": "扣除費用後模型期望收益不足；保留現金，不強制交易。",
+      "detail_lines": [
+        "扣除費用後模型期望收益不足；保留現金，不強制交易。"
+      ],
+      "screen_passed": false
+    },
+    {
+      "symbol": "TSLA",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-09-22",
+      "forecast_vol": 0.4879128461573741,
+      "strategy": "無建議（研究風控）",
+      "reason": "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。",
+      "detail_lines": [
+        "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。"
+      ],
+      "screen_passed": false
+    },
+    {
+      "symbol": "TSLA",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-09-29",
+      "forecast_vol": 0.4879128461573741,
+      "strategy": "無建議（研究風控）",
+      "reason": "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。",
+      "detail_lines": [
+        "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。"
+      ],
+      "screen_passed": false
+    },
+    {
+      "symbol": "TSLA",
+      "observed_at": "2023-08-25T15:45:00-04:00",
+      "expiry": "2023-10-06",
+      "forecast_vol": 0.4879128461573741,
+      "strategy": "無建議（研究風控）",
+      "reason": "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。",
+      "detail_lines": [
+        "Delta 選腿位於支撐壓力保護範圍內側，跳過交易。"
+      ],
+      "screen_passed": false
+    }
+  ],
+  "performance_validation_ready": false
+}

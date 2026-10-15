@@ -1,0 +1,40 @@
+{
+  "counts": {
+    "input_rows": 11868,
+    "accepted_rows": 11868
+  },
+  "rejections": {},
+  "frames": 6,
+  "symbols": [
+    "SPY",
+    "TSLA"
+  ],
+  "quote_dates": [
+    "2023-08-25"
+  ],
+  "source_sessions": [
+    [
+      "SPY",
+      "2023-08-25"
+    ],
+    [
+      "TSLA",
+      "2023-08-25"
+    ]
+  ],
+  "source_files": [
+    {
+      "path": "/tmp/smart-money-cboe-eod-sample.zip",
+      "sha256": "981be1aafe6970e798d5be42f049e6c5b6e507f01cb1509ab513e9bc2e08da24",
+      "member": "UnderlyingOptionsEODCalcs_2023-08-25_cgi_or_historical.csv"
+    }
+  ],
+  "mark_rows": 11868,
+  "forecasts_attached": 6,
+  "performance_validation_ready": false,
+  "limitations": [
+    "Standard stock/ETF option classes only",
+    "A symbol/trading day's complete chain must be in one source file",
+    "Full daily marks and reviewed as-traded expiry closes are required for performance"
+  ]
+}

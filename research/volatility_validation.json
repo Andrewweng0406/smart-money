@@ -1,0 +1,655 @@
+{
+  "as_of": "2026-10-13T06:00:00+00:00",
+  "symbols": {
+    "TSLA": {
+      "data": {
+        "provider": "Yahoo Finance via yfinance",
+        "downloaded_at": "2026-10-13T05:47:39.847634+00:00",
+        "as_of": "2026-10-13T06:00:00+00:00",
+        "start": "2015-01-01",
+        "end_exclusive": "2026-10-13",
+        "sha256": "54098b3ab64a09241fe13fe398fda0ecb640cf023bf1921c8c7e4344f47682f8",
+        "audit": {
+          "symbol": "TSLA",
+          "rows": 2961,
+          "first": "2015-01-02",
+          "last": "2026-10-12",
+          "missing_sessions": [],
+          "split_events": 2,
+          "status": "usable",
+          "price_semantics": "Yahoo Close is split-adjusted; Adj Close also adjusts distributions",
+          "contract_settlement_ready": false
+        }
+      },
+      "validation": {
+        "status": "evaluated",
+        "horizon_sessions": 21,
+        "folds": [
+          {
+            "start": "2020-01-01",
+            "end_exclusive": "2022-01-01",
+            "status": "evaluated",
+            "train_count": 57,
+            "holdout_count": 24,
+            "selected_on_training": "rv60",
+            "training_scales": {
+              "rv20": 1.0131965569491415,
+              "rv60": 1.0334571204064495,
+              "ewma94": 1.0164091600084229
+            },
+            "training_qlike": {
+              "rv20": 0.24765825606946923,
+              "rv60": 0.1992057671260274,
+              "ewma94": 0.23212917742954006
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.47076217984619584,
+                "volatility_mae": 0.23676681796972332,
+                "realized_to_forecast_variance_ratio": 1.006430240103837
+              },
+              "rv60": {
+                "qlike": 0.3945960220918386,
+                "volatility_mae": 0.265490355402642,
+                "realized_to_forecast_variance_ratio": 1.0063032410169725
+              },
+              "ewma94": {
+                "qlike": 0.33458685369438146,
+                "volatility_mae": 0.19442244414514234,
+                "realized_to_forecast_variance_ratio": 1.039586685707931
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.47756830684401197,
+            "selected_holdout_qlike": 0.3945960220918386,
+            "improvement_vs_raw_rv20": 0.0829722847521734
+          },
+          {
+            "start": "2022-01-01",
+            "end_exclusive": "2024-01-01",
+            "status": "evaluated",
+            "train_count": 81,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 1.028100439252889,
+              "rv60": 1.0388212402001824,
+              "ewma94": 1.0570386052605307
+            },
+            "training_qlike": {
+              "rv20": 0.2820499833216344,
+              "rv60": 0.280136331772926,
+              "ewma94": 0.24498134260104917
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.10896481496227849,
+                "volatility_mae": 0.11413655559072063,
+                "realized_to_forecast_variance_ratio": 0.933390826016431
+              },
+              "rv60": {
+                "qlike": 0.11413664893016633,
+                "volatility_mae": 0.12504733987622413,
+                "realized_to_forecast_variance_ratio": 0.9025903375051662
+              },
+              "ewma94": {
+                "qlike": 0.10317636204127625,
+                "volatility_mae": 0.1260912487562609,
+                "realized_to_forecast_variance_ratio": 0.8668616708279142
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.11033140841157082,
+            "selected_holdout_qlike": 0.10317636204127625,
+            "improvement_vs_raw_rv20": 0.007155046370294544
+          },
+          {
+            "start": "2024-01-01",
+            "end_exclusive": "2026-01-01",
+            "status": "evaluated",
+            "train_count": 104,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 1.0185692765118703,
+              "rv60": 1.0215471759881085,
+              "ewma94": 1.029909500189112
+            },
+            "training_qlike": {
+              "rv20": 0.24091355149058039,
+              "rv60": 0.24700490723993485,
+              "ewma94": 0.21628745282321565
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.2507844974540443,
+                "volatility_mae": 0.17066304271760457,
+                "realized_to_forecast_variance_ratio": 0.9741937791315367
+              },
+              "rv60": {
+                "qlike": 0.15064094792681587,
+                "volatility_mae": 0.14100468907276373,
+                "realized_to_forecast_variance_ratio": 1.0094307369347195
+              },
+              "ewma94": {
+                "qlike": 0.19659484190112722,
+                "volatility_mae": 0.15187612704974823,
+                "realized_to_forecast_variance_ratio": 0.9619604069487216
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.255744289127755,
+            "selected_holdout_qlike": 0.19659484190112722,
+            "improvement_vs_raw_rv20": 0.0591494472266277
+          },
+          {
+            "start": "2026-01-01",
+            "end_exclusive": "2026-10-13",
+            "status": "evaluated",
+            "train_count": 128,
+            "holdout_count": 9,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 1.017460129778588,
+              "rv60": 1.0220503421333056,
+              "ewma94": 1.0239164067608997
+            },
+            "training_qlike": {
+              "rv20": 0.24157870906674273,
+              "rv60": 0.23055812712638996,
+              "ewma94": 0.21479840565213562
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.12501084922057365,
+                "volatility_mae": 0.0866312695482591,
+                "realized_to_forecast_variance_ratio": 0.9978379904764973
+              },
+              "rv60": {
+                "qlike": 0.14561322878027994,
+                "volatility_mae": 0.10781073337619304,
+                "realized_to_forecast_variance_ratio": 1.0050419903982328
+              },
+              "ewma94": {
+                "qlike": 0.15742984723687647,
+                "volatility_mae": 0.0999990105173789,
+                "realized_to_forecast_variance_ratio": 0.9549641591983842
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.1273585818420379,
+            "selected_holdout_qlike": 0.15742984723687647,
+            "improvement_vs_raw_rv20": -0.030071265394838557
+          }
+        ],
+        "nonoverlapping_holdout_count": 79,
+        "mean_qlike_improvement_vs_raw_rv20": 0.04108476959782057,
+        "paired_block_bootstrap_95pct_interval": [
+          -0.007666470522328161,
+          0.0952593060150651
+        ],
+        "consistent_positive_improvement": false,
+        "live_approved": false,
+        "limitations": [
+          "Forecast accuracy study, not option strategy returns",
+          "Revised adjusted daily closes are not a tick-level point-in-time archive",
+          "21-session variance is a proxy for the 25-45 calendar-day trade horizon",
+          "Fold candidates are reported for diagnostics, not post-hoc holdout selection",
+          "Intraday variance, skew, jumps and event forecasts are not modeled"
+        ]
+      }
+    },
+    "SOXL": {
+      "data": {
+        "provider": "Yahoo Finance via yfinance",
+        "downloaded_at": "2026-10-13T05:47:40.433404+00:00",
+        "as_of": "2026-10-13T06:00:00+00:00",
+        "start": "2015-01-01",
+        "end_exclusive": "2026-10-13",
+        "sha256": "a82103ab7ddbbd64493435ff27163258a123433e294ffb264da0313d5a671ba1",
+        "audit": {
+          "symbol": "SOXL",
+          "rows": 2961,
+          "first": "2015-01-02",
+          "last": "2026-10-12",
+          "missing_sessions": [],
+          "split_events": 2,
+          "status": "usable",
+          "price_semantics": "Yahoo Close is split-adjusted; Adj Close also adjusts distributions",
+          "contract_settlement_ready": false
+        }
+      },
+      "validation": {
+        "status": "evaluated",
+        "horizon_sessions": 21,
+        "folds": [
+          {
+            "start": "2020-01-01",
+            "end_exclusive": "2022-01-01",
+            "status": "evaluated",
+            "train_count": 57,
+            "holdout_count": 24,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9924684349940494,
+              "rv60": 0.9967345680600018,
+              "ewma94": 0.9840329206254731
+            },
+            "training_qlike": {
+              "rv20": 0.2746228397739409,
+              "rv60": 0.2582690939800034,
+              "ewma94": 0.23603981830523887
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.48462718148792217,
+                "volatility_mae": 0.41426615423438884,
+                "realized_to_forecast_variance_ratio": 1.0128679461586796
+              },
+              "rv60": {
+                "qlike": 0.696980464595712,
+                "volatility_mae": 0.45927084772179044,
+                "realized_to_forecast_variance_ratio": 1.0384449419987938
+              },
+              "ewma94": {
+                "qlike": 0.40997770610818135,
+                "volatility_mae": 0.3761328818415814,
+                "realized_to_forecast_variance_ratio": 1.0947952061577262
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.4805093693390736,
+            "selected_holdout_qlike": 0.40997770610818135,
+            "improvement_vs_raw_rv20": 0.0705316632308923
+          },
+          {
+            "start": "2022-01-01",
+            "end_exclusive": "2024-01-01",
+            "status": "evaluated",
+            "train_count": 81,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 1.002608839440918,
+              "rv60": 1.0136962244055263,
+              "ewma94": 1.0247309132117575
+            },
+            "training_qlike": {
+              "rv20": 0.33506603218524034,
+              "rv60": 0.3935439943518871,
+              "ewma94": 0.28807289941079295
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.14970539591078985,
+                "volatility_mae": 0.21299530902140812,
+                "realized_to_forecast_variance_ratio": 0.9864207488873504
+              },
+              "rv60": {
+                "qlike": 0.10915669872045644,
+                "volatility_mae": 0.1898408562059763,
+                "realized_to_forecast_variance_ratio": 0.9722291070095868
+              },
+              "ewma94": {
+                "qlike": 0.10628072094239865,
+                "volatility_mae": 0.1779083954881433,
+                "realized_to_forecast_variance_ratio": 0.9911091869253683
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.15001120508568228,
+            "selected_holdout_qlike": 0.10628072094239865,
+            "improvement_vs_raw_rv20": 0.04373048414328361
+          },
+          {
+            "start": "2024-01-01",
+            "end_exclusive": "2026-01-01",
+            "status": "evaluated",
+            "train_count": 104,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9882850129777887,
+              "rv60": 1.0002943271210898,
+              "ewma94": 1.009424461214089
+            },
+            "training_qlike": {
+              "rv20": 0.2987192492585272,
+              "rv60": 0.3343991352253807,
+              "ewma94": 0.2518773675168644
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.32883340815324297,
+                "volatility_mae": 0.30541103996960284,
+                "realized_to_forecast_variance_ratio": 1.0078410475663064
+              },
+              "rv60": {
+                "qlike": 0.3800825304712209,
+                "volatility_mae": 0.3652097822420155,
+                "realized_to_forecast_variance_ratio": 1.0560317562583963
+              },
+              "ewma94": {
+                "qlike": 0.33224803653135937,
+                "volatility_mae": 0.29774166442191363,
+                "realized_to_forecast_variance_ratio": 0.9754515077864881
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.3248031796543843,
+            "selected_holdout_qlike": 0.33224803653135937,
+            "improvement_vs_raw_rv20": -0.007444856876975033
+          },
+          {
+            "start": "2026-01-01",
+            "end_exclusive": "2026-10-13",
+            "status": "evaluated",
+            "train_count": 128,
+            "holdout_count": 9,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.995148751274584,
+              "rv60": 1.0203033220616426,
+              "ewma94": 1.0122712360065793
+            },
+            "training_qlike": {
+              "rv20": 0.30978670260883007,
+              "rv60": 0.3319299204076497,
+              "ewma94": 0.2634377668291276
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.2347074252448818,
+                "volatility_mae": 0.37647960469834985,
+                "realized_to_forecast_variance_ratio": 1.1215414754378628
+              },
+              "rv60": {
+                "qlike": 0.3097064040455863,
+                "volatility_mae": 0.4373111227053816,
+                "realized_to_forecast_variance_ratio": 1.0446207717928795
+              },
+              "ewma94": {
+                "qlike": 0.25112673638211114,
+                "volatility_mae": 0.39006682417660143,
+                "realized_to_forecast_variance_ratio": 1.030284612638691
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.2331345923209154,
+            "selected_holdout_qlike": 0.25112673638211114,
+            "improvement_vs_raw_rv20": -0.01799214406119572
+          }
+        ],
+        "nonoverlapping_holdout_count": 79,
+        "mean_qlike_improvement_vs_raw_rv20": 0.029941772760958864,
+        "paired_block_bootstrap_95pct_interval": [
+          -0.007016400570299581,
+          0.06880788319019181
+        ],
+        "consistent_positive_improvement": false,
+        "live_approved": false,
+        "limitations": [
+          "Forecast accuracy study, not option strategy returns",
+          "Revised adjusted daily closes are not a tick-level point-in-time archive",
+          "21-session variance is a proxy for the 25-45 calendar-day trade horizon",
+          "Fold candidates are reported for diagnostics, not post-hoc holdout selection",
+          "Intraday variance, skew, jumps and event forecasts are not modeled"
+        ]
+      }
+    },
+    "SPCX": {
+      "data": {
+        "provider": "Yahoo Finance via yfinance",
+        "downloaded_at": "2026-10-13T05:47:40.844287+00:00",
+        "as_of": "2026-10-13T06:00:00+00:00",
+        "start": "2015-01-01",
+        "end_exclusive": "2026-10-13",
+        "sha256": "641c58f59a2d0c9333c719cc97dd282f467612fa0cf985fba9f1fee6fb9104b0",
+        "audit": {
+          "symbol": "SPCX",
+          "rows": 84,
+          "first": "2026-06-12",
+          "last": "2026-10-12",
+          "missing_sessions": [],
+          "split_events": 0,
+          "status": "usable",
+          "price_semantics": "Yahoo Close is split-adjusted; Adj Close also adjusts distributions",
+          "contract_settlement_ready": false
+        }
+      },
+      "validation": {
+        "status": "insufficient_samples",
+        "horizon_sessions": 21,
+        "folds": [
+          {
+            "start": "2020-01-01",
+            "end_exclusive": "2022-01-01",
+            "status": "insufficient_samples",
+            "train_count": 0,
+            "holdout_count": 0
+          },
+          {
+            "start": "2022-01-01",
+            "end_exclusive": "2024-01-01",
+            "status": "insufficient_samples",
+            "train_count": 0,
+            "holdout_count": 0
+          },
+          {
+            "start": "2024-01-01",
+            "end_exclusive": "2026-01-01",
+            "status": "insufficient_samples",
+            "train_count": 0,
+            "holdout_count": 0
+          },
+          {
+            "start": "2026-01-01",
+            "end_exclusive": "2026-10-13",
+            "status": "insufficient_samples",
+            "train_count": 0,
+            "holdout_count": 1
+          }
+        ],
+        "nonoverlapping_holdout_count": 0,
+        "mean_qlike_improvement_vs_raw_rv20": null,
+        "paired_block_bootstrap_95pct_interval": null,
+        "consistent_positive_improvement": false,
+        "live_approved": false,
+        "limitations": [
+          "Forecast accuracy study, not option strategy returns",
+          "Revised adjusted daily closes are not a tick-level point-in-time archive",
+          "21-session variance is a proxy for the 25-45 calendar-day trade horizon",
+          "Fold candidates are reported for diagnostics, not post-hoc holdout selection",
+          "Intraday variance, skew, jumps and event forecasts are not modeled"
+        ]
+      }
+    },
+    "SPY": {
+      "data": {
+        "provider": "Yahoo Finance via yfinance",
+        "downloaded_at": "2026-10-13T05:47:41.524697+00:00",
+        "as_of": "2026-10-13T06:00:00+00:00",
+        "start": "2015-01-01",
+        "end_exclusive": "2026-10-13",
+        "sha256": "6e1c4780acd11a94d71a77b5d172d081636c57d714ffd6471cf66b4d59b8d50a",
+        "audit": {
+          "symbol": "SPY",
+          "rows": 2961,
+          "first": "2015-01-02",
+          "last": "2026-10-12",
+          "missing_sessions": [],
+          "split_events": 0,
+          "status": "usable",
+          "price_semantics": "Yahoo Close is split-adjusted; Adj Close also adjusts distributions",
+          "contract_settlement_ready": false
+        }
+      },
+      "validation": {
+        "status": "evaluated",
+        "horizon_sessions": 21,
+        "folds": [
+          {
+            "start": "2020-01-01",
+            "end_exclusive": "2022-01-01",
+            "status": "evaluated",
+            "train_count": 57,
+            "holdout_count": 24,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9723140117329704,
+              "rv60": 0.977437516459903,
+              "ewma94": 0.9618275324492856
+            },
+            "training_qlike": {
+              "rv20": 0.7998749036030292,
+              "rv60": 0.6201935514993913,
+              "ewma94": 0.6177284307434284
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.8751503181526653,
+                "volatility_mae": 0.10533400816077587,
+                "realized_to_forecast_variance_ratio": 1.0195778082772118
+              },
+              "rv60": {
+                "qlike": 1.2944234254826015,
+                "volatility_mae": 0.10641381163147452,
+                "realized_to_forecast_variance_ratio": 1.046875621612021
+              },
+              "ewma94": {
+                "qlike": 0.6850267377089283,
+                "volatility_mae": 0.0939474018582817,
+                "realized_to_forecast_variance_ratio": 1.1382238941566258
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.8487072874927652,
+            "selected_holdout_qlike": 0.6850267377089283,
+            "improvement_vs_raw_rv20": 0.16368054978383695
+          },
+          {
+            "start": "2022-01-01",
+            "end_exclusive": "2024-01-01",
+            "status": "evaluated",
+            "train_count": 81,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9874659431252659,
+              "rv60": 0.997969954761464,
+              "ewma94": 1.0271810688461316
+            },
+            "training_qlike": {
+              "rv20": 0.8145669132500917,
+              "rv60": 0.8235570219616233,
+              "ewma94": 0.6061297978217259
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.07833374571028053,
+                "volatility_mae": 0.02992515986489181,
+                "realized_to_forecast_variance_ratio": 1.0016868649292794
+              },
+              "rv60": {
+                "qlike": 0.11445974312763087,
+                "volatility_mae": 0.0406321769824743,
+                "realized_to_forecast_variance_ratio": 0.9893903844870626
+              },
+              "ewma94": {
+                "qlike": 0.07997576876352498,
+                "volatility_mae": 0.030904875444288948,
+                "realized_to_forecast_variance_ratio": 0.9680097650949308
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.07780882575937507,
+            "selected_holdout_qlike": 0.07997576876352498,
+            "improvement_vs_raw_rv20": -0.0021669430041499132
+          },
+          {
+            "start": "2024-01-01",
+            "end_exclusive": "2026-01-01",
+            "status": "evaluated",
+            "train_count": 104,
+            "holdout_count": 23,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9810156717971231,
+              "rv60": 0.9947328133848019,
+              "ewma94": 1.0148294166948173
+            },
+            "training_qlike": {
+              "rv20": 0.654763554261452,
+              "rv60": 0.6687917015175879,
+              "ewma94": 0.490898068474398
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.44467763508761154,
+                "volatility_mae": 0.04819682965517091,
+                "realized_to_forecast_variance_ratio": 1.0236112620908298
+              },
+              "rv60": {
+                "qlike": 0.4379854173305993,
+                "volatility_mae": 0.06275514230834311,
+                "realized_to_forecast_variance_ratio": 1.0763302991434267
+              },
+              "ewma94": {
+                "qlike": 0.3691026117198714,
+                "volatility_mae": 0.049773999582067976,
+                "realized_to_forecast_variance_ratio": 1.0373582516206579
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.43528810637151844,
+            "selected_holdout_qlike": 0.3691026117198714,
+            "improvement_vs_raw_rv20": 0.06618549465164698
+          },
+          {
+            "start": "2026-01-01",
+            "end_exclusive": "2026-10-13",
+            "status": "evaluated",
+            "train_count": 128,
+            "holdout_count": 9,
+            "selected_on_training": "ewma94",
+            "training_scales": {
+              "rv20": 0.9837730711591457,
+              "rv60": 1.0071396322578414,
+              "ewma94": 1.0210913860848954
+            },
+            "training_qlike": {
+              "rv20": 0.6377376702283448,
+              "rv60": 0.6161008902975945,
+              "ewma94": 0.47385055030065015
+            },
+            "candidate_holdout": {
+              "rv20": {
+                "qlike": 0.32409898550672256,
+                "volatility_mae": 0.03979430338437172,
+                "realized_to_forecast_variance_ratio": 1.0838480439174298
+              },
+              "rv60": {
+                "qlike": 0.19540607400479185,
+                "volatility_mae": 0.03268456933106899,
+                "realized_to_forecast_variance_ratio": 0.9716323752061475
+              },
+              "ewma94": {
+                "qlike": 0.24979234677078999,
+                "volatility_mae": 0.03603414738663015,
+                "realized_to_forecast_variance_ratio": 1.0180062349749794
+              }
+            },
+            "raw_rv20_holdout_qlike": 0.31757320426370356,
+            "selected_holdout_qlike": 0.24979234677078999,
+            "improvement_vs_raw_rv20": 0.06778085749291357
+          }
+        ],
+        "nonoverlapping_holdout_count": 79,
+        "mean_qlike_improvement_vs_raw_rv20": 0.0760859189891233,
+        "paired_block_bootstrap_95pct_interval": [
+          0.023583395512629987,
+          0.13958329273257344
+        ],
+        "consistent_positive_improvement": true,
+        "live_approved": false,
+        "limitations": [
+          "Forecast accuracy study, not option strategy returns",
+          "Revised adjusted daily closes are not a tick-level point-in-time archive",
+          "21-session variance is a proxy for the 25-45 calendar-day trade horizon",
+          "Fold candidates are reported for diagnostics, not post-hoc holdout selection",
+          "Intraday variance, skew, jumps and event forecasts are not modeled"
+        ]
+      }
+    }
+  },
+  "study": "volatility_forecast_validation_not_option_returns"
+}

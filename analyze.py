@@ -369,8 +369,16 @@ def compute_strategy_recommendation(symbol: str, result: AnalysisResult) -> opti
             return None
 
         tte = data_fetcher.time_to_expiry_years(strategy_expiry)
+        import options_research
+        try:
+            options_research.capture_chain(symbol, result, strategy_expiry, strategy_legs)
+        except Exception as exc:
+            logger.warning("%s 研究期權鏈保存失敗：%s", symbol, exc)
         strategy = options_strategy_engine.select_strategy(
             strategy_legs, result.spot, tte, result.put_wall, result.call_wall, result.alert,
+            total_net_gex=result.zero_dte_summary.get("total_net_gex"),
+            data_usable=all(q is not None and q.get("usable", False)
+                            for q in (result.data_quality, result.oi_data_quality)),
         )
         strategy.expiry_date = strategy_expiry  # select_strategy()只知道年化到期時間，這裡補上實際日期給追蹤記分板用
         return strategy
