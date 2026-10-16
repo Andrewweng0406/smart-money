@@ -1,0 +1,42 @@
+name: Dashboard data freshness
+
+on:
+  schedule:
+    - cron: "23 3 * * 2-6"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "pandas-market-calendars>=5.1.0,<6"
+      - name: Check public data and manage alert
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          python scripts/check_dashboard_freshness.py > dashboard-health.txt 2>&1
+          result=$?
+          set -e
+          cat dashboard-health.txt
+          title="[dashboard] Data freshness alert"
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
+          if [ "$result" -ne 0 ]; then
+            if [ -z "$issue" ]; then
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --assignee "$GITHUB_REPOSITORY_OWNER" --body-file dashboard-health.txt
+            else
+              gh issue edit "$issue" --repo "$GITHUB_REPOSITORY" --body-file dashboard-health.txt
+            fi
+            exit 1
+          fi
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "Public dashboard observations recovered."
+          fi
