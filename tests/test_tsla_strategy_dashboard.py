@@ -35,9 +35,12 @@ def test_group_overview_has_no_browser_local_portfolio_controls():
     script = (ROOT / "tsla_strategy/app.js").read_text(encoding="utf-8")
     assert 'id="decision-grid"' in html
     assert 'id="provenance-grid"' in html
+    assert 'id="matrix-body"' in html
+    assert 'id="matrix-verdict"' in html
     assert 'id="add-position"' not in html
     assert 'id="edit-goals"' not in html
     assert "localStorage" not in script
+    assert "renderStrategyMatrix" in script
 
 
 def test_public_data_ledger_keeps_source_dates_and_update_log():
@@ -46,7 +49,7 @@ def test_public_data_ledger_keeps_source_dates_and_update_log():
     assert data["price_source"]["history_downloaded_at"] == "2026-10-13T05:47:39.847634+00:00"
     assert data["price_source"]["provider"] == "Nasdaq historical quotes"
     assert data["price_source"]["url"].startswith("https://")
-    assert data["site_updates"][0]["date"] == "2026-10-15"
+    assert data["site_updates"][0]["date"] == "2026-10-16"
     assert len(data["site_updates"]) >= 2
     assert 'id="source-ledger-grid"' in html
     assert 'id="update-history-list"' in html
@@ -67,6 +70,17 @@ def test_capital_sensitivity_keeps_partial_windows_separate():
     assert set(data["cases"]) == {
         "2019_dip_10", "2019_month_first", "2023_dip_10", "2023_month_first"
     }
+
+
+def test_complete_sample_matrix_readout_matches_case_results():
+    cases = MODULE.build()["cases"].values()
+    assert sum(row["variants"]["pmcc"]["account_return_pct"] >
+               row["variants"]["long_call"]["account_return_pct"] for row in cases) == 4
+    assert sum(row["variants"]["pmcc_premium_put"]["account_return_pct"] >
+               row["variants"]["pmcc"]["account_return_pct"] for row in cases) == 0
+    assert sum(row["variants"]["pmcc_premium_put"]["max_daily_nav_drawdown_pct"] <
+               row["variants"]["pmcc"]["max_daily_nav_drawdown_pct"] for row in cases) == 0
+    assert sum(row["counts"].get("pmcc_premium_put_put_entries", 0) for row in cases) == 30
 
 
 def test_financial_scenarios_use_h1_anchor_once():
