@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "23 3 * * 2-6"
   workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Test the alert lifecycle without changing the data API"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -22,10 +27,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set +e
-          python scripts/check_dashboard_freshness.py > dashboard-health.txt 2>&1
-          result=$?
-          set -e
+          if [ "${{ inputs.simulate_failure }}" = "true" ]; then
+            printf 'FAIL: Manual alert lifecycle test. Public data was not changed.\n' > dashboard-health.txt
+            result=1
+          else
+            set +e
+            python scripts/check_dashboard_freshness.py > dashboard-health.txt 2>&1
+            result=$?
+            set -e
+          fi
           cat dashboard-health.txt
           title="[dashboard] Data freshness alert"
           issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 1000 --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -1)
