@@ -101,6 +101,13 @@ def test_invalid_put_target_is_rejected(tmp_path):
         replay_year(tmp_path, {}, 2023, put_target_ratio=.85)
 
 
+def test_invalid_put_exit_rules_are_rejected(tmp_path):
+    with pytest.raises(ValueError, match="Invalid put hold sessions"):
+        replay_year(tmp_path, {}, 2023, put_hold_sessions=0)
+    with pytest.raises(ValueError, match="Invalid put take profit percent"):
+        replay_year(tmp_path, {}, 2023, put_take_profit_pct=0)
+
+
 def test_put_risk_signals_use_observed_high_and_low():
     assert put_risk_signal(94, 100, 90, "drawdown5")
     assert not put_risk_signal(94, 100, 90, "break20_low")

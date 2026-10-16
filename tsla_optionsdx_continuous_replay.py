@@ -50,6 +50,64 @@ def premium_can_fund_put(balance, debit):
     return balance + 1e-8 >= debit
 
 
+def put_liquidation_proceeds(ledger, put_quote):
+    if put_quote.bid <= ledger.slippage_per_share:
+        return 0.
+    return ledger.put_quantity * ((put_quote.bid - ledger.slippage_per_share) * 100
+                                  - ledger.fee_per_contract)
+
+
+def start_put_trade(state, row, day, session_index, spot, signal_spot):
+    state["put_trade"] = {
+        "entry_date": day.isoformat(), "entry_session_index": session_index,
+        "expiry": row["expiration"].isoformat(), "strike": row["strike"],
+        "entry_spot": spot, "signal_spot": signal_spot,
+        "debit": state["put_debit"], "min_spot": spot,
+        "max_mark_proceeds": 0., "max_mark_date": day.isoformat(),
+    }
+
+
+def update_put_trade(state, ledger, put_quote, day, spot):
+    trade = state.get("put_trade")
+    if trade is None:
+        return
+    proceeds = put_liquidation_proceeds(ledger, put_quote)
+    trade["min_spot"] = min(trade["min_spot"], spot)
+    if proceeds > trade["max_mark_proceeds"]:
+        trade["max_mark_proceeds"] = proceeds
+        trade["max_mark_date"] = day.isoformat()
+
+
+def finish_put_trade(state, name, slot, day, session_index, spot, proceeds, reason):
+    trade = state.get("put_trade")
+    if trade is None:
+        return {"date": day.isoformat(), "action": "put_close", "variant": name,
+                "slot": slot, "realized_pnl": round(proceeds - state["put_debit"], 2),
+                "exit_reason": reason}
+    debit = trade["debit"]
+    pnl = proceeds - debit
+    max_pnl = trade["max_mark_proceeds"] - debit
+    event = {
+        "date": day.isoformat(), "action": "put_close", "variant": name, "slot": slot,
+        "entry_date": trade["entry_date"], "expiry": trade["expiry"],
+        "strike": trade["strike"], "signal_spot": round(trade["signal_spot"], 4),
+        "entry_spot": round(trade["entry_spot"], 4), "exit_spot": round(spot, 4),
+        "min_spot": round(trade["min_spot"], 4), "debit": round(debit, 2),
+        "proceeds": round(proceeds, 2), "realized_pnl": round(pnl, 2),
+        "return_pct": round(100 * pnl / debit, 3),
+        "hold_sessions": session_index - trade["entry_session_index"],
+        "max_mark_proceeds": round(trade["max_mark_proceeds"], 2),
+        "max_unrealized_pnl": round(max_pnl, 2),
+        "max_return_pct": round(100 * max_pnl / debit, 3),
+        "max_mark_date": trade["max_mark_date"],
+        "underlying_return_pct": round(100 * (spot / trade["entry_spot"] - 1), 3),
+        "max_underlying_drawdown_pct": round(100 * (trade["min_spot"] / trade["entry_spot"] - 1), 3),
+        "exit_reason": reason,
+    }
+    state["put_trade"] = None
+    return event
+
+
 def short_buyback_cost(ledger, row):
     ask = row["ask"] if isinstance(row, dict) else row.ask
     return ledger.quantity * ((ask + ledger.slippage_per_share) * 100
@@ -99,7 +157,8 @@ def roll_long(ledger, book, spot, day, at):
 def replay_year(directory, audit, year, entry_policy="month_first", put_policy="term",
                 funding_policy="none", put_target_ratio=.95,
                 risk_signal_policy="break20_low", funding_scope="slot", window=None,
-                entry_months=ENTRY_MONTHS, reserve_pct=0.):
+                entry_months=ENTRY_MONTHS, reserve_pct=0., put_hold_sessions=None,
+                put_take_profit_pct=None):
     if put_policy not in ("term", "weekly"):
         raise ValueError(f"Unknown put policy: {put_policy}")
     if funding_policy not in ("none", "gross", "realized"):
@@ -116,6 +175,12 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
         raise ValueError(f"Invalid entry months: {entry_months}")
     if not 0 <= reserve_pct < 1:
         raise ValueError(f"Invalid reserve percent: {reserve_pct}")
+    if put_hold_sessions is None:
+        put_hold_sessions = 4 if put_policy == "weekly" else 20
+    if put_hold_sessions < 1:
+        raise ValueError(f"Invalid put hold sessions: {put_hold_sessions}")
+    if put_take_profit_pct is not None and put_take_profit_pct <= 0:
+        raise ValueError(f"Invalid put take profit percent: {put_take_profit_pct}")
     slot_capital = CAPITAL / len(entry_months)
     reserve = slot_capital * reserve_pct
     status = audit["years"].get(str(year))
@@ -167,6 +232,7 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                 portfolios[name][index] = {"ledger": open_long(row, at, slot_capital),
                                            "short_index": None, "put_index": None,
                                            "put_debit": 0., "put_profit_available": 0.,
+                                           "put_trade": None,
                                            "extra": None, "short_credit": 0.,
                                            "funding_balance": 0., "funding_min": 0.,
                                            "short_credits": 0., "short_buybacks": 0.,
@@ -182,6 +248,9 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                     continue
                 ledger = state["ledger"]
                 long_mark = held_quote(book, ledger.long_contract, "call", at)
+                if ledger.active_put:
+                    update_put_trade(state, ledger,
+                                     held_quote(book, ledger.active_put, "put", at), day, spot)
                 if ledger.active_short and tradable and session_index - state["short_index"] >= 5:
                     before = ledger.cash
                     ledger.close_short(held_quote(book, ledger.active_short, "call", at))
@@ -193,24 +262,31 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                         state["short_credit"] = 0.
                     state["short_index"] = None
                     counts[f"{name}_short_closes"] += 1
+                take_profit = (ledger.active_put and put_take_profit_pct is not None and
+                               state["put_trade"]["max_mark_date"] == day.isoformat() and
+                               state["put_trade"]["max_mark_proceeds"] >=
+                               state["put_debit"] * (1 + put_take_profit_pct))
                 close_put = (ledger.active_put and tradable and
-                             (session_index - state["put_index"] >= (4 if put_policy == "weekly" else 20)
+                             (session_index - state["put_index"] >= put_hold_sessions
+                              or take_profit
                               or put_policy == "weekly" and
                               last_normal_exit_before_expiry(day, ledger.active_put[1])))
                 if close_put:
+                    put_mark = held_quote(book, ledger.active_put, "put", at)
                     before = ledger.cash
-                    ledger.close_put(held_quote(book, ledger.active_put, "put", at))
+                    ledger.close_put(put_mark)
                     proceeds = ledger.cash - before
                     profit = proceeds - state["put_debit"]
                     if name == FUNDED_VARIANT:
                         state["put_proceeds"] += proceeds
                         state["funding_balance"] += proceeds
                     state["put_profit_available"] += profit
+                    events.append(finish_put_trade(state, name, index, day, session_index,
+                                                   spot, proceeds, "take_profit" if take_profit else
+                                                   "scheduled_or_pre_expiry"))
                     state["put_debit"] = 0.
                     state["put_index"] = None
                     counts[f"{name}_put_closes"] += 1
-                    events.append({"date": day.isoformat(), "action": "put_close",
-                                   "variant": name, "slot": index, "realized_pnl": round(profit, 2)})
                 if tradable and (ledger.long_contract[1] - day).days <= ROLL_DTE:
                     if ledger.active_short:
                         before = ledger.cash
@@ -223,13 +299,16 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                             state["short_credit"] = 0.
                         state["short_index"] = None
                     if ledger.active_put:
+                        put_mark = held_quote(book, ledger.active_put, "put", at)
                         before = ledger.cash
-                        ledger.close_put(held_quote(book, ledger.active_put, "put", at))
+                        ledger.close_put(put_mark)
                         proceeds = ledger.cash - before
                         state["put_profit_available"] += proceeds - state["put_debit"]
                         if name == FUNDED_VARIANT:
                             state["put_proceeds"] += proceeds
                             state["funding_balance"] += proceeds
+                        events.append(finish_put_trade(state, name, index, day, session_index,
+                                                       spot, proceeds, "long_call_roll"))
                         state["put_debit"] = 0.
                         state["put_index"] = None
                     old_expiry = ledger.long_contract[1]
@@ -290,6 +369,7 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                                     state["put_debits"] += state["put_debit"]
                                     state["funding_balance"] -= state["put_debit"]
                                 state["put_index"] = session_index
+                                start_put_trade(state, row, day, session_index, spot, pending_put)
                                 counts[f"{name}_put_entries"] += 1
                 if name == "pmcc_put_reinvest" and tradable and state["extra"] is None:
                     row = choose_long(book, spot, day, "long_january")
@@ -332,6 +412,7 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                     state["funding_balance"] -= state["put_debit"]
                     state["funding_min"] = min(state["funding_min"], state["funding_balance"])
                     state["put_index"] = session_index
+                    start_put_trade(state, row, day, session_index, spot, pending_put)
                     counts["pmcc_premium_put_put_entries"] += 1
             if name == FUNDED_VARIANT:
                 account_budget_min = min(account_budget_min, sum(
@@ -400,13 +481,16 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
             "risk_signal_policy": risk_signal_policy,
             "funding_policy": funding_policy, "funding": funding,
             "funding_scope": funding_scope,
+            "put_hold_sessions": put_hold_sessions,
+            "put_take_profit_pct": put_take_profit_pct,
             "sessions": len(dates),
             "status": ("partial_contiguous_window_bid_marked_not_annual_return" if window else
                        "exploratory_open_positions_marked_at_bid_not_realized"),
             "rule": {"roll_at_or_below_dte": ROLL_DTE, "call_maturity": "earliest January >=365 DTE",
                      "put_dte": "3-9" if put_policy == "weekly" else "45-90",
                      "weekly_put_strike_target_pct_of_signal_spot": round(put_target_ratio * 100, 2),
-                     "put_max_hold_sessions": 4 if put_policy == "weekly" else 20,
+                     "put_max_hold_sessions": put_hold_sessions,
+                     "put_take_profit_pct": put_take_profit_pct,
                      "put_risk_signal": risk_signal_policy,
                      "put_profit_extra_call": "one per slot, only after cumulative realized put profit covers ask debit"},
             "counts": dict(counts), "open_positions_year_end": open_positions,
@@ -432,6 +516,8 @@ def main():
     parser.add_argument("--funding-scope", choices=("slot", "account"), default="slot")
     parser.add_argument("--entry-months", type=int, nargs="+", default=list(ENTRY_MONTHS))
     parser.add_argument("--reserve-pct", type=float, default=0.)
+    parser.add_argument("--put-hold-sessions", type=int)
+    parser.add_argument("--put-take-profit-pct", type=float)
     args = parser.parse_args()
     if (args.window_start is None) != (args.window_end is None):
         parser.error("--window-start and --window-end must be given together")
@@ -447,7 +533,9 @@ def main():
                                                      args.put_target_ratio, args.risk_signal_policy,
                                                      args.funding_scope, window=window,
                                                      entry_months=args.entry_months,
-                                                     reserve_pct=args.reserve_pct)
+                                                     reserve_pct=args.reserve_pct,
+                                                     put_hold_sessions=args.put_hold_sessions,
+                                                     put_take_profit_pct=args.put_take_profit_pct)
     output = {"study": ("contiguous_partial_window_exploratory" if window else
                         "within_year_continuous_long_call_exploratory"),
               "put_policy": args.put_policy,
@@ -456,6 +544,8 @@ def main():
               "risk_signal_policy": args.risk_signal_policy,
               "funding_scope": args.funding_scope,
               "entry_months": args.entry_months, "reserve_pct": args.reserve_pct,
+              "put_hold_sessions": args.put_hold_sessions,
+              "put_take_profit_pct": args.put_take_profit_pct,
               "capital": CAPITAL, "source": "user-provided optionsDX EOD quotes",
               "limitations": ["Window returns are not annual returns or comparable to complete years" if window else
                               "Only 2019 and 2023 complete years; no cross-year outcome observed",
