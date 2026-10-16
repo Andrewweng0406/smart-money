@@ -19,7 +19,7 @@ EASTERN = ZoneInfo("America/New_York")
 
 def expected_session(now: datetime) -> str:
     eastern = now.astimezone(EASTERN)
-    cutoff = eastern.date() if eastern.hour >= 17 else eastern.date() - timedelta(days=1)
+    cutoff = eastern.date() if eastern.hour >= 21 else eastern.date() - timedelta(days=1)
     sessions = mcal.get_calendar("NYSE").valid_days(
         start_date=cutoff - timedelta(days=14), end_date=cutoff,
     )

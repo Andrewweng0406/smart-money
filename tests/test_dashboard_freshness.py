@@ -27,7 +27,8 @@ def payloads(date: str):
 
 def test_expected_session_skips_weekends_and_market_holidays():
     assert expected_session(datetime(2026, 10, 19, 16, 0, tzinfo=ET)) == "2026-10-16"
-    assert expected_session(datetime(2026, 10, 19, 18, 0, tzinfo=ET)) == "2026-10-19"
+    assert expected_session(datetime(2026, 10, 19, 18, 0, tzinfo=ET)) == "2026-10-16"
+    assert expected_session(datetime(2026, 10, 19, 22, 0, tzinfo=ET)) == "2026-10-19"
     assert expected_session(datetime(2026, 12, 25, 19, 0, tzinfo=ET)) == "2026-12-24"
 
 
