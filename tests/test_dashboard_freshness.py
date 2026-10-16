@@ -1,6 +1,10 @@
 from datetime import datetime
+from email.message import Message
+from io import BytesIO
+from urllib.error import HTTPError
 from zoneinfo import ZoneInfo
 
+from scripts import check_dashboard_freshness as monitor
 from scripts.check_dashboard_freshness import check_payloads, expected_session
 
 
@@ -44,3 +48,21 @@ def test_missing_monthly_metric_fails():
     price, macro = payloads("2026-10-15")
     macro["metrics"] = [metric for metric in macro["metrics"] if metric["id"] != "cpi"]
     assert any("cpi observation" in error for error in check_payloads(price, macro, now))
+
+
+def test_transient_503_is_retried(monkeypatch):
+    response = BytesIO(b'{"rows": []}')
+    response.headers = Message()
+    response.headers["Content-Type"] = "application/json"
+    calls = []
+
+    def fake_urlopen(request, timeout):
+        calls.append(request.full_url)
+        if len(calls) == 1:
+            raise HTTPError(request.full_url, 503, "temporary", None, None)
+        return response
+
+    monkeypatch.setattr(monitor, "urlopen", fake_urlopen)
+    monkeypatch.setattr(monitor.time, "sleep", lambda _: None)
+    assert monitor.fetch_json("/api/price") == {"rows": []}
+    assert len(calls) == 2

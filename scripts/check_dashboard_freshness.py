@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 from datetime import datetime, timedelta
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
@@ -57,15 +59,25 @@ def check_payloads(price: dict, macro: dict, now: datetime) -> list[str]:
 
 
 def fetch_json(path: str) -> dict:
-    version = int(datetime.now(EASTERN).timestamp())
-    request = Request(
-        f"{BASE}{path}?monitor={version}",
-        headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
-    )
-    with urlopen(request, timeout=25) as response:
-        if response.headers.get_content_type() != "application/json":
-            raise ValueError(f"Unexpected content type for {path}")
-        return json.load(response)
+    for attempt in range(3):
+        version = int(datetime.now(EASTERN).timestamp())
+        request = Request(
+            f"{BASE}{path}?monitor={version}",
+            headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+        )
+        try:
+            with urlopen(request, timeout=25) as response:
+                if response.headers.get_content_type() != "application/json":
+                    raise ValueError(f"Unexpected content type for {path}")
+                return json.load(response)
+        except HTTPError as exc:
+            if attempt == 2 or (exc.code != 429 and exc.code < 500):
+                raise
+        except (URLError, TimeoutError):
+            if attempt == 2:
+                raise
+        time.sleep(2)
+    raise AssertionError("Unreachable retry state")
 
 
 def main() -> int:
