@@ -57,7 +57,11 @@ def check_payloads(price: dict, macro: dict, now: datetime) -> list[str]:
 
 
 def fetch_json(path: str) -> dict:
-    request = Request(f"{BASE}{path}", headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+    version = int(datetime.now(EASTERN).timestamp())
+    request = Request(
+        f"{BASE}{path}?monitor={version}",
+        headers={"Accept": "application/json", "User-Agent": "Mozilla/5.0"},
+    )
     with urlopen(request, timeout=25) as response:
         if response.headers.get_content_type() != "application/json":
             raise ValueError(f"Unexpected content type for {path}")
