@@ -106,6 +106,10 @@ def test_invalid_put_exit_rules_are_rejected(tmp_path):
         replay_year(tmp_path, {}, 2023, put_hold_sessions=0)
     with pytest.raises(ValueError, match="Invalid put take profit percent"):
         replay_year(tmp_path, {}, 2023, put_take_profit_pct=0)
+    with pytest.raises(ValueError, match="Invalid put entry max rebound percent"):
+        replay_year(tmp_path, {}, 2023, put_entry_max_rebound_pct=.11)
+    with pytest.raises(ValueError, match="Invalid put entry max daily return percent"):
+        replay_year(tmp_path, {}, 2023, put_entry_max_daily_return_pct=.01)
 
 
 def test_put_risk_signals_use_observed_high_and_low():

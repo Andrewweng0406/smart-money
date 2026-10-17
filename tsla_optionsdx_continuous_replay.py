@@ -158,7 +158,8 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                 funding_policy="none", put_target_ratio=.95,
                 risk_signal_policy="break20_low", funding_scope="slot", window=None,
                 entry_months=ENTRY_MONTHS, reserve_pct=0., put_hold_sessions=None,
-                put_take_profit_pct=None):
+                put_take_profit_pct=None, put_entry_max_rebound_pct=None,
+                put_entry_max_daily_return_pct=None):
     if put_policy not in ("term", "weekly"):
         raise ValueError(f"Unknown put policy: {put_policy}")
     if funding_policy not in ("none", "gross", "realized"):
@@ -181,6 +182,11 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
         raise ValueError(f"Invalid put hold sessions: {put_hold_sessions}")
     if put_take_profit_pct is not None and put_take_profit_pct <= 0:
         raise ValueError(f"Invalid put take profit percent: {put_take_profit_pct}")
+    if put_entry_max_rebound_pct is not None and not 0 <= put_entry_max_rebound_pct <= .10:
+        raise ValueError(f"Invalid put entry max rebound percent: {put_entry_max_rebound_pct}")
+    if (put_entry_max_daily_return_pct is not None and
+            not -.20 <= put_entry_max_daily_return_pct <= 0):
+        raise ValueError(f"Invalid put entry max daily return percent: {put_entry_max_daily_return_pct}")
     slot_capital = CAPITAL / len(entry_months)
     reserve = slot_capital * reserve_pct
     status = audit["years"].get(str(year))
@@ -344,8 +350,16 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                                 state["short_index"] = session_index
                                 counts[f"{name}_short_entries"] += 1
                 if name in ("pmcc_put", "pmcc_put_reinvest", FUNDED_VARIANT) and tradable and pending_put and ledger.active_put is None:
-                    row = (choose_weekly_put(book, day, pending_put, put_target_ratio) if put_policy == "weekly"
-                           else choose_put(book, day, pending_put))
+                    rebound_rejected = (put_entry_max_rebound_pct is not None and
+                                        spot > pending_put * (1 + put_entry_max_rebound_pct))
+                    daily_return_rejected = (put_entry_max_daily_return_pct is not None and history and
+                                             spot / history[-1] - 1 > put_entry_max_daily_return_pct)
+                    if rebound_rejected or daily_return_rejected:
+                        reason = "rebound" if rebound_rejected else "daily_return"
+                        counts[f"{name}_put_{reason}_rejected"] += 1
+                    row = (None if rebound_rejected or daily_return_rejected else
+                           choose_weekly_put(book, day, pending_put, put_target_ratio)
+                           if put_policy == "weekly" else choose_put(book, day, pending_put))
                     if row is not None:
                         debit = (row["ask"] + ledger.slippage_per_share) * 100 + ledger.fee_per_contract
                         if name == FUNDED_VARIANT and funding_scope == "account":
@@ -483,6 +497,8 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
             "funding_scope": funding_scope,
             "put_hold_sessions": put_hold_sessions,
             "put_take_profit_pct": put_take_profit_pct,
+            "put_entry_max_rebound_pct": put_entry_max_rebound_pct,
+            "put_entry_max_daily_return_pct": put_entry_max_daily_return_pct,
             "sessions": len(dates),
             "status": ("partial_contiguous_window_bid_marked_not_annual_return" if window else
                        "exploratory_open_positions_marked_at_bid_not_realized"),
@@ -491,6 +507,8 @@ def replay_year(directory, audit, year, entry_policy="month_first", put_policy="
                      "weekly_put_strike_target_pct_of_signal_spot": round(put_target_ratio * 100, 2),
                      "put_max_hold_sessions": put_hold_sessions,
                      "put_take_profit_pct": put_take_profit_pct,
+                     "put_entry_max_rebound_pct": put_entry_max_rebound_pct,
+                     "put_entry_max_daily_return_pct": put_entry_max_daily_return_pct,
                      "put_risk_signal": risk_signal_policy,
                      "put_profit_extra_call": "one per slot, only after cumulative realized put profit covers ask debit"},
             "counts": dict(counts), "open_positions_year_end": open_positions,
@@ -518,6 +536,8 @@ def main():
     parser.add_argument("--reserve-pct", type=float, default=0.)
     parser.add_argument("--put-hold-sessions", type=int)
     parser.add_argument("--put-take-profit-pct", type=float)
+    parser.add_argument("--put-entry-max-rebound-pct", type=float)
+    parser.add_argument("--put-entry-max-daily-return-pct", type=float)
     args = parser.parse_args()
     if (args.window_start is None) != (args.window_end is None):
         parser.error("--window-start and --window-end must be given together")
@@ -535,7 +555,9 @@ def main():
                                                      entry_months=args.entry_months,
                                                      reserve_pct=args.reserve_pct,
                                                      put_hold_sessions=args.put_hold_sessions,
-                                                     put_take_profit_pct=args.put_take_profit_pct)
+                                                     put_take_profit_pct=args.put_take_profit_pct,
+                                                     put_entry_max_rebound_pct=args.put_entry_max_rebound_pct,
+                                                     put_entry_max_daily_return_pct=args.put_entry_max_daily_return_pct)
     output = {"study": ("contiguous_partial_window_exploratory" if window else
                         "within_year_continuous_long_call_exploratory"),
               "put_policy": args.put_policy,
@@ -546,6 +568,8 @@ def main():
               "entry_months": args.entry_months, "reserve_pct": args.reserve_pct,
               "put_hold_sessions": args.put_hold_sessions,
               "put_take_profit_pct": args.put_take_profit_pct,
+              "put_entry_max_rebound_pct": args.put_entry_max_rebound_pct,
+              "put_entry_max_daily_return_pct": args.put_entry_max_daily_return_pct,
               "capital": CAPITAL, "source": "user-provided optionsDX EOD quotes",
               "limitations": ["Window returns are not annual returns or comparable to complete years" if window else
                               "Only 2019 and 2023 complete years; no cross-year outcome observed",
