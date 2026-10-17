@@ -49,7 +49,8 @@ def test_public_data_ledger_keeps_source_dates_and_update_log():
     assert data["price_source"]["history_downloaded_at"] == "2026-10-13T05:47:39.847634+00:00"
     assert data["price_source"]["provider"] == "Nasdaq historical quotes"
     assert data["price_source"]["url"].startswith("https://")
-    assert data["site_updates"][0]["date"] == "2026-10-16"
+    assert data["site_updates"][0]["date"] == "2026-10-17"
+    assert data["site_updates"][0]["title"] == "每日 Put 防守狀態"
     assert len(data["site_updates"]) >= 2
     assert 'id="source-ledger-grid"' in html
     assert 'id="update-history-list"' in html
