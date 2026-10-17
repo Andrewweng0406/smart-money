@@ -1,0 +1,5236 @@
+{
+  "study": "stock_proxy_for_weekly_put_direction_only",
+  "range": {
+    "start": "2015-01-02",
+    "end": "2026-10-12",
+    "sessions": 2961
+  },
+  "signal": "close below prior 20-session low; execute next session; non-overlapping four-session holds",
+  "limitations": [
+    "Stock direction only; no option premium, implied volatility, spread, or funding constraints",
+    "Thresholds were researched after viewing option-year results; split is descriptive, not untouched",
+    "2026 is incomplete"
+  ],
+  "results": {
+    "baseline_next_session": {
+      "all": {
+        "signals": 110,
+        "any_decline_rate_pct": 72.73,
+        "down_2pct_rate_pct": 55.45,
+        "down_4pct_rate_pct": 40.91,
+        "median_minimum_return_pct": -2.493,
+        "median_final_return_pct": -0.154,
+        "mean_final_return_pct": -0.253
+      },
+      "2015_2020": {
+        "signals": 52,
+        "any_decline_rate_pct": 67.31,
+        "down_2pct_rate_pct": 48.08,
+        "down_4pct_rate_pct": 28.85,
+        "median_minimum_return_pct": -1.833,
+        "median_final_return_pct": 2.439,
+        "mean_final_return_pct": 1.627
+      },
+      "2021_2026": {
+        "signals": 58,
+        "any_decline_rate_pct": 77.59,
+        "down_2pct_rate_pct": 62.07,
+        "down_4pct_rate_pct": 51.72,
+        "median_minimum_return_pct": -4.471,
+        "median_final_return_pct": -1.3,
+        "mean_final_return_pct": -1.938
+      },
+      "by_year": {
+        "2015": {
+          "signals": 10,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -1.972,
+          "median_final_return_pct": 0.318,
+          "mean_final_return_pct": 2.013
+        },
+        "2016": {
+          "signals": 13,
+          "any_decline_rate_pct": 76.92,
+          "down_2pct_rate_pct": 53.85,
+          "down_4pct_rate_pct": 46.15,
+          "median_minimum_return_pct": -3.771,
+          "median_final_return_pct": 0.053,
+          "mean_final_return_pct": -0.514
+        },
+        "2017": {
+          "signals": 6,
+          "any_decline_rate_pct": 33.33,
+          "down_2pct_rate_pct": 16.67,
+          "down_4pct_rate_pct": 16.67,
+          "median_minimum_return_pct": 0.227,
+          "median_final_return_pct": 2.513,
+          "mean_final_return_pct": 2.188
+        },
+        "2018": {
+          "signals": 9,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 22.22,
+          "median_minimum_return_pct": -2.441,
+          "median_final_return_pct": 2.528,
+          "mean_final_return_pct": 0.906
+        },
+        "2019": {
+          "signals": 10,
+          "any_decline_rate_pct": 70.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -1.135,
+          "median_final_return_pct": 3.671,
+          "mean_final_return_pct": 1.726
+        },
+        "2020": {
+          "signals": 4,
+          "any_decline_rate_pct": 50.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -0.643,
+          "median_final_return_pct": 11.923,
+          "mean_final_return_pct": 8.155
+        },
+        "2021": {
+          "signals": 8,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 75.0,
+          "down_4pct_rate_pct": 75.0,
+          "median_minimum_return_pct": -7.953,
+          "median_final_return_pct": -5.976,
+          "mean_final_return_pct": -5.426
+        },
+        "2022": {
+          "signals": 13,
+          "any_decline_rate_pct": 76.92,
+          "down_2pct_rate_pct": 61.54,
+          "down_4pct_rate_pct": 61.54,
+          "median_minimum_return_pct": -7.167,
+          "median_final_return_pct": -2.226,
+          "mean_final_return_pct": -2.154
+        },
+        "2023": {
+          "signals": 9,
+          "any_decline_rate_pct": 77.78,
+          "down_2pct_rate_pct": 77.78,
+          "down_4pct_rate_pct": 44.44,
+          "median_minimum_return_pct": -3.683,
+          "median_final_return_pct": -0.721,
+          "mean_final_return_pct": 0.851
+        },
+        "2024": {
+          "signals": 10,
+          "any_decline_rate_pct": 60.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 30.0,
+          "median_minimum_return_pct": -0.903,
+          "median_final_return_pct": 0.565,
+          "mean_final_return_pct": -1.667
+        },
+        "2025": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 83.33,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -6.879,
+          "median_final_return_pct": -6.548,
+          "mean_final_return_pct": -5.144
+        },
+        "2026": {
+          "signals": 12,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 41.67,
+          "median_minimum_return_pct": -1.481,
+          "median_final_return_pct": -0.654,
+          "mean_final_return_pct": -0.095
+        }
+      }
+    },
+    "max_rebound_0pct": {
+      "all": {
+        "signals": 68,
+        "any_decline_rate_pct": 73.53,
+        "down_2pct_rate_pct": 58.82,
+        "down_4pct_rate_pct": 45.59,
+        "median_minimum_return_pct": -3.462,
+        "median_final_return_pct": -0.706,
+        "mean_final_return_pct": -0.981
+      },
+      "2015_2020": {
+        "signals": 32,
+        "any_decline_rate_pct": 71.88,
+        "down_2pct_rate_pct": 50.0,
+        "down_4pct_rate_pct": 31.25,
+        "median_minimum_return_pct": -1.949,
+        "median_final_return_pct": 0.062,
+        "mean_final_return_pct": -0.073
+      },
+      "2021_2026": {
+        "signals": 36,
+        "any_decline_rate_pct": 75.0,
+        "down_2pct_rate_pct": 66.67,
+        "down_4pct_rate_pct": 58.33,
+        "median_minimum_return_pct": -5.55,
+        "median_final_return_pct": -1.028,
+        "mean_final_return_pct": -1.788
+      },
+      "by_year": {
+        "2015": {
+          "signals": 5,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -1.153,
+          "median_final_return_pct": 0.0,
+          "mean_final_return_pct": 1.632
+        },
+        "2016": {
+          "signals": 9,
+          "any_decline_rate_pct": 88.89,
+          "down_2pct_rate_pct": 55.56,
+          "down_4pct_rate_pct": 44.44,
+          "median_minimum_return_pct": -2.836,
+          "median_final_return_pct": -1.674,
+          "mean_final_return_pct": -1.464
+        },
+        "2017": {
+          "signals": 4,
+          "any_decline_rate_pct": 25.0,
+          "down_2pct_rate_pct": 25.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": 0.73,
+          "median_final_return_pct": 5.619,
+          "mean_final_return_pct": 3.6
+        },
+        "2018": {
+          "signals": 7,
+          "any_decline_rate_pct": 57.14,
+          "down_2pct_rate_pct": 57.14,
+          "down_4pct_rate_pct": 14.29,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 2.528,
+          "mean_final_return_pct": 0.819
+        },
+        "2019": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.592,
+          "median_final_return_pct": 0.283,
+          "mean_final_return_pct": 0.72
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -33.918,
+          "median_final_return_pct": -21.766,
+          "mean_final_return_pct": -21.766
+        },
+        "2021": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.252,
+          "median_final_return_pct": -8.605,
+          "mean_final_return_pct": -5.598
+        },
+        "2022": {
+          "signals": 10,
+          "any_decline_rate_pct": 90.0,
+          "down_2pct_rate_pct": 80.0,
+          "down_4pct_rate_pct": 80.0,
+          "median_minimum_return_pct": -7.785,
+          "median_final_return_pct": -7.01,
+          "mean_final_return_pct": -4.571
+        },
+        "2023": {
+          "signals": 5,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 60.0,
+          "median_minimum_return_pct": -4.307,
+          "median_final_return_pct": -0.721,
+          "mean_final_return_pct": -1.149
+        },
+        "2024": {
+          "signals": 6,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.13,
+          "median_final_return_pct": 0.565,
+          "mean_final_return_pct": -0.945
+        },
+        "2025": {
+          "signals": 4,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 75.0,
+          "down_4pct_rate_pct": 75.0,
+          "median_minimum_return_pct": -9.346,
+          "median_final_return_pct": -7.412,
+          "mean_final_return_pct": -3.733
+        },
+        "2026": {
+          "signals": 7,
+          "any_decline_rate_pct": 28.57,
+          "down_2pct_rate_pct": 14.29,
+          "down_4pct_rate_pct": 14.29,
+          "median_minimum_return_pct": 1.018,
+          "median_final_return_pct": 3.66,
+          "mean_final_return_pct": 4.294
+        }
+      }
+    },
+    "max_rebound_0_5pct": {
+      "all": {
+        "signals": 69,
+        "any_decline_rate_pct": 75.36,
+        "down_2pct_rate_pct": 59.42,
+        "down_4pct_rate_pct": 46.38,
+        "median_minimum_return_pct": -3.58,
+        "median_final_return_pct": -0.721,
+        "mean_final_return_pct": -1.164
+      },
+      "2015_2020": {
+        "signals": 33,
+        "any_decline_rate_pct": 72.73,
+        "down_2pct_rate_pct": 48.48,
+        "down_4pct_rate_pct": 30.3,
+        "median_minimum_return_pct": -1.841,
+        "median_final_return_pct": 0.124,
+        "mean_final_return_pct": 0.018
+      },
+      "2021_2026": {
+        "signals": 36,
+        "any_decline_rate_pct": 77.78,
+        "down_2pct_rate_pct": 69.44,
+        "down_4pct_rate_pct": 61.11,
+        "median_minimum_return_pct": -6.281,
+        "median_final_return_pct": -1.78,
+        "mean_final_return_pct": -2.246
+      },
+      "by_year": {
+        "2015": {
+          "signals": 5,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -1.153,
+          "median_final_return_pct": 0.0,
+          "mean_final_return_pct": 1.632
+        },
+        "2016": {
+          "signals": 10,
+          "any_decline_rate_pct": 90.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 40.0,
+          "median_minimum_return_pct": -2.255,
+          "median_final_return_pct": 0.036,
+          "mean_final_return_pct": -0.952
+        },
+        "2017": {
+          "signals": 4,
+          "any_decline_rate_pct": 25.0,
+          "down_2pct_rate_pct": 25.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": 0.73,
+          "median_final_return_pct": 5.619,
+          "mean_final_return_pct": 3.414
+        },
+        "2018": {
+          "signals": 7,
+          "any_decline_rate_pct": 57.14,
+          "down_2pct_rate_pct": 57.14,
+          "down_4pct_rate_pct": 14.29,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 2.528,
+          "mean_final_return_pct": 0.819
+        },
+        "2019": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.592,
+          "median_final_return_pct": 0.283,
+          "mean_final_return_pct": 0.72
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -33.918,
+          "median_final_return_pct": -21.766,
+          "mean_final_return_pct": -21.766
+        },
+        "2021": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.252,
+          "median_final_return_pct": -8.605,
+          "mean_final_return_pct": -5.598
+        },
+        "2022": {
+          "signals": 10,
+          "any_decline_rate_pct": 90.0,
+          "down_2pct_rate_pct": 80.0,
+          "down_4pct_rate_pct": 80.0,
+          "median_minimum_return_pct": -7.785,
+          "median_final_return_pct": -7.01,
+          "mean_final_return_pct": -4.571
+        },
+        "2023": {
+          "signals": 5,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 60.0,
+          "median_minimum_return_pct": -4.307,
+          "median_final_return_pct": -0.721,
+          "mean_final_return_pct": -1.149
+        },
+        "2024": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -5.72,
+          "median_final_return_pct": -3.649,
+          "mean_final_return_pct": -3.692
+        },
+        "2025": {
+          "signals": 4,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 75.0,
+          "down_4pct_rate_pct": 75.0,
+          "median_minimum_return_pct": -9.346,
+          "median_final_return_pct": -7.412,
+          "mean_final_return_pct": -3.733
+        },
+        "2026": {
+          "signals": 7,
+          "any_decline_rate_pct": 28.57,
+          "down_2pct_rate_pct": 14.29,
+          "down_4pct_rate_pct": 14.29,
+          "median_minimum_return_pct": 1.018,
+          "median_final_return_pct": 3.66,
+          "mean_final_return_pct": 4.294
+        }
+      }
+    },
+    "max_rebound_1pct": {
+      "all": {
+        "signals": 73,
+        "any_decline_rate_pct": 75.34,
+        "down_2pct_rate_pct": 58.9,
+        "down_4pct_rate_pct": 47.95,
+        "median_minimum_return_pct": -3.683,
+        "median_final_return_pct": -0.721,
+        "mean_final_return_pct": -1.352
+      },
+      "2015_2020": {
+        "signals": 34,
+        "any_decline_rate_pct": 70.59,
+        "down_2pct_rate_pct": 50.0,
+        "down_4pct_rate_pct": 38.24,
+        "median_minimum_return_pct": -1.949,
+        "median_final_return_pct": 0.062,
+        "mean_final_return_pct": -0.492
+      },
+      "2021_2026": {
+        "signals": 39,
+        "any_decline_rate_pct": 79.49,
+        "down_2pct_rate_pct": 66.67,
+        "down_4pct_rate_pct": 56.41,
+        "median_minimum_return_pct": -4.989,
+        "median_final_return_pct": -1.335,
+        "mean_final_return_pct": -2.102
+      },
+      "by_year": {
+        "2015": {
+          "signals": 5,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -1.153,
+          "median_final_return_pct": 0.0,
+          "mean_final_return_pct": 1.632
+        },
+        "2016": {
+          "signals": 11,
+          "any_decline_rate_pct": 81.82,
+          "down_2pct_rate_pct": 54.55,
+          "down_4pct_rate_pct": 54.55,
+          "median_minimum_return_pct": -4.287,
+          "median_final_return_pct": -2.284,
+          "mean_final_return_pct": -1.598
+        },
+        "2017": {
+          "signals": 4,
+          "any_decline_rate_pct": 25.0,
+          "down_2pct_rate_pct": 25.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": 0.73,
+          "median_final_return_pct": 5.619,
+          "mean_final_return_pct": 3.414
+        },
+        "2018": {
+          "signals": 7,
+          "any_decline_rate_pct": 57.14,
+          "down_2pct_rate_pct": 57.14,
+          "down_4pct_rate_pct": 14.29,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 2.528,
+          "mean_final_return_pct": 0.819
+        },
+        "2019": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -3.671,
+          "median_final_return_pct": 0.065,
+          "mean_final_return_pct": -0.823
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -33.918,
+          "median_final_return_pct": -21.766,
+          "mean_final_return_pct": -21.766
+        },
+        "2021": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.252,
+          "median_final_return_pct": -8.605,
+          "mean_final_return_pct": -5.598
+        },
+        "2022": {
+          "signals": 11,
+          "any_decline_rate_pct": 90.91,
+          "down_2pct_rate_pct": 72.73,
+          "down_4pct_rate_pct": 72.73,
+          "median_minimum_return_pct": -7.51,
+          "median_final_return_pct": -6.884,
+          "mean_final_return_pct": -3.869
+        },
+        "2023": {
+          "signals": 5,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 60.0,
+          "median_minimum_return_pct": -4.307,
+          "median_final_return_pct": -0.721,
+          "mean_final_return_pct": -1.149
+        },
+        "2024": {
+          "signals": 7,
+          "any_decline_rate_pct": 71.43,
+          "down_2pct_rate_pct": 57.14,
+          "down_4pct_rate_pct": 42.86,
+          "median_minimum_return_pct": -3.58,
+          "median_final_return_pct": 0.563,
+          "mean_final_return_pct": -3.064
+        },
+        "2025": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 75.0,
+          "median_minimum_return_pct": -9.346,
+          "median_final_return_pct": -7.412,
+          "mean_final_return_pct": -6.795
+        },
+        "2026": {
+          "signals": 8,
+          "any_decline_rate_pct": 37.5,
+          "down_2pct_rate_pct": 12.5,
+          "down_4pct_rate_pct": 12.5,
+          "median_minimum_return_pct": 0.854,
+          "median_final_return_pct": 4.881,
+          "mean_final_return_pct": 4.669
+        }
+      }
+    },
+    "max_rebound_2pct": {
+      "all": {
+        "signals": 83,
+        "any_decline_rate_pct": 74.7,
+        "down_2pct_rate_pct": 59.04,
+        "down_4pct_rate_pct": 46.99,
+        "median_minimum_return_pct": -3.683,
+        "median_final_return_pct": 0.0,
+        "mean_final_return_pct": -0.934
+      },
+      "2015_2020": {
+        "signals": 42,
+        "any_decline_rate_pct": 71.43,
+        "down_2pct_rate_pct": 52.38,
+        "down_4pct_rate_pct": 38.1,
+        "median_minimum_return_pct": -2.088,
+        "median_final_return_pct": 1.24,
+        "mean_final_return_pct": 0.081
+      },
+      "2021_2026": {
+        "signals": 41,
+        "any_decline_rate_pct": 78.05,
+        "down_2pct_rate_pct": 65.85,
+        "down_4pct_rate_pct": 56.1,
+        "median_minimum_return_pct": -6.451,
+        "median_final_return_pct": -2.226,
+        "mean_final_return_pct": -1.973
+      },
+      "by_year": {
+        "2015": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.365,
+          "median_final_return_pct": 0.062,
+          "mean_final_return_pct": 0.912
+        },
+        "2016": {
+          "signals": 12,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 58.33,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -4.029,
+          "median_final_return_pct": -1.115,
+          "mean_final_return_pct": -1.46
+        },
+        "2017": {
+          "signals": 5,
+          "any_decline_rate_pct": 20.0,
+          "down_2pct_rate_pct": 20.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": 0.442,
+          "median_final_return_pct": 4.538,
+          "mean_final_return_pct": 2.829
+        },
+        "2018": {
+          "signals": 9,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 55.56,
+          "down_4pct_rate_pct": 22.22,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 3.281,
+          "mean_final_return_pct": 1.63
+        },
+        "2019": {
+          "signals": 8,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 37.5,
+          "down_4pct_rate_pct": 37.5,
+          "median_minimum_return_pct": -1.135,
+          "median_final_return_pct": 2.188,
+          "mean_final_return_pct": 0.74
+        },
+        "2020": {
+          "signals": 2,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -19.732,
+          "median_final_return_pct": -9.647,
+          "mean_final_return_pct": -9.647
+        },
+        "2021": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.252,
+          "median_final_return_pct": -9.98,
+          "mean_final_return_pct": -6.285
+        },
+        "2022": {
+          "signals": 12,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -7.338,
+          "median_final_return_pct": -4.555,
+          "mean_final_return_pct": -3.011
+        },
+        "2023": {
+          "signals": 6,
+          "any_decline_rate_pct": 83.33,
+          "down_2pct_rate_pct": 83.33,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -4.336,
+          "median_final_return_pct": -1.83,
+          "mean_final_return_pct": -0.042
+        },
+        "2024": {
+          "signals": 7,
+          "any_decline_rate_pct": 71.43,
+          "down_2pct_rate_pct": 57.14,
+          "down_4pct_rate_pct": 42.86,
+          "median_minimum_return_pct": -3.58,
+          "median_final_return_pct": 0.563,
+          "mean_final_return_pct": -3.064
+        },
+        "2025": {
+          "signals": 4,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 75.0,
+          "median_minimum_return_pct": -9.346,
+          "median_final_return_pct": -7.412,
+          "mean_final_return_pct": -6.795
+        },
+        "2026": {
+          "signals": 8,
+          "any_decline_rate_pct": 50.0,
+          "down_2pct_rate_pct": 25.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": 0.246,
+          "median_final_return_pct": 4.881,
+          "mean_final_return_pct": 3.656
+        }
+      }
+    },
+    "continued_down_2pct": {
+      "all": {
+        "signals": 47,
+        "any_decline_rate_pct": 74.47,
+        "down_2pct_rate_pct": 65.96,
+        "down_4pct_rate_pct": 48.94,
+        "median_minimum_return_pct": -3.833,
+        "median_final_return_pct": -1.194,
+        "mean_final_return_pct": 0.554
+      },
+      "2015_2020": {
+        "signals": 19,
+        "any_decline_rate_pct": 73.68,
+        "down_2pct_rate_pct": 63.16,
+        "down_4pct_rate_pct": 42.11,
+        "median_minimum_return_pct": -2.919,
+        "median_final_return_pct": -1.841,
+        "mean_final_return_pct": 0.593
+      },
+      "2021_2026": {
+        "signals": 28,
+        "any_decline_rate_pct": 75.0,
+        "down_2pct_rate_pct": 67.86,
+        "down_4pct_rate_pct": 53.57,
+        "median_minimum_return_pct": -4.844,
+        "median_final_return_pct": 0.19,
+        "mean_final_return_pct": 0.528
+      },
+      "by_year": {
+        "2015": {
+          "signals": 2,
+          "any_decline_rate_pct": 50.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -2.192,
+          "median_final_return_pct": 4.595,
+          "mean_final_return_pct": 4.595
+        },
+        "2016": {
+          "signals": 5,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 60.0,
+          "median_minimum_return_pct": -5.066,
+          "median_final_return_pct": -2.813,
+          "mean_final_return_pct": -3.473
+        },
+        "2017": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 1.421,
+          "median_final_return_pct": 6.699,
+          "mean_final_return_pct": 6.699
+        },
+        "2018": {
+          "signals": 5,
+          "any_decline_rate_pct": 60.0,
+          "down_2pct_rate_pct": 60.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 3.281,
+          "mean_final_return_pct": 5.911
+        },
+        "2019": {
+          "signals": 5,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 40.0,
+          "down_4pct_rate_pct": 40.0,
+          "median_minimum_return_pct": -1.841,
+          "median_final_return_pct": -1.841,
+          "mean_final_return_pct": 0.99
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -33.918,
+          "median_final_return_pct": -21.766,
+          "mean_final_return_pct": -21.766
+        },
+        "2021": {
+          "signals": 3,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -5.458,
+          "median_final_return_pct": -2.038,
+          "mean_final_return_pct": 0.002
+        },
+        "2022": {
+          "signals": 8,
+          "any_decline_rate_pct": 87.5,
+          "down_2pct_rate_pct": 87.5,
+          "down_4pct_rate_pct": 87.5,
+          "median_minimum_return_pct": -7.026,
+          "median_final_return_pct": -1.204,
+          "mean_final_return_pct": 0.121
+        },
+        "2023": {
+          "signals": 5,
+          "any_decline_rate_pct": 80.0,
+          "down_2pct_rate_pct": 60.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -2.939,
+          "median_final_return_pct": 0.692,
+          "mean_final_return_pct": 1.251
+        },
+        "2024": {
+          "signals": 6,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.13,
+          "median_final_return_pct": 0.565,
+          "mean_final_return_pct": -0.76
+        },
+        "2025": {
+          "signals": 3,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -6.451,
+          "median_final_return_pct": -1.571,
+          "mean_final_return_pct": 1.502
+        },
+        "2026": {
+          "signals": 3,
+          "any_decline_rate_pct": 33.33,
+          "down_2pct_rate_pct": 33.33,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": 1.128,
+          "median_final_return_pct": 1.128,
+          "mean_final_return_pct": 2.538
+        }
+      }
+    },
+    "continued_down_3pct": {
+      "all": {
+        "signals": 35,
+        "any_decline_rate_pct": 68.57,
+        "down_2pct_rate_pct": 65.71,
+        "down_4pct_rate_pct": 45.71,
+        "median_minimum_return_pct": -3.58,
+        "median_final_return_pct": 0.563,
+        "mean_final_return_pct": 1.452
+      },
+      "2015_2020": {
+        "signals": 12,
+        "any_decline_rate_pct": 66.67,
+        "down_2pct_rate_pct": 58.33,
+        "down_4pct_rate_pct": 41.67,
+        "median_minimum_return_pct": -2.074,
+        "median_final_return_pct": 1.044,
+        "mean_final_return_pct": 1.782
+      },
+      "2021_2026": {
+        "signals": 23,
+        "any_decline_rate_pct": 69.57,
+        "down_2pct_rate_pct": 69.57,
+        "down_4pct_rate_pct": 47.83,
+        "median_minimum_return_pct": -3.811,
+        "median_final_return_pct": 0.563,
+        "mean_final_return_pct": 1.28
+      },
+      "by_year": {
+        "2015": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 0.53,
+          "median_final_return_pct": 13.529,
+          "mean_final_return_pct": 13.529
+        },
+        "2016": {
+          "signals": 2,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.463,
+          "median_final_return_pct": -10.387,
+          "mean_final_return_pct": -10.387
+        },
+        "2017": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 1.421,
+          "median_final_return_pct": 6.699,
+          "mean_final_return_pct": 6.699
+        },
+        "2018": {
+          "signals": 3,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 3.281,
+          "mean_final_return_pct": 4.466
+        },
+        "2019": {
+          "signals": 4,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 50.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": -1.1,
+          "median_final_return_pct": 1.856,
+          "mean_final_return_pct": 3.119
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -18.84,
+          "median_final_return_pct": -3.941,
+          "mean_final_return_pct": -3.941
+        },
+        "2021": {
+          "signals": 3,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -5.458,
+          "median_final_return_pct": -2.038,
+          "mean_final_return_pct": 0.002
+        },
+        "2022": {
+          "signals": 7,
+          "any_decline_rate_pct": 71.43,
+          "down_2pct_rate_pct": 71.43,
+          "down_4pct_rate_pct": 71.43,
+          "median_minimum_return_pct": -6.884,
+          "median_final_return_pct": -2.226,
+          "mean_final_return_pct": 1.33
+        },
+        "2023": {
+          "signals": 4,
+          "any_decline_rate_pct": 75.0,
+          "down_2pct_rate_pct": 75.0,
+          "down_4pct_rate_pct": 25.0,
+          "median_minimum_return_pct": -3.375,
+          "median_final_return_pct": -1.123,
+          "mean_final_return_pct": -0.448
+        },
+        "2024": {
+          "signals": 5,
+          "any_decline_rate_pct": 60.0,
+          "down_2pct_rate_pct": 60.0,
+          "down_4pct_rate_pct": 20.0,
+          "median_minimum_return_pct": -3.203,
+          "median_final_return_pct": 2.552,
+          "mean_final_return_pct": 3.258
+        },
+        "2025": {
+          "signals": 3,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -6.451,
+          "median_final_return_pct": -1.571,
+          "mean_final_return_pct": 1.502
+        },
+        "2026": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 1.128,
+          "median_final_return_pct": 1.128,
+          "mean_final_return_pct": 1.128
+        }
+      }
+    },
+    "continued_down_4pct": {
+      "all": {
+        "signals": 27,
+        "any_decline_rate_pct": 59.26,
+        "down_2pct_rate_pct": 59.26,
+        "down_4pct_rate_pct": 44.44,
+        "median_minimum_return_pct": -3.085,
+        "median_final_return_pct": 2.552,
+        "mean_final_return_pct": 1.904
+      },
+      "2015_2020": {
+        "signals": 10,
+        "any_decline_rate_pct": 70.0,
+        "down_2pct_rate_pct": 70.0,
+        "down_4pct_rate_pct": 50.0,
+        "median_minimum_return_pct": -3.796,
+        "median_final_return_pct": -1.341,
+        "mean_final_return_pct": 0.192
+      },
+      "2021_2026": {
+        "signals": 17,
+        "any_decline_rate_pct": 52.94,
+        "down_2pct_rate_pct": 52.94,
+        "down_4pct_rate_pct": 41.18,
+        "median_minimum_return_pct": -3.085,
+        "median_final_return_pct": 4.267,
+        "mean_final_return_pct": 2.91
+      },
+      "by_year": {
+        "2015": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 0.53,
+          "median_final_return_pct": 13.529,
+          "mean_final_return_pct": 13.529
+        },
+        "2016": {
+          "signals": 2,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -10.463,
+          "median_final_return_pct": -10.387,
+          "mean_final_return_pct": -10.387
+        },
+        "2017": {
+          "signals": 1,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 1.421,
+          "median_final_return_pct": 6.699,
+          "mean_final_return_pct": 6.699
+        },
+        "2018": {
+          "signals": 3,
+          "any_decline_rate_pct": 66.67,
+          "down_2pct_rate_pct": 66.67,
+          "down_4pct_rate_pct": 33.33,
+          "median_minimum_return_pct": -2.056,
+          "median_final_return_pct": 3.281,
+          "mean_final_return_pct": 4.466
+        },
+        "2019": {
+          "signals": 2,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 50.0,
+          "median_minimum_return_pct": -3.796,
+          "median_final_return_pct": -3.494,
+          "mean_final_return_pct": -3.494
+        },
+        "2020": {
+          "signals": 1,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 100.0,
+          "median_minimum_return_pct": -18.84,
+          "median_final_return_pct": -3.941,
+          "mean_final_return_pct": -3.941
+        },
+        "2021": {
+          "signals": 3,
+          "any_decline_rate_pct": 100.0,
+          "down_2pct_rate_pct": 100.0,
+          "down_4pct_rate_pct": 66.67,
+          "median_minimum_return_pct": -5.458,
+          "median_final_return_pct": -2.038,
+          "mean_final_return_pct": 0.002
+        },
+        "2022": {
+          "signals": 7,
+          "any_decline_rate_pct": 71.43,
+          "down_2pct_rate_pct": 71.43,
+          "down_4pct_rate_pct": 71.43,
+          "median_minimum_return_pct": -6.884,
+          "median_final_return_pct": -2.226,
+          "mean_final_return_pct": 1.33
+        },
+        "2023": {
+          "signals": 2,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 2.245,
+          "median_final_return_pct": 4.311,
+          "mean_final_return_pct": 4.311
+        },
+        "2024": {
+          "signals": 3,
+          "any_decline_rate_pct": 33.33,
+          "down_2pct_rate_pct": 33.33,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 0.339,
+          "median_final_return_pct": 2.552,
+          "mean_final_return_pct": 3.738
+        },
+        "2025": {
+          "signals": 2,
+          "any_decline_rate_pct": 0.0,
+          "down_2pct_rate_pct": 0.0,
+          "down_4pct_rate_pct": 0.0,
+          "median_minimum_return_pct": 3.117,
+          "median_final_return_pct": 10.162,
+          "mean_final_return_pct": 10.162
+        },
+        "2026": {
+          "signals": 0
+        }
+      }
+    }
+  },
+  "events": {
+    "baseline_next_session": [
+      {
+        "signal_date": "2015-03-02",
+        "entry_date": "2015-03-03",
+        "entry_spot": 13.304,
+        "entry_day_return_pct": 1.13,
+        "minimum_return_pct": -4.35,
+        "final_return_pct": -4.35
+      },
+      {
+        "signal_date": "2015-03-10",
+        "entry_date": "2015-03-11",
+        "entry_spot": 12.916,
+        "entry_day_return_pct": 1.797,
+        "minimum_return_pct": -2.612,
+        "final_return_pct": 0.511
+      },
+      {
+        "signal_date": "2015-03-27",
+        "entry_date": "2015-03-30",
+        "entry_spot": 12.7047,
+        "entry_day_return_pct": 3.011,
+        "minimum_return_pct": -1.564,
+        "final_return_pct": 6.575
+      },
+      {
+        "signal_date": "2015-07-27",
+        "entry_date": "2015-07-28",
+        "entry_spot": 17.6547,
+        "entry_day_return_pct": 4.668,
+        "minimum_return_pct": -1.824,
+        "final_return_pct": -1.824
+      },
+      {
+        "signal_date": "2015-08-06",
+        "entry_date": "2015-08-07",
+        "entry_spot": 16.1673,
+        "entry_day_return_pct": -1.471,
+        "minimum_return_pct": -2.119,
+        "final_return_pct": 0.0
+      },
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-01",
+        "entry_date": "2015-10-02",
+        "entry_spot": 16.5047,
+        "entry_day_return_pct": 3.206,
+        "minimum_return_pct": -8.422,
+        "final_return_pct": -8.422
+      },
+      {
+        "signal_date": "2015-10-09",
+        "entry_date": "2015-10-12",
+        "entry_spot": 14.372,
+        "entry_day_return_pct": -2.315,
+        "minimum_return_pct": 0.603,
+        "final_return_pct": 5.302
+      },
+      {
+        "signal_date": "2015-10-20",
+        "entry_date": "2015-10-21",
+        "entry_spot": 14.006,
+        "entry_day_return_pct": -1.38,
+        "minimum_return_pct": -0.476,
+        "final_return_pct": 0.124
+      },
+      {
+        "signal_date": "2015-10-30",
+        "entry_date": "2015-11-02",
+        "entry_spot": 14.2527,
+        "entry_day_return_pct": 3.315,
+        "minimum_return_pct": -2.545,
+        "final_return_pct": 8.686
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-20",
+        "entry_date": "2016-01-21",
+        "entry_spot": 13.3313,
+        "entry_day_return_pct": 0.639,
+        "minimum_return_pct": -5.951,
+        "final_return_pct": -5.951
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-02-10",
+        "entry_date": "2016-02-11",
+        "entry_spot": 10.0313,
+        "entry_day_return_pct": 4.733,
+        "minimum_return_pct": 0.379,
+        "final_return_pct": 10.833
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-05-12",
+        "entry_date": "2016-05-13",
+        "entry_spot": 13.8407,
+        "entry_day_return_pct": 0.159,
+        "minimum_return_pct": -1.421,
+        "final_return_pct": 3.661
+      },
+      {
+        "signal_date": "2016-06-22",
+        "entry_date": "2016-06-23",
+        "entry_spot": 13.0933,
+        "entry_day_return_pct": -0.132,
+        "minimum_return_pct": -1.655,
+        "final_return_pct": 7.021
+      },
+      {
+        "signal_date": "2016-08-22",
+        "entry_date": "2016-08-23",
+        "entry_spot": 14.9893,
+        "entry_day_return_pct": 0.857,
+        "minimum_return_pct": -4.287,
+        "final_return_pct": -4.287
+      },
+      {
+        "signal_date": "2016-08-30",
+        "entry_date": "2016-08-31",
+        "entry_spot": 14.134,
+        "entry_day_return_pct": 0.317,
+        "minimum_return_pct": -6.712,
+        "final_return_pct": -4.858
+      },
+      {
+        "signal_date": "2016-09-08",
+        "entry_date": "2016-09-09",
+        "entry_spot": 12.9647,
+        "entry_day_return_pct": -1.464,
+        "minimum_return_pct": 0.812,
+        "final_return_pct": 3.06
+      },
+      {
+        "signal_date": "2016-10-14",
+        "entry_date": "2016-10-17",
+        "entry_spot": 12.9307,
+        "entry_day_return_pct": -1.298,
+        "minimum_return_pct": 2.65,
+        "final_return_pct": 3.16
+      },
+      {
+        "signal_date": "2016-11-01",
+        "entry_date": "2016-11-02",
+        "entry_spot": 12.5347,
+        "entry_day_return_pct": -1.452,
+        "minimum_return_pct": -0.319,
+        "final_return_pct": 3.68
+      },
+      {
+        "signal_date": "2016-11-10",
+        "entry_date": "2016-11-11",
+        "entry_spot": 12.5707,
+        "entry_day_return_pct": 1.732,
+        "minimum_return_pct": -3.771,
+        "final_return_pct": 0.053
+      },
+      {
+        "signal_date": "2017-02-27",
+        "entry_date": "2017-02-28",
+        "entry_spot": 16.666,
+        "entry_day_return_pct": 1.527,
+        "minimum_return_pct": 0.012,
+        "final_return_pct": 0.488
+      },
+      {
+        "signal_date": "2017-03-09",
+        "entry_date": "2017-03-10",
+        "entry_spot": 16.246,
+        "entry_day_return_pct": -0.494,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 7.534
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2017-09-27",
+        "entry_date": "2017-09-28",
+        "entry_spot": 22.64,
+        "entry_day_return_pct": -0.402,
+        "minimum_return_pct": 0.442,
+        "final_return_pct": 4.538
+      },
+      {
+        "signal_date": "2017-10-23",
+        "entry_date": "2017-10-24",
+        "entry_spot": 22.4893,
+        "entry_day_return_pct": 0.095,
+        "minimum_return_pct": -5.116,
+        "final_return_pct": -5.116
+      },
+      {
+        "signal_date": "2017-11-02",
+        "entry_date": "2017-11-03",
+        "entry_spot": 20.406,
+        "entry_day_return_pct": 2.282,
+        "minimum_return_pct": -1.081,
+        "final_return_pct": -1.013
+      },
+      {
+        "signal_date": "2018-02-08",
+        "entry_date": "2018-02-09",
+        "entry_spot": 20.6947,
+        "entry_day_return_pct": -1.526,
+        "minimum_return_pct": 1.711,
+        "final_return_pct": 7.619
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-05-18",
+        "entry_date": "2018-05-21",
+        "entry_spot": 18.966,
+        "entry_day_return_pct": 2.771,
+        "minimum_return_pct": -3.332,
+        "final_return_pct": -1.982
+      },
+      {
+        "signal_date": "2018-07-05",
+        "entry_date": "2018-07-06",
+        "entry_spot": 20.5933,
+        "entry_day_return_pct": -0.084,
+        "minimum_return_pct": 2.528,
+        "final_return_pct": 2.528
+      },
+      {
+        "signal_date": "2018-07-23",
+        "entry_date": "2018-07-24",
+        "entry_spot": 19.8287,
+        "entry_day_return_pct": -1.903,
+        "minimum_return_pct": -2.441,
+        "final_return_pct": -2.441
+      },
+      {
+        "signal_date": "2018-08-30",
+        "entry_date": "2018-08-31",
+        "entry_spot": 20.1107,
+        "entry_day_return_pct": -0.492,
+        "minimum_return_pct": -12.736,
+        "final_return_pct": -12.736
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2018-12-20",
+        "entry_date": "2018-12-21",
+        "entry_spot": 21.318,
+        "entry_day_return_pct": 1.392,
+        "minimum_return_pct": -7.624,
+        "final_return_pct": 4.409
+      },
+      {
+        "signal_date": "2019-01-23",
+        "entry_date": "2019-01-24",
+        "entry_spot": 19.434,
+        "entry_day_return_pct": 1.363,
+        "minimum_return_pct": 1.671,
+        "final_return_pct": 5.921
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-03-25",
+        "entry_date": "2019-03-26",
+        "entry_spot": 17.8513,
+        "entry_day_return_pct": 2.822,
+        "minimum_return_pct": 2.637,
+        "final_return_pct": 7.996
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-13",
+        "entry_date": "2019-05-14",
+        "entry_spot": 15.4873,
+        "entry_day_return_pct": 2.335,
+        "minimum_return_pct": -11.601,
+        "final_return_pct": -11.601
+      },
+      {
+        "signal_date": "2019-05-21",
+        "entry_date": "2019-05-22",
+        "entry_spot": 12.8487,
+        "entry_day_return_pct": -6.022,
+        "minimum_return_pct": -2.091,
+        "final_return_pct": -1.489
+      },
+      {
+        "signal_date": "2019-05-30",
+        "entry_date": "2019-05-31",
+        "entry_spot": 12.344,
+        "entry_day_return_pct": -1.626,
+        "minimum_return_pct": -3.343,
+        "final_return_pct": 11.228
+      },
+      {
+        "signal_date": "2019-08-14",
+        "entry_date": "2019-08-15",
+        "entry_spot": 14.376,
+        "entry_day_return_pct": -1.812,
+        "minimum_return_pct": 1.994,
+        "final_return_pct": 2.407
+      },
+      {
+        "signal_date": "2019-08-23",
+        "entry_date": "2019-08-26",
+        "entry_spot": 14.3333,
+        "entry_day_return_pct": 1.703,
+        "minimum_return_pct": -0.428,
+        "final_return_pct": 4.935
+      },
+      {
+        "signal_date": "2020-03-09",
+        "entry_date": "2020-03-10",
+        "entry_spot": 43.022,
+        "entry_day_return_pct": 6.14,
+        "minimum_return_pct": -31.032,
+        "final_return_pct": -31.032
+      },
+      {
+        "signal_date": "2020-03-17",
+        "entry_date": "2020-03-18",
+        "entry_spot": 24.0813,
+        "entry_day_return_pct": -16.034,
+        "minimum_return_pct": 18.357,
+        "final_return_pct": 39.804
+      },
+      {
+        "signal_date": "2020-08-11",
+        "entry_date": "2020-08-12",
+        "entry_spot": 103.6507,
+        "entry_day_return_pct": 13.124,
+        "minimum_return_pct": 4.26,
+        "final_return_pct": 21.375
+      },
+      {
+        "signal_date": "2020-10-28",
+        "entry_date": "2020-10-29",
+        "entry_spot": 136.9433,
+        "entry_day_return_pct": 1.185,
+        "minimum_return_pct": -5.547,
+        "final_return_pct": 2.471
+      },
+      {
+        "signal_date": "2021-02-18",
+        "entry_date": "2021-02-19",
+        "entry_spot": 260.4333,
+        "entry_day_return_pct": -0.772,
+        "minimum_return_pct": -12.681,
+        "final_return_pct": -12.681
+      },
+      {
+        "signal_date": "2021-02-26",
+        "entry_date": "2021-03-01",
+        "entry_spot": 239.4767,
+        "entry_day_return_pct": 6.355,
+        "minimum_return_pct": -16.77,
+        "final_return_pct": -16.77
+      },
+      {
+        "signal_date": "2021-03-08",
+        "entry_date": "2021-03-09",
+        "entry_spot": 224.5267,
+        "entry_day_return_pct": 19.641,
+        "minimum_return_pct": -0.82,
+        "final_return_pct": 5.101
+      },
+      {
+        "signal_date": "2021-05-05",
+        "entry_date": "2021-05-06",
+        "entry_spot": 221.18,
+        "entry_day_return_pct": -1.103,
+        "minimum_return_pct": -11.1,
+        "final_return_pct": -11.1
+      },
+      {
+        "signal_date": "2021-05-13",
+        "entry_date": "2021-05-14",
+        "entry_spot": 196.58,
+        "entry_day_return_pct": 3.157,
+        "minimum_return_pct": -4.456,
+        "final_return_pct": -0.502
+      },
+      {
+        "signal_date": "2021-07-23",
+        "entry_date": "2021-07-26",
+        "entry_spot": 219.2067,
+        "entry_day_return_pct": 2.213,
+        "minimum_return_pct": -1.952,
+        "final_return_pct": 4.498
+      },
+      {
+        "signal_date": "2021-12-06",
+        "entry_date": "2021-12-07",
+        "entry_spot": 350.5833,
+        "entry_day_return_pct": 4.236,
+        "minimum_return_pct": -8.114,
+        "final_return_pct": -8.114
+      },
+      {
+        "signal_date": "2021-12-14",
+        "entry_date": "2021-12-15",
+        "entry_spot": 325.33,
+        "entry_day_return_pct": 1.824,
+        "minimum_return_pct": -7.792,
+        "final_return_pct": -3.838
+      },
+      {
+        "signal_date": "2022-01-21",
+        "entry_date": "2022-01-24",
+        "entry_spot": 310.0,
+        "entry_day_return_pct": -1.473,
+        "minimum_return_pct": -10.849,
+        "final_return_pct": -8.995
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-04-26",
+        "entry_date": "2022-04-27",
+        "entry_spot": 293.8367,
+        "entry_day_return_pct": 0.581,
+        "minimum_return_pct": -1.22,
+        "final_return_pct": 3.147
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-16",
+        "entry_date": "2022-05-17",
+        "entry_spot": 253.87,
+        "entry_day_return_pct": 5.141,
+        "minimum_return_pct": -12.829,
+        "final_return_pct": -11.385
+      },
+      {
+        "signal_date": "2022-05-24",
+        "entry_date": "2022-05-25",
+        "entry_spot": 219.6,
+        "entry_day_return_pct": 4.878,
+        "minimum_return_pct": 7.427,
+        "final_return_pct": 12.382
+      },
+      {
+        "signal_date": "2022-08-30",
+        "entry_date": "2022-08-31",
+        "entry_spot": 275.61,
+        "entry_day_return_pct": -0.753,
+        "minimum_return_pct": -1.959,
+        "final_return_pct": 2.935
+      },
+      {
+        "signal_date": "2022-09-29",
+        "entry_date": "2022-09-30",
+        "entry_spot": 265.25,
+        "entry_day_return_pct": -1.104,
+        "minimum_return_pct": -10.224,
+        "final_return_pct": -10.224
+      },
+      {
+        "signal_date": "2022-10-07",
+        "entry_date": "2022-10-10",
+        "entry_spot": 222.96,
+        "entry_day_return_pct": -0.049,
+        "minimum_return_pct": -8.06,
+        "final_return_pct": -8.06
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-11-21",
+        "entry_date": "2022-11-22",
+        "entry_spot": 169.91,
+        "entry_day_return_pct": 1.215,
+        "minimum_return_pct": 6.427,
+        "final_return_pct": 6.427
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-20",
+        "entry_date": "2022-12-21",
+        "entry_spot": 137.57,
+        "entry_day_return_pct": -0.167,
+        "minimum_return_pct": -20.695,
+        "final_return_pct": -18.071
+      },
+      {
+        "signal_date": "2023-01-03",
+        "entry_date": "2023-01-04",
+        "entry_spot": 113.64,
+        "entry_day_return_pct": 5.125,
+        "minimum_return_pct": -2.904,
+        "final_return_pct": 4.585
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-20",
+        "entry_date": "2023-04-21",
+        "entry_spot": 165.08,
+        "entry_day_return_pct": 1.282,
+        "minimum_return_pct": -6.863,
+        "final_return_pct": -2.962
+      },
+      {
+        "signal_date": "2023-07-27",
+        "entry_date": "2023-07-28",
+        "entry_spot": 266.44,
+        "entry_day_return_pct": 4.196,
+        "minimum_return_pct": -4.628,
+        "final_return_pct": -2.672
+      },
+      {
+        "signal_date": "2023-08-04",
+        "entry_date": "2023-08-07",
+        "entry_spot": 251.45,
+        "entry_day_return_pct": -0.949,
+        "minimum_return_pct": -3.683,
+        "final_return_pct": -3.5
+      },
+      {
+        "signal_date": "2023-08-14",
+        "entry_date": "2023-08-15",
+        "entry_spot": 232.96,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -7.499,
+        "final_return_pct": -0.721
+      },
+      {
+        "signal_date": "2023-09-27",
+        "entry_date": "2023-09-28",
+        "entry_spot": 246.38,
+        "entry_day_return_pct": 2.445,
+        "minimum_return_pct": 0.061,
+        "final_return_pct": 5.999
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2023-10-30",
+        "entry_date": "2023-10-31",
+        "entry_spot": 200.84,
+        "entry_day_return_pct": 1.763,
+        "minimum_return_pct": 2.4,
+        "final_return_pct": 9.176
+      },
+      {
+        "signal_date": "2024-01-09",
+        "entry_date": "2024-01-10",
+        "entry_spot": 233.94,
+        "entry_day_return_pct": -0.434,
+        "minimum_return_pct": -7.861,
+        "final_return_pct": -7.861
+      },
+      {
+        "signal_date": "2024-01-18",
+        "entry_date": "2024-01-19",
+        "entry_spot": 212.19,
+        "entry_day_return_pct": 0.146,
+        "minimum_return_pct": -13.931,
+        "final_return_pct": -13.931
+      },
+      {
+        "signal_date": "2024-02-05",
+        "entry_date": "2024-02-06",
+        "entry_spot": 185.1,
+        "entry_day_return_pct": 2.231,
+        "minimum_return_pct": 1.34,
+        "final_return_pct": 1.637
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-06-11",
+        "entry_date": "2024-06-12",
+        "entry_spot": 177.29,
+        "entry_day_return_pct": 3.885,
+        "minimum_return_pct": 0.406,
+        "final_return_pct": 4.27
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2024-10-11",
+        "entry_date": "2024-10-14",
+        "entry_spot": 219.16,
+        "entry_day_return_pct": 0.624,
+        "minimum_return_pct": 0.187,
+        "final_return_pct": 0.703
+      },
+      {
+        "signal_date": "2024-10-23",
+        "entry_date": "2024-10-24",
+        "entry_spot": 260.48,
+        "entry_day_return_pct": 21.919,
+        "minimum_return_pct": -1.125,
+        "final_return_pct": -1.125
+      },
+      {
+        "signal_date": "2025-02-05",
+        "entry_date": "2025-02-06",
+        "entry_spot": 374.32,
+        "entry_day_return_pct": -1.018,
+        "minimum_return_pct": -12.241,
+        "final_return_pct": -10.101
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-06",
+        "entry_date": "2025-03-07",
+        "entry_spot": 262.67,
+        "entry_day_return_pct": -0.296,
+        "minimum_return_pct": -15.426,
+        "final_return_pct": -8.372
+      },
+      {
+        "signal_date": "2025-04-08",
+        "entry_date": "2025-04-09",
+        "entry_spot": 272.2,
+        "entry_day_return_pct": 22.69,
+        "minimum_return_pct": -7.307,
+        "final_return_pct": -6.646
+      },
+      {
+        "signal_date": "2025-11-13",
+        "entry_date": "2025-11-14",
+        "entry_spot": 404.35,
+        "entry_day_return_pct": 0.587,
+        "minimum_return_pct": -2.255,
+        "final_return_pct": -2.255
+      },
+      {
+        "signal_date": "2025-11-21",
+        "entry_date": "2025-11-24",
+        "entry_spot": 417.78,
+        "entry_day_return_pct": 6.825,
+        "minimum_return_pct": 0.388,
+        "final_return_pct": 2.958
+      },
+      {
+        "signal_date": "2026-01-02",
+        "entry_date": "2026-01-05",
+        "entry_spot": 451.67,
+        "entry_day_return_pct": 3.105,
+        "minimum_return_pct": -4.486,
+        "final_return_pct": -1.475
+      },
+      {
+        "signal_date": "2026-01-20",
+        "entry_date": "2026-01-21",
+        "entry_spot": 431.44,
+        "entry_day_return_pct": 2.908,
+        "minimum_return_pct": -0.125,
+        "final_return_pct": -0.125
+      },
+      {
+        "signal_date": "2026-01-29",
+        "entry_date": "2026-01-30",
+        "entry_spot": 430.41,
+        "entry_day_return_pct": 3.325,
+        "minimum_return_pct": -7.714,
+        "final_return_pct": -7.714
+      },
+      {
+        "signal_date": "2026-03-03",
+        "entry_date": "2026-03-04",
+        "entry_spot": 405.94,
+        "entry_day_return_pct": 3.443,
+        "minimum_return_pct": -2.269,
+        "final_return_pct": -1.65
+      },
+      {
+        "signal_date": "2026-03-13",
+        "entry_date": "2026-03-16",
+        "entry_spot": 395.56,
+        "entry_day_return_pct": 1.115,
+        "minimum_return_pct": -6.977,
+        "final_return_pct": -6.977
+      },
+      {
+        "signal_date": "2026-03-27",
+        "entry_date": "2026-03-30",
+        "entry_spot": 355.28,
+        "entry_day_return_pct": -1.81,
+        "minimum_return_pct": -0.692,
+        "final_return_pct": -0.692
+      },
+      {
+        "signal_date": "2026-04-07",
+        "entry_date": "2026-04-08",
+        "entry_spot": 343.25,
+        "entry_day_return_pct": -0.981,
+        "minimum_return_pct": 0.69,
+        "final_return_pct": 6.103
+      },
+      {
+        "signal_date": "2026-06-05",
+        "entry_date": "2026-06-08",
+        "entry_spot": 408.95,
+        "entry_day_return_pct": 4.591,
+        "minimum_return_pct": -6.69,
+        "final_return_pct": -0.616
+      },
+      {
+        "signal_date": "2026-06-24",
+        "entry_date": "2026-06-25",
+        "entry_spot": 375.12,
+        "entry_day_return_pct": -0.109,
+        "minimum_return_pct": 1.224,
+        "final_return_pct": 13.377
+      },
+      {
+        "signal_date": "2026-07-20",
+        "entry_date": "2026-07-21",
+        "entry_spot": 378.93,
+        "entry_day_return_pct": 2.533,
+        "minimum_return_pct": -18.397,
+        "final_return_pct": -18.397
+      },
+      {
+        "signal_date": "2026-07-28",
+        "entry_date": "2026-07-29",
+        "entry_spot": 298.32,
+        "entry_day_return_pct": -2.966,
+        "minimum_return_pct": 3.53,
+        "final_return_pct": 9.731
+      },
+      {
+        "signal_date": "2026-09-29",
+        "entry_date": "2026-09-30",
+        "entry_spot": 354.81,
+        "entry_day_return_pct": 0.558,
+        "minimum_return_pct": -0.197,
+        "final_return_pct": 7.291
+      }
+    ],
+    "max_rebound_0pct": [
+      {
+        "signal_date": "2015-03-06",
+        "entry_date": "2015-03-09",
+        "entry_spot": 12.7253,
+        "entry_day_return_pct": -1.547,
+        "minimum_return_pct": -1.153,
+        "final_return_pct": -1.153
+      },
+      {
+        "signal_date": "2015-08-06",
+        "entry_date": "2015-08-07",
+        "entry_spot": 16.1673,
+        "entry_day_return_pct": -1.471,
+        "minimum_return_pct": -2.119,
+        "final_return_pct": 0.0
+      },
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-07",
+        "entry_date": "2015-10-08",
+        "entry_spot": 15.1147,
+        "entry_day_return_pct": -2.259,
+        "minimum_return_pct": -4.914,
+        "final_return_pct": -4.34
+      },
+      {
+        "signal_date": "2015-10-20",
+        "entry_date": "2015-10-21",
+        "entry_spot": 14.006,
+        "entry_day_return_pct": -1.38,
+        "minimum_return_pct": -0.476,
+        "final_return_pct": 0.124
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-25",
+        "entry_date": "2016-01-26",
+        "entry_spot": 12.904,
+        "entry_day_return_pct": -1.436,
+        "minimum_return_pct": -2.836,
+        "final_return_pct": 1.746
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-06-22",
+        "entry_date": "2016-06-23",
+        "entry_spot": 13.0933,
+        "entry_day_return_pct": -0.132,
+        "minimum_return_pct": -1.655,
+        "final_return_pct": 7.021
+      },
+      {
+        "signal_date": "2016-08-24",
+        "entry_date": "2016-08-25",
+        "entry_spot": 14.7307,
+        "entry_day_return_pct": -0.746,
+        "minimum_return_pct": -4.354,
+        "final_return_pct": -4.051
+      },
+      {
+        "signal_date": "2016-09-01",
+        "entry_date": "2016-09-02",
+        "entry_spot": 13.1853,
+        "entry_day_return_pct": -1.489,
+        "minimum_return_pct": -1.674,
+        "final_return_pct": -1.674
+      },
+      {
+        "signal_date": "2016-10-14",
+        "entry_date": "2016-10-17",
+        "entry_spot": 12.9307,
+        "entry_day_return_pct": -1.298,
+        "minimum_return_pct": 2.65,
+        "final_return_pct": 3.16
+      },
+      {
+        "signal_date": "2016-11-01",
+        "entry_date": "2016-11-02",
+        "entry_spot": 12.5347,
+        "entry_day_return_pct": -1.452,
+        "minimum_return_pct": -0.319,
+        "final_return_pct": 3.68
+      },
+      {
+        "signal_date": "2017-03-09",
+        "entry_date": "2017-03-10",
+        "entry_spot": 16.246,
+        "entry_day_return_pct": -0.494,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 7.534
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2017-09-27",
+        "entry_date": "2017-09-28",
+        "entry_spot": 22.64,
+        "entry_day_return_pct": -0.402,
+        "minimum_return_pct": 0.442,
+        "final_return_pct": 4.538
+      },
+      {
+        "signal_date": "2017-10-27",
+        "entry_date": "2017-10-30",
+        "entry_spot": 21.3387,
+        "entry_day_return_pct": -0.246,
+        "minimum_return_pct": -6.505,
+        "final_return_pct": -4.371
+      },
+      {
+        "signal_date": "2018-02-08",
+        "entry_date": "2018-02-09",
+        "entry_spot": 20.6947,
+        "entry_day_return_pct": -1.526,
+        "minimum_return_pct": 1.711,
+        "final_return_pct": 7.619
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-07-05",
+        "entry_date": "2018-07-06",
+        "entry_spot": 20.5933,
+        "entry_day_return_pct": -0.084,
+        "minimum_return_pct": 2.528,
+        "final_return_pct": 2.528
+      },
+      {
+        "signal_date": "2018-07-23",
+        "entry_date": "2018-07-24",
+        "entry_spot": 19.8287,
+        "entry_day_return_pct": -1.903,
+        "minimum_return_pct": -2.441,
+        "final_return_pct": -2.441
+      },
+      {
+        "signal_date": "2018-08-30",
+        "entry_date": "2018-08-31",
+        "entry_spot": 20.1107,
+        "entry_day_return_pct": -0.492,
+        "minimum_return_pct": -12.736,
+        "final_return_pct": -12.736
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-17",
+        "entry_date": "2019-05-20",
+        "entry_spot": 13.6907,
+        "entry_day_return_pct": -2.687,
+        "minimum_return_pct": -7.173,
+        "final_return_pct": -7.173
+      },
+      {
+        "signal_date": "2019-05-30",
+        "entry_date": "2019-05-31",
+        "entry_spot": 12.344,
+        "entry_day_return_pct": -1.626,
+        "minimum_return_pct": -3.343,
+        "final_return_pct": 11.228
+      },
+      {
+        "signal_date": "2019-08-14",
+        "entry_date": "2019-08-15",
+        "entry_spot": 14.376,
+        "entry_day_return_pct": -1.812,
+        "minimum_return_pct": 1.994,
+        "final_return_pct": 2.407
+      },
+      {
+        "signal_date": "2020-03-12",
+        "entry_date": "2020-03-13",
+        "entry_spot": 36.4413,
+        "entry_day_return_pct": -2.485,
+        "minimum_return_pct": -33.918,
+        "final_return_pct": -21.766
+      },
+      {
+        "signal_date": "2021-02-18",
+        "entry_date": "2021-02-19",
+        "entry_spot": 260.4333,
+        "entry_day_return_pct": -0.772,
+        "minimum_return_pct": -12.681,
+        "final_return_pct": -12.681
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-05",
+        "entry_date": "2021-05-06",
+        "entry_spot": 221.18,
+        "entry_day_return_pct": -1.103,
+        "minimum_return_pct": -11.1,
+        "final_return_pct": -11.1
+      },
+      {
+        "signal_date": "2021-12-13",
+        "entry_date": "2021-12-14",
+        "entry_spot": 319.5033,
+        "entry_day_return_pct": -0.817,
+        "minimum_return_pct": -6.111,
+        "final_return_pct": -6.111
+      },
+      {
+        "signal_date": "2022-01-21",
+        "entry_date": "2022-01-24",
+        "entry_spot": 310.0,
+        "entry_day_return_pct": -1.473,
+        "minimum_return_pct": -10.849,
+        "final_return_pct": -8.995
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-18",
+        "entry_date": "2022-05-19",
+        "entry_spot": 236.4733,
+        "entry_day_return_pct": -0.055,
+        "minimum_return_pct": -11.454,
+        "final_return_pct": -7.135
+      },
+      {
+        "signal_date": "2022-08-30",
+        "entry_date": "2022-08-31",
+        "entry_spot": 275.61,
+        "entry_day_return_pct": -0.753,
+        "minimum_return_pct": -1.959,
+        "final_return_pct": 2.935
+      },
+      {
+        "signal_date": "2022-09-29",
+        "entry_date": "2022-09-30",
+        "entry_spot": 265.25,
+        "entry_day_return_pct": -1.104,
+        "minimum_return_pct": -10.224,
+        "final_return_pct": -10.224
+      },
+      {
+        "signal_date": "2022-10-07",
+        "entry_date": "2022-10-10",
+        "entry_spot": 222.96,
+        "entry_day_return_pct": -0.049,
+        "minimum_return_pct": -8.06,
+        "final_return_pct": -8.06
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-20",
+        "entry_date": "2022-12-21",
+        "entry_spot": 137.57,
+        "entry_day_return_pct": -0.167,
+        "minimum_return_pct": -20.695,
+        "final_return_pct": -18.071
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-24",
+        "entry_date": "2023-04-25",
+        "entry_spot": 160.67,
+        "entry_day_return_pct": -1.157,
+        "minimum_return_pct": -4.307,
+        "final_return_pct": 0.722
+      },
+      {
+        "signal_date": "2023-08-04",
+        "entry_date": "2023-08-07",
+        "entry_spot": 251.45,
+        "entry_day_return_pct": -0.949,
+        "minimum_return_pct": -3.683,
+        "final_return_pct": -3.5
+      },
+      {
+        "signal_date": "2023-08-14",
+        "entry_date": "2023-08-15",
+        "entry_spot": 232.96,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -7.499,
+        "final_return_pct": -0.721
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2024-01-09",
+        "entry_date": "2024-01-10",
+        "entry_spot": 233.94,
+        "entry_day_return_pct": -0.434,
+        "minimum_return_pct": -7.861,
+        "final_return_pct": -7.861
+      },
+      {
+        "signal_date": "2024-01-24",
+        "entry_date": "2024-01-25",
+        "entry_spot": 182.63,
+        "entry_day_return_pct": -12.125,
+        "minimum_return_pct": 0.339,
+        "final_return_pct": 2.552
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2025-02-05",
+        "entry_date": "2025-02-06",
+        "entry_spot": 374.32,
+        "entry_day_return_pct": -1.018,
+        "minimum_return_pct": -12.241,
+        "final_return_pct": -10.101
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-06",
+        "entry_date": "2025-03-07",
+        "entry_spot": 262.67,
+        "entry_day_return_pct": -0.296,
+        "minimum_return_pct": -15.426,
+        "final_return_pct": -8.372
+      },
+      {
+        "signal_date": "2025-11-20",
+        "entry_date": "2025-11-21",
+        "entry_spot": 391.09,
+        "entry_day_return_pct": -1.047,
+        "minimum_return_pct": 6.825,
+        "final_return_pct": 9.993
+      },
+      {
+        "signal_date": "2026-01-06",
+        "entry_date": "2026-01-07",
+        "entry_spot": 431.41,
+        "entry_day_return_pct": -0.358,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 3.66
+      },
+      {
+        "signal_date": "2026-02-04",
+        "entry_date": "2026-02-05",
+        "entry_spot": 397.21,
+        "entry_day_return_pct": -2.167,
+        "minimum_return_pct": 3.499,
+        "final_return_pct": 7.82
+      },
+      {
+        "signal_date": "2026-03-19",
+        "entry_date": "2026-03-20",
+        "entry_spot": 367.96,
+        "entry_day_return_pct": -3.245,
+        "minimum_return_pct": 1.128,
+        "final_return_pct": 1.128
+      },
+      {
+        "signal_date": "2026-03-27",
+        "entry_date": "2026-03-30",
+        "entry_spot": 355.28,
+        "entry_day_return_pct": -1.81,
+        "minimum_return_pct": -0.692,
+        "final_return_pct": -0.692
+      },
+      {
+        "signal_date": "2026-04-07",
+        "entry_date": "2026-04-08",
+        "entry_spot": 343.25,
+        "entry_day_return_pct": -0.981,
+        "minimum_return_pct": 0.69,
+        "final_return_pct": 6.103
+      },
+      {
+        "signal_date": "2026-06-24",
+        "entry_date": "2026-06-25",
+        "entry_spot": 375.12,
+        "entry_day_return_pct": -0.109,
+        "minimum_return_pct": 1.224,
+        "final_return_pct": 13.377
+      },
+      {
+        "signal_date": "2026-07-23",
+        "entry_date": "2026-07-24",
+        "entry_spot": 313.03,
+        "entry_day_return_pct": -2.083,
+        "minimum_return_pct": -4.699,
+        "final_return_pct": -1.335
+      }
+    ],
+    "max_rebound_0_5pct": [
+      {
+        "signal_date": "2015-03-06",
+        "entry_date": "2015-03-09",
+        "entry_spot": 12.7253,
+        "entry_day_return_pct": -1.547,
+        "minimum_return_pct": -1.153,
+        "final_return_pct": -1.153
+      },
+      {
+        "signal_date": "2015-08-06",
+        "entry_date": "2015-08-07",
+        "entry_spot": 16.1673,
+        "entry_day_return_pct": -1.471,
+        "minimum_return_pct": -2.119,
+        "final_return_pct": 0.0
+      },
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-07",
+        "entry_date": "2015-10-08",
+        "entry_spot": 15.1147,
+        "entry_day_return_pct": -2.259,
+        "minimum_return_pct": -4.914,
+        "final_return_pct": -4.34
+      },
+      {
+        "signal_date": "2015-10-20",
+        "entry_date": "2015-10-21",
+        "entry_spot": 14.006,
+        "entry_day_return_pct": -1.38,
+        "minimum_return_pct": -0.476,
+        "final_return_pct": 0.124
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-25",
+        "entry_date": "2016-01-26",
+        "entry_spot": 12.904,
+        "entry_day_return_pct": -1.436,
+        "minimum_return_pct": -2.836,
+        "final_return_pct": 1.746
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-05-12",
+        "entry_date": "2016-05-13",
+        "entry_spot": 13.8407,
+        "entry_day_return_pct": 0.159,
+        "minimum_return_pct": -1.421,
+        "final_return_pct": 3.661
+      },
+      {
+        "signal_date": "2016-06-22",
+        "entry_date": "2016-06-23",
+        "entry_spot": 13.0933,
+        "entry_day_return_pct": -0.132,
+        "minimum_return_pct": -1.655,
+        "final_return_pct": 7.021
+      },
+      {
+        "signal_date": "2016-08-24",
+        "entry_date": "2016-08-25",
+        "entry_spot": 14.7307,
+        "entry_day_return_pct": -0.746,
+        "minimum_return_pct": -4.354,
+        "final_return_pct": -4.051
+      },
+      {
+        "signal_date": "2016-09-01",
+        "entry_date": "2016-09-02",
+        "entry_spot": 13.1853,
+        "entry_day_return_pct": -1.489,
+        "minimum_return_pct": -1.674,
+        "final_return_pct": -1.674
+      },
+      {
+        "signal_date": "2016-10-14",
+        "entry_date": "2016-10-17",
+        "entry_spot": 12.9307,
+        "entry_day_return_pct": -1.298,
+        "minimum_return_pct": 2.65,
+        "final_return_pct": 3.16
+      },
+      {
+        "signal_date": "2016-11-01",
+        "entry_date": "2016-11-02",
+        "entry_spot": 12.5347,
+        "entry_day_return_pct": -1.452,
+        "minimum_return_pct": -0.319,
+        "final_return_pct": 3.68
+      },
+      {
+        "signal_date": "2017-03-09",
+        "entry_date": "2017-03-10",
+        "entry_spot": 16.246,
+        "entry_day_return_pct": -0.494,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 7.534
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2017-09-27",
+        "entry_date": "2017-09-28",
+        "entry_spot": 22.64,
+        "entry_day_return_pct": -0.402,
+        "minimum_return_pct": 0.442,
+        "final_return_pct": 4.538
+      },
+      {
+        "signal_date": "2017-10-23",
+        "entry_date": "2017-10-24",
+        "entry_spot": 22.4893,
+        "entry_day_return_pct": 0.095,
+        "minimum_return_pct": -5.116,
+        "final_return_pct": -5.116
+      },
+      {
+        "signal_date": "2018-02-08",
+        "entry_date": "2018-02-09",
+        "entry_spot": 20.6947,
+        "entry_day_return_pct": -1.526,
+        "minimum_return_pct": 1.711,
+        "final_return_pct": 7.619
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-07-05",
+        "entry_date": "2018-07-06",
+        "entry_spot": 20.5933,
+        "entry_day_return_pct": -0.084,
+        "minimum_return_pct": 2.528,
+        "final_return_pct": 2.528
+      },
+      {
+        "signal_date": "2018-07-23",
+        "entry_date": "2018-07-24",
+        "entry_spot": 19.8287,
+        "entry_day_return_pct": -1.903,
+        "minimum_return_pct": -2.441,
+        "final_return_pct": -2.441
+      },
+      {
+        "signal_date": "2018-08-30",
+        "entry_date": "2018-08-31",
+        "entry_spot": 20.1107,
+        "entry_day_return_pct": -0.492,
+        "minimum_return_pct": -12.736,
+        "final_return_pct": -12.736
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-17",
+        "entry_date": "2019-05-20",
+        "entry_spot": 13.6907,
+        "entry_day_return_pct": -2.687,
+        "minimum_return_pct": -7.173,
+        "final_return_pct": -7.173
+      },
+      {
+        "signal_date": "2019-05-30",
+        "entry_date": "2019-05-31",
+        "entry_spot": 12.344,
+        "entry_day_return_pct": -1.626,
+        "minimum_return_pct": -3.343,
+        "final_return_pct": 11.228
+      },
+      {
+        "signal_date": "2019-08-14",
+        "entry_date": "2019-08-15",
+        "entry_spot": 14.376,
+        "entry_day_return_pct": -1.812,
+        "minimum_return_pct": 1.994,
+        "final_return_pct": 2.407
+      },
+      {
+        "signal_date": "2020-03-12",
+        "entry_date": "2020-03-13",
+        "entry_spot": 36.4413,
+        "entry_day_return_pct": -2.485,
+        "minimum_return_pct": -33.918,
+        "final_return_pct": -21.766
+      },
+      {
+        "signal_date": "2021-02-18",
+        "entry_date": "2021-02-19",
+        "entry_spot": 260.4333,
+        "entry_day_return_pct": -0.772,
+        "minimum_return_pct": -12.681,
+        "final_return_pct": -12.681
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-05",
+        "entry_date": "2021-05-06",
+        "entry_spot": 221.18,
+        "entry_day_return_pct": -1.103,
+        "minimum_return_pct": -11.1,
+        "final_return_pct": -11.1
+      },
+      {
+        "signal_date": "2021-12-13",
+        "entry_date": "2021-12-14",
+        "entry_spot": 319.5033,
+        "entry_day_return_pct": -0.817,
+        "minimum_return_pct": -6.111,
+        "final_return_pct": -6.111
+      },
+      {
+        "signal_date": "2022-01-21",
+        "entry_date": "2022-01-24",
+        "entry_spot": 310.0,
+        "entry_day_return_pct": -1.473,
+        "minimum_return_pct": -10.849,
+        "final_return_pct": -8.995
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-18",
+        "entry_date": "2022-05-19",
+        "entry_spot": 236.4733,
+        "entry_day_return_pct": -0.055,
+        "minimum_return_pct": -11.454,
+        "final_return_pct": -7.135
+      },
+      {
+        "signal_date": "2022-08-30",
+        "entry_date": "2022-08-31",
+        "entry_spot": 275.61,
+        "entry_day_return_pct": -0.753,
+        "minimum_return_pct": -1.959,
+        "final_return_pct": 2.935
+      },
+      {
+        "signal_date": "2022-09-29",
+        "entry_date": "2022-09-30",
+        "entry_spot": 265.25,
+        "entry_day_return_pct": -1.104,
+        "minimum_return_pct": -10.224,
+        "final_return_pct": -10.224
+      },
+      {
+        "signal_date": "2022-10-07",
+        "entry_date": "2022-10-10",
+        "entry_spot": 222.96,
+        "entry_day_return_pct": -0.049,
+        "minimum_return_pct": -8.06,
+        "final_return_pct": -8.06
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-20",
+        "entry_date": "2022-12-21",
+        "entry_spot": 137.57,
+        "entry_day_return_pct": -0.167,
+        "minimum_return_pct": -20.695,
+        "final_return_pct": -18.071
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-24",
+        "entry_date": "2023-04-25",
+        "entry_spot": 160.67,
+        "entry_day_return_pct": -1.157,
+        "minimum_return_pct": -4.307,
+        "final_return_pct": 0.722
+      },
+      {
+        "signal_date": "2023-08-04",
+        "entry_date": "2023-08-07",
+        "entry_spot": 251.45,
+        "entry_day_return_pct": -0.949,
+        "minimum_return_pct": -3.683,
+        "final_return_pct": -3.5
+      },
+      {
+        "signal_date": "2023-08-14",
+        "entry_date": "2023-08-15",
+        "entry_spot": 232.96,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -7.499,
+        "final_return_pct": -0.721
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2024-01-09",
+        "entry_date": "2024-01-10",
+        "entry_spot": 233.94,
+        "entry_day_return_pct": -0.434,
+        "minimum_return_pct": -7.861,
+        "final_return_pct": -7.861
+      },
+      {
+        "signal_date": "2024-01-18",
+        "entry_date": "2024-01-19",
+        "entry_spot": 212.19,
+        "entry_day_return_pct": 0.146,
+        "minimum_return_pct": -13.931,
+        "final_return_pct": -13.931
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2025-02-05",
+        "entry_date": "2025-02-06",
+        "entry_spot": 374.32,
+        "entry_day_return_pct": -1.018,
+        "minimum_return_pct": -12.241,
+        "final_return_pct": -10.101
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-06",
+        "entry_date": "2025-03-07",
+        "entry_spot": 262.67,
+        "entry_day_return_pct": -0.296,
+        "minimum_return_pct": -15.426,
+        "final_return_pct": -8.372
+      },
+      {
+        "signal_date": "2025-11-20",
+        "entry_date": "2025-11-21",
+        "entry_spot": 391.09,
+        "entry_day_return_pct": -1.047,
+        "minimum_return_pct": 6.825,
+        "final_return_pct": 9.993
+      },
+      {
+        "signal_date": "2026-01-06",
+        "entry_date": "2026-01-07",
+        "entry_spot": 431.41,
+        "entry_day_return_pct": -0.358,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 3.66
+      },
+      {
+        "signal_date": "2026-02-04",
+        "entry_date": "2026-02-05",
+        "entry_spot": 397.21,
+        "entry_day_return_pct": -2.167,
+        "minimum_return_pct": 3.499,
+        "final_return_pct": 7.82
+      },
+      {
+        "signal_date": "2026-03-19",
+        "entry_date": "2026-03-20",
+        "entry_spot": 367.96,
+        "entry_day_return_pct": -3.245,
+        "minimum_return_pct": 1.128,
+        "final_return_pct": 1.128
+      },
+      {
+        "signal_date": "2026-03-27",
+        "entry_date": "2026-03-30",
+        "entry_spot": 355.28,
+        "entry_day_return_pct": -1.81,
+        "minimum_return_pct": -0.692,
+        "final_return_pct": -0.692
+      },
+      {
+        "signal_date": "2026-04-07",
+        "entry_date": "2026-04-08",
+        "entry_spot": 343.25,
+        "entry_day_return_pct": -0.981,
+        "minimum_return_pct": 0.69,
+        "final_return_pct": 6.103
+      },
+      {
+        "signal_date": "2026-06-24",
+        "entry_date": "2026-06-25",
+        "entry_spot": 375.12,
+        "entry_day_return_pct": -0.109,
+        "minimum_return_pct": 1.224,
+        "final_return_pct": 13.377
+      },
+      {
+        "signal_date": "2026-07-23",
+        "entry_date": "2026-07-24",
+        "entry_spot": 313.03,
+        "entry_day_return_pct": -2.083,
+        "minimum_return_pct": -4.699,
+        "final_return_pct": -1.335
+      }
+    ],
+    "max_rebound_1pct": [
+      {
+        "signal_date": "2015-03-06",
+        "entry_date": "2015-03-09",
+        "entry_spot": 12.7253,
+        "entry_day_return_pct": -1.547,
+        "minimum_return_pct": -1.153,
+        "final_return_pct": -1.153
+      },
+      {
+        "signal_date": "2015-08-06",
+        "entry_date": "2015-08-07",
+        "entry_spot": 16.1673,
+        "entry_day_return_pct": -1.471,
+        "minimum_return_pct": -2.119,
+        "final_return_pct": 0.0
+      },
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-07",
+        "entry_date": "2015-10-08",
+        "entry_spot": 15.1147,
+        "entry_day_return_pct": -2.259,
+        "minimum_return_pct": -4.914,
+        "final_return_pct": -4.34
+      },
+      {
+        "signal_date": "2015-10-20",
+        "entry_date": "2015-10-21",
+        "entry_spot": 14.006,
+        "entry_day_return_pct": -1.38,
+        "minimum_return_pct": -0.476,
+        "final_return_pct": 0.124
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-20",
+        "entry_date": "2016-01-21",
+        "entry_spot": 13.3313,
+        "entry_day_return_pct": 0.639,
+        "minimum_return_pct": -5.951,
+        "final_return_pct": -5.951
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-05-12",
+        "entry_date": "2016-05-13",
+        "entry_spot": 13.8407,
+        "entry_day_return_pct": 0.159,
+        "minimum_return_pct": -1.421,
+        "final_return_pct": 3.661
+      },
+      {
+        "signal_date": "2016-06-22",
+        "entry_date": "2016-06-23",
+        "entry_spot": 13.0933,
+        "entry_day_return_pct": -0.132,
+        "minimum_return_pct": -1.655,
+        "final_return_pct": 7.021
+      },
+      {
+        "signal_date": "2016-08-22",
+        "entry_date": "2016-08-23",
+        "entry_spot": 14.9893,
+        "entry_day_return_pct": 0.857,
+        "minimum_return_pct": -4.287,
+        "final_return_pct": -4.287
+      },
+      {
+        "signal_date": "2016-08-30",
+        "entry_date": "2016-08-31",
+        "entry_spot": 14.134,
+        "entry_day_return_pct": 0.317,
+        "minimum_return_pct": -6.712,
+        "final_return_pct": -4.858
+      },
+      {
+        "signal_date": "2016-09-08",
+        "entry_date": "2016-09-09",
+        "entry_spot": 12.9647,
+        "entry_day_return_pct": -1.464,
+        "minimum_return_pct": 0.812,
+        "final_return_pct": 3.06
+      },
+      {
+        "signal_date": "2016-10-14",
+        "entry_date": "2016-10-17",
+        "entry_spot": 12.9307,
+        "entry_day_return_pct": -1.298,
+        "minimum_return_pct": 2.65,
+        "final_return_pct": 3.16
+      },
+      {
+        "signal_date": "2016-11-01",
+        "entry_date": "2016-11-02",
+        "entry_spot": 12.5347,
+        "entry_day_return_pct": -1.452,
+        "minimum_return_pct": -0.319,
+        "final_return_pct": 3.68
+      },
+      {
+        "signal_date": "2017-03-09",
+        "entry_date": "2017-03-10",
+        "entry_spot": 16.246,
+        "entry_day_return_pct": -0.494,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 7.534
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2017-09-27",
+        "entry_date": "2017-09-28",
+        "entry_spot": 22.64,
+        "entry_day_return_pct": -0.402,
+        "minimum_return_pct": 0.442,
+        "final_return_pct": 4.538
+      },
+      {
+        "signal_date": "2017-10-23",
+        "entry_date": "2017-10-24",
+        "entry_spot": 22.4893,
+        "entry_day_return_pct": 0.095,
+        "minimum_return_pct": -5.116,
+        "final_return_pct": -5.116
+      },
+      {
+        "signal_date": "2018-02-08",
+        "entry_date": "2018-02-09",
+        "entry_spot": 20.6947,
+        "entry_day_return_pct": -1.526,
+        "minimum_return_pct": 1.711,
+        "final_return_pct": 7.619
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-07-05",
+        "entry_date": "2018-07-06",
+        "entry_spot": 20.5933,
+        "entry_day_return_pct": -0.084,
+        "minimum_return_pct": 2.528,
+        "final_return_pct": 2.528
+      },
+      {
+        "signal_date": "2018-07-23",
+        "entry_date": "2018-07-24",
+        "entry_spot": 19.8287,
+        "entry_day_return_pct": -1.903,
+        "minimum_return_pct": -2.441,
+        "final_return_pct": -2.441
+      },
+      {
+        "signal_date": "2018-08-30",
+        "entry_date": "2018-08-31",
+        "entry_spot": 20.1107,
+        "entry_day_return_pct": -0.492,
+        "minimum_return_pct": -12.736,
+        "final_return_pct": -12.736
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-17",
+        "entry_date": "2019-05-20",
+        "entry_spot": 13.6907,
+        "entry_day_return_pct": -2.687,
+        "minimum_return_pct": -7.173,
+        "final_return_pct": -7.173
+      },
+      {
+        "signal_date": "2019-05-28",
+        "entry_date": "2019-05-29",
+        "entry_spot": 12.6573,
+        "entry_day_return_pct": 0.615,
+        "minimum_return_pct": -5.736,
+        "final_return_pct": 1.97
+      },
+      {
+        "signal_date": "2019-08-14",
+        "entry_date": "2019-08-15",
+        "entry_spot": 14.376,
+        "entry_day_return_pct": -1.812,
+        "minimum_return_pct": 1.994,
+        "final_return_pct": 2.407
+      },
+      {
+        "signal_date": "2020-03-12",
+        "entry_date": "2020-03-13",
+        "entry_spot": 36.4413,
+        "entry_day_return_pct": -2.485,
+        "minimum_return_pct": -33.918,
+        "final_return_pct": -21.766
+      },
+      {
+        "signal_date": "2021-02-18",
+        "entry_date": "2021-02-19",
+        "entry_spot": 260.4333,
+        "entry_day_return_pct": -0.772,
+        "minimum_return_pct": -12.681,
+        "final_return_pct": -12.681
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-05",
+        "entry_date": "2021-05-06",
+        "entry_spot": 221.18,
+        "entry_day_return_pct": -1.103,
+        "minimum_return_pct": -11.1,
+        "final_return_pct": -11.1
+      },
+      {
+        "signal_date": "2021-12-13",
+        "entry_date": "2021-12-14",
+        "entry_spot": 319.5033,
+        "entry_day_return_pct": -0.817,
+        "minimum_return_pct": -6.111,
+        "final_return_pct": -6.111
+      },
+      {
+        "signal_date": "2022-01-21",
+        "entry_date": "2022-01-24",
+        "entry_spot": 310.0,
+        "entry_day_return_pct": -1.473,
+        "minimum_return_pct": -10.849,
+        "final_return_pct": -8.995
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-04-26",
+        "entry_date": "2022-04-27",
+        "entry_spot": 293.8367,
+        "entry_day_return_pct": 0.581,
+        "minimum_return_pct": -1.22,
+        "final_return_pct": 3.147
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-18",
+        "entry_date": "2022-05-19",
+        "entry_spot": 236.4733,
+        "entry_day_return_pct": -0.055,
+        "minimum_return_pct": -11.454,
+        "final_return_pct": -7.135
+      },
+      {
+        "signal_date": "2022-08-30",
+        "entry_date": "2022-08-31",
+        "entry_spot": 275.61,
+        "entry_day_return_pct": -0.753,
+        "minimum_return_pct": -1.959,
+        "final_return_pct": 2.935
+      },
+      {
+        "signal_date": "2022-09-29",
+        "entry_date": "2022-09-30",
+        "entry_spot": 265.25,
+        "entry_day_return_pct": -1.104,
+        "minimum_return_pct": -10.224,
+        "final_return_pct": -10.224
+      },
+      {
+        "signal_date": "2022-10-07",
+        "entry_date": "2022-10-10",
+        "entry_spot": 222.96,
+        "entry_day_return_pct": -0.049,
+        "minimum_return_pct": -8.06,
+        "final_return_pct": -8.06
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-20",
+        "entry_date": "2022-12-21",
+        "entry_spot": 137.57,
+        "entry_day_return_pct": -0.167,
+        "minimum_return_pct": -20.695,
+        "final_return_pct": -18.071
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-24",
+        "entry_date": "2023-04-25",
+        "entry_spot": 160.67,
+        "entry_day_return_pct": -1.157,
+        "minimum_return_pct": -4.307,
+        "final_return_pct": 0.722
+      },
+      {
+        "signal_date": "2023-08-04",
+        "entry_date": "2023-08-07",
+        "entry_spot": 251.45,
+        "entry_day_return_pct": -0.949,
+        "minimum_return_pct": -3.683,
+        "final_return_pct": -3.5
+      },
+      {
+        "signal_date": "2023-08-14",
+        "entry_date": "2023-08-15",
+        "entry_spot": 232.96,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -7.499,
+        "final_return_pct": -0.721
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2024-01-09",
+        "entry_date": "2024-01-10",
+        "entry_spot": 233.94,
+        "entry_day_return_pct": -0.434,
+        "minimum_return_pct": -7.861,
+        "final_return_pct": -7.861
+      },
+      {
+        "signal_date": "2024-01-18",
+        "entry_date": "2024-01-19",
+        "entry_spot": 212.19,
+        "entry_day_return_pct": 0.146,
+        "minimum_return_pct": -13.931,
+        "final_return_pct": -13.931
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2024-10-11",
+        "entry_date": "2024-10-14",
+        "entry_spot": 219.16,
+        "entry_day_return_pct": 0.624,
+        "minimum_return_pct": 0.187,
+        "final_return_pct": 0.703
+      },
+      {
+        "signal_date": "2025-02-05",
+        "entry_date": "2025-02-06",
+        "entry_spot": 374.32,
+        "entry_day_return_pct": -1.018,
+        "minimum_return_pct": -12.241,
+        "final_return_pct": -10.101
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-06",
+        "entry_date": "2025-03-07",
+        "entry_spot": 262.67,
+        "entry_day_return_pct": -0.296,
+        "minimum_return_pct": -15.426,
+        "final_return_pct": -8.372
+      },
+      {
+        "signal_date": "2025-11-13",
+        "entry_date": "2025-11-14",
+        "entry_spot": 404.35,
+        "entry_day_return_pct": 0.587,
+        "minimum_return_pct": -2.255,
+        "final_return_pct": -2.255
+      },
+      {
+        "signal_date": "2026-01-06",
+        "entry_date": "2026-01-07",
+        "entry_spot": 431.41,
+        "entry_day_return_pct": -0.358,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 3.66
+      },
+      {
+        "signal_date": "2026-02-04",
+        "entry_date": "2026-02-05",
+        "entry_spot": 397.21,
+        "entry_day_return_pct": -2.167,
+        "minimum_return_pct": 3.499,
+        "final_return_pct": 7.82
+      },
+      {
+        "signal_date": "2026-03-19",
+        "entry_date": "2026-03-20",
+        "entry_spot": 367.96,
+        "entry_day_return_pct": -3.245,
+        "minimum_return_pct": 1.128,
+        "final_return_pct": 1.128
+      },
+      {
+        "signal_date": "2026-03-27",
+        "entry_date": "2026-03-30",
+        "entry_spot": 355.28,
+        "entry_day_return_pct": -1.81,
+        "minimum_return_pct": -0.692,
+        "final_return_pct": -0.692
+      },
+      {
+        "signal_date": "2026-04-07",
+        "entry_date": "2026-04-08",
+        "entry_spot": 343.25,
+        "entry_day_return_pct": -0.981,
+        "minimum_return_pct": 0.69,
+        "final_return_pct": 6.103
+      },
+      {
+        "signal_date": "2026-06-24",
+        "entry_date": "2026-06-25",
+        "entry_spot": 375.12,
+        "entry_day_return_pct": -0.109,
+        "minimum_return_pct": 1.224,
+        "final_return_pct": 13.377
+      },
+      {
+        "signal_date": "2026-07-23",
+        "entry_date": "2026-07-24",
+        "entry_spot": 313.03,
+        "entry_day_return_pct": -2.083,
+        "minimum_return_pct": -4.699,
+        "final_return_pct": -1.335
+      },
+      {
+        "signal_date": "2026-09-29",
+        "entry_date": "2026-09-30",
+        "entry_spot": 354.81,
+        "entry_day_return_pct": 0.558,
+        "minimum_return_pct": -0.197,
+        "final_return_pct": 7.291
+      }
+    ],
+    "max_rebound_2pct": [
+      {
+        "signal_date": "2015-03-02",
+        "entry_date": "2015-03-03",
+        "entry_spot": 13.304,
+        "entry_day_return_pct": 1.13,
+        "minimum_return_pct": -4.35,
+        "final_return_pct": -4.35
+      },
+      {
+        "signal_date": "2015-03-10",
+        "entry_date": "2015-03-11",
+        "entry_spot": 12.916,
+        "entry_day_return_pct": 1.797,
+        "minimum_return_pct": -2.612,
+        "final_return_pct": 0.511
+      },
+      {
+        "signal_date": "2015-08-06",
+        "entry_date": "2015-08-07",
+        "entry_spot": 16.1673,
+        "entry_day_return_pct": -1.471,
+        "minimum_return_pct": -2.119,
+        "final_return_pct": 0.0
+      },
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-07",
+        "entry_date": "2015-10-08",
+        "entry_spot": 15.1147,
+        "entry_day_return_pct": -2.259,
+        "minimum_return_pct": -4.914,
+        "final_return_pct": -4.34
+      },
+      {
+        "signal_date": "2015-10-20",
+        "entry_date": "2015-10-21",
+        "entry_spot": 14.006,
+        "entry_day_return_pct": -1.38,
+        "minimum_return_pct": -0.476,
+        "final_return_pct": 0.124
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-20",
+        "entry_date": "2016-01-21",
+        "entry_spot": 13.3313,
+        "entry_day_return_pct": 0.639,
+        "minimum_return_pct": -5.951,
+        "final_return_pct": -5.951
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-05-12",
+        "entry_date": "2016-05-13",
+        "entry_spot": 13.8407,
+        "entry_day_return_pct": 0.159,
+        "minimum_return_pct": -1.421,
+        "final_return_pct": 3.661
+      },
+      {
+        "signal_date": "2016-06-22",
+        "entry_date": "2016-06-23",
+        "entry_spot": 13.0933,
+        "entry_day_return_pct": -0.132,
+        "minimum_return_pct": -1.655,
+        "final_return_pct": 7.021
+      },
+      {
+        "signal_date": "2016-08-22",
+        "entry_date": "2016-08-23",
+        "entry_spot": 14.9893,
+        "entry_day_return_pct": 0.857,
+        "minimum_return_pct": -4.287,
+        "final_return_pct": -4.287
+      },
+      {
+        "signal_date": "2016-08-30",
+        "entry_date": "2016-08-31",
+        "entry_spot": 14.134,
+        "entry_day_return_pct": 0.317,
+        "minimum_return_pct": -6.712,
+        "final_return_pct": -4.858
+      },
+      {
+        "signal_date": "2016-09-08",
+        "entry_date": "2016-09-09",
+        "entry_spot": 12.9647,
+        "entry_day_return_pct": -1.464,
+        "minimum_return_pct": 0.812,
+        "final_return_pct": 3.06
+      },
+      {
+        "signal_date": "2016-10-14",
+        "entry_date": "2016-10-17",
+        "entry_spot": 12.9307,
+        "entry_day_return_pct": -1.298,
+        "minimum_return_pct": 2.65,
+        "final_return_pct": 3.16
+      },
+      {
+        "signal_date": "2016-11-01",
+        "entry_date": "2016-11-02",
+        "entry_spot": 12.5347,
+        "entry_day_return_pct": -1.452,
+        "minimum_return_pct": -0.319,
+        "final_return_pct": 3.68
+      },
+      {
+        "signal_date": "2016-11-10",
+        "entry_date": "2016-11-11",
+        "entry_spot": 12.5707,
+        "entry_day_return_pct": 1.732,
+        "minimum_return_pct": -3.771,
+        "final_return_pct": 0.053
+      },
+      {
+        "signal_date": "2017-02-27",
+        "entry_date": "2017-02-28",
+        "entry_spot": 16.666,
+        "entry_day_return_pct": 1.527,
+        "minimum_return_pct": 0.012,
+        "final_return_pct": 0.488
+      },
+      {
+        "signal_date": "2017-03-09",
+        "entry_date": "2017-03-10",
+        "entry_spot": 16.246,
+        "entry_day_return_pct": -0.494,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 7.534
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2017-09-27",
+        "entry_date": "2017-09-28",
+        "entry_spot": 22.64,
+        "entry_day_return_pct": -0.402,
+        "minimum_return_pct": 0.442,
+        "final_return_pct": 4.538
+      },
+      {
+        "signal_date": "2017-10-23",
+        "entry_date": "2017-10-24",
+        "entry_spot": 22.4893,
+        "entry_day_return_pct": 0.095,
+        "minimum_return_pct": -5.116,
+        "final_return_pct": -5.116
+      },
+      {
+        "signal_date": "2018-02-08",
+        "entry_date": "2018-02-09",
+        "entry_spot": 20.6947,
+        "entry_day_return_pct": -1.526,
+        "minimum_return_pct": 1.711,
+        "final_return_pct": 7.619
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-05-22",
+        "entry_date": "2018-05-23",
+        "entry_spot": 18.6047,
+        "entry_day_return_pct": 1.476,
+        "minimum_return_pct": -0.437,
+        "final_return_pct": 4.533
+      },
+      {
+        "signal_date": "2018-07-05",
+        "entry_date": "2018-07-06",
+        "entry_spot": 20.5933,
+        "entry_day_return_pct": -0.084,
+        "minimum_return_pct": 2.528,
+        "final_return_pct": 2.528
+      },
+      {
+        "signal_date": "2018-07-23",
+        "entry_date": "2018-07-24",
+        "entry_spot": 19.8287,
+        "entry_day_return_pct": -1.903,
+        "minimum_return_pct": -2.441,
+        "final_return_pct": -2.441
+      },
+      {
+        "signal_date": "2018-08-30",
+        "entry_date": "2018-08-31",
+        "entry_spot": 20.1107,
+        "entry_day_return_pct": -0.492,
+        "minimum_return_pct": -12.736,
+        "final_return_pct": -12.736
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2018-12-20",
+        "entry_date": "2018-12-21",
+        "entry_spot": 21.318,
+        "entry_day_return_pct": 1.392,
+        "minimum_return_pct": -7.624,
+        "final_return_pct": 4.409
+      },
+      {
+        "signal_date": "2019-01-23",
+        "entry_date": "2019-01-24",
+        "entry_spot": 19.434,
+        "entry_day_return_pct": 1.363,
+        "minimum_return_pct": 1.671,
+        "final_return_pct": 5.921
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-17",
+        "entry_date": "2019-05-20",
+        "entry_spot": 13.6907,
+        "entry_day_return_pct": -2.687,
+        "minimum_return_pct": -7.173,
+        "final_return_pct": -7.173
+      },
+      {
+        "signal_date": "2019-05-28",
+        "entry_date": "2019-05-29",
+        "entry_spot": 12.6573,
+        "entry_day_return_pct": 0.615,
+        "minimum_return_pct": -5.736,
+        "final_return_pct": 1.97
+      },
+      {
+        "signal_date": "2019-08-14",
+        "entry_date": "2019-08-15",
+        "entry_spot": 14.376,
+        "entry_day_return_pct": -1.812,
+        "minimum_return_pct": 1.994,
+        "final_return_pct": 2.407
+      },
+      {
+        "signal_date": "2019-08-23",
+        "entry_date": "2019-08-26",
+        "entry_spot": 14.3333,
+        "entry_day_return_pct": 1.703,
+        "minimum_return_pct": -0.428,
+        "final_return_pct": 4.935
+      },
+      {
+        "signal_date": "2020-03-12",
+        "entry_date": "2020-03-13",
+        "entry_spot": 36.4413,
+        "entry_day_return_pct": -2.485,
+        "minimum_return_pct": -33.918,
+        "final_return_pct": -21.766
+      },
+      {
+        "signal_date": "2020-10-28",
+        "entry_date": "2020-10-29",
+        "entry_spot": 136.9433,
+        "entry_day_return_pct": 1.185,
+        "minimum_return_pct": -5.547,
+        "final_return_pct": 2.471
+      },
+      {
+        "signal_date": "2021-02-18",
+        "entry_date": "2021-02-19",
+        "entry_spot": 260.4333,
+        "entry_day_return_pct": -0.772,
+        "minimum_return_pct": -12.681,
+        "final_return_pct": -12.681
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-05",
+        "entry_date": "2021-05-06",
+        "entry_spot": 221.18,
+        "entry_day_return_pct": -1.103,
+        "minimum_return_pct": -11.1,
+        "final_return_pct": -11.1
+      },
+      {
+        "signal_date": "2021-12-09",
+        "entry_date": "2021-12-10",
+        "entry_spot": 339.01,
+        "entry_day_return_pct": 1.318,
+        "minimum_return_pct": -8.86,
+        "final_return_pct": -8.86
+      },
+      {
+        "signal_date": "2022-01-21",
+        "entry_date": "2022-01-24",
+        "entry_spot": 310.0,
+        "entry_day_return_pct": -1.473,
+        "minimum_return_pct": -10.849,
+        "final_return_pct": -8.995
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-04-26",
+        "entry_date": "2022-04-27",
+        "entry_spot": 293.8367,
+        "entry_day_return_pct": 0.581,
+        "minimum_return_pct": -1.22,
+        "final_return_pct": 3.147
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-18",
+        "entry_date": "2022-05-19",
+        "entry_spot": 236.4733,
+        "entry_day_return_pct": -0.055,
+        "minimum_return_pct": -11.454,
+        "final_return_pct": -7.135
+      },
+      {
+        "signal_date": "2022-08-30",
+        "entry_date": "2022-08-31",
+        "entry_spot": 275.61,
+        "entry_day_return_pct": -0.753,
+        "minimum_return_pct": -1.959,
+        "final_return_pct": 2.935
+      },
+      {
+        "signal_date": "2022-09-29",
+        "entry_date": "2022-09-30",
+        "entry_spot": 265.25,
+        "entry_day_return_pct": -1.104,
+        "minimum_return_pct": -10.224,
+        "final_return_pct": -10.224
+      },
+      {
+        "signal_date": "2022-10-07",
+        "entry_date": "2022-10-10",
+        "entry_spot": 222.96,
+        "entry_day_return_pct": -0.049,
+        "minimum_return_pct": -8.06,
+        "final_return_pct": -8.06
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-11-21",
+        "entry_date": "2022-11-22",
+        "entry_spot": 169.91,
+        "entry_day_return_pct": 1.215,
+        "minimum_return_pct": 6.427,
+        "final_return_pct": 6.427
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-20",
+        "entry_date": "2022-12-21",
+        "entry_spot": 137.57,
+        "entry_day_return_pct": -0.167,
+        "minimum_return_pct": -20.695,
+        "final_return_pct": -18.071
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-20",
+        "entry_date": "2023-04-21",
+        "entry_spot": 165.08,
+        "entry_day_return_pct": 1.282,
+        "minimum_return_pct": -6.863,
+        "final_return_pct": -2.962
+      },
+      {
+        "signal_date": "2023-08-04",
+        "entry_date": "2023-08-07",
+        "entry_spot": 251.45,
+        "entry_day_return_pct": -0.949,
+        "minimum_return_pct": -3.683,
+        "final_return_pct": -3.5
+      },
+      {
+        "signal_date": "2023-08-14",
+        "entry_date": "2023-08-15",
+        "entry_spot": 232.96,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -7.499,
+        "final_return_pct": -0.721
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2023-10-30",
+        "entry_date": "2023-10-31",
+        "entry_spot": 200.84,
+        "entry_day_return_pct": 1.763,
+        "minimum_return_pct": 2.4,
+        "final_return_pct": 9.176
+      },
+      {
+        "signal_date": "2024-01-09",
+        "entry_date": "2024-01-10",
+        "entry_spot": 233.94,
+        "entry_day_return_pct": -0.434,
+        "minimum_return_pct": -7.861,
+        "final_return_pct": -7.861
+      },
+      {
+        "signal_date": "2024-01-18",
+        "entry_date": "2024-01-19",
+        "entry_spot": 212.19,
+        "entry_day_return_pct": 0.146,
+        "minimum_return_pct": -13.931,
+        "final_return_pct": -13.931
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2024-10-11",
+        "entry_date": "2024-10-14",
+        "entry_spot": 219.16,
+        "entry_day_return_pct": 0.624,
+        "minimum_return_pct": 0.187,
+        "final_return_pct": 0.703
+      },
+      {
+        "signal_date": "2025-02-05",
+        "entry_date": "2025-02-06",
+        "entry_spot": 374.32,
+        "entry_day_return_pct": -1.018,
+        "minimum_return_pct": -12.241,
+        "final_return_pct": -10.101
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-06",
+        "entry_date": "2025-03-07",
+        "entry_spot": 262.67,
+        "entry_day_return_pct": -0.296,
+        "minimum_return_pct": -15.426,
+        "final_return_pct": -8.372
+      },
+      {
+        "signal_date": "2025-11-13",
+        "entry_date": "2025-11-14",
+        "entry_spot": 404.35,
+        "entry_day_return_pct": 0.587,
+        "minimum_return_pct": -2.255,
+        "final_return_pct": -2.255
+      },
+      {
+        "signal_date": "2026-01-06",
+        "entry_date": "2026-01-07",
+        "entry_spot": 431.41,
+        "entry_day_return_pct": -0.358,
+        "minimum_return_pct": 1.018,
+        "final_return_pct": 3.66
+      },
+      {
+        "signal_date": "2026-02-04",
+        "entry_date": "2026-02-05",
+        "entry_spot": 397.21,
+        "entry_day_return_pct": -2.167,
+        "minimum_return_pct": 3.499,
+        "final_return_pct": 7.82
+      },
+      {
+        "signal_date": "2026-03-13",
+        "entry_date": "2026-03-16",
+        "entry_spot": 395.56,
+        "entry_day_return_pct": 1.115,
+        "minimum_return_pct": -6.977,
+        "final_return_pct": -6.977
+      },
+      {
+        "signal_date": "2026-03-27",
+        "entry_date": "2026-03-30",
+        "entry_spot": 355.28,
+        "entry_day_return_pct": -1.81,
+        "minimum_return_pct": -0.692,
+        "final_return_pct": -0.692
+      },
+      {
+        "signal_date": "2026-04-07",
+        "entry_date": "2026-04-08",
+        "entry_spot": 343.25,
+        "entry_day_return_pct": -0.981,
+        "minimum_return_pct": 0.69,
+        "final_return_pct": 6.103
+      },
+      {
+        "signal_date": "2026-06-24",
+        "entry_date": "2026-06-25",
+        "entry_spot": 375.12,
+        "entry_day_return_pct": -0.109,
+        "minimum_return_pct": 1.224,
+        "final_return_pct": 13.377
+      },
+      {
+        "signal_date": "2026-07-23",
+        "entry_date": "2026-07-24",
+        "entry_spot": 313.03,
+        "entry_day_return_pct": -2.083,
+        "minimum_return_pct": -4.699,
+        "final_return_pct": -1.335
+      },
+      {
+        "signal_date": "2026-09-29",
+        "entry_date": "2026-09-30",
+        "entry_spot": 354.81,
+        "entry_day_return_pct": 0.558,
+        "minimum_return_pct": -0.197,
+        "final_return_pct": 7.291
+      }
+    ],
+    "continued_down_2pct": [
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2015-10-07",
+        "entry_date": "2015-10-08",
+        "entry_spot": 15.1147,
+        "entry_day_return_pct": -2.259,
+        "minimum_return_pct": -4.914,
+        "final_return_pct": -4.34
+      },
+      {
+        "signal_date": "2016-01-07",
+        "entry_date": "2016-01-08",
+        "entry_spot": 14.0667,
+        "entry_day_return_pct": -2.156,
+        "minimum_return_pct": -5.066,
+        "final_return_pct": -2.284
+      },
+      {
+        "signal_date": "2016-01-26",
+        "entry_date": "2016-01-27",
+        "entry_spot": 12.538,
+        "entry_day_return_pct": -2.836,
+        "minimum_return_pct": -2.813,
+        "final_return_pct": -2.813
+      },
+      {
+        "signal_date": "2016-02-05",
+        "entry_date": "2016-02-08",
+        "entry_spot": 9.866,
+        "entry_day_return_pct": -8.985,
+        "minimum_return_pct": -2.919,
+        "final_return_pct": 2.061
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2016-08-26",
+        "entry_date": "2016-08-29",
+        "entry_spot": 14.3467,
+        "entry_day_return_pct": -2.177,
+        "minimum_return_pct": -8.095,
+        "final_return_pct": -8.095
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2018-03-16",
+        "entry_date": "2018-03-19",
+        "entry_spot": 20.904,
+        "entry_day_return_pct": -2.424,
+        "minimum_return_pct": -3.833,
+        "final_return_pct": -3.833
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-07-27",
+        "entry_date": "2018-07-30",
+        "entry_spot": 19.3447,
+        "entry_day_return_pct": -2.359,
+        "minimum_return_pct": 2.747,
+        "final_return_pct": 19.988
+      },
+      {
+        "signal_date": "2018-08-31",
+        "entry_date": "2018-09-04",
+        "entry_spot": 19.2633,
+        "entry_day_return_pct": -4.213,
+        "minimum_return_pct": -8.898,
+        "final_return_pct": -1.194
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-03-15",
+        "entry_date": "2019-03-18",
+        "entry_spot": 17.966,
+        "entry_day_return_pct": -2.157,
+        "minimum_return_pct": -1.841,
+        "final_return_pct": -1.841
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-17",
+        "entry_date": "2019-05-20",
+        "entry_spot": 13.6907,
+        "entry_day_return_pct": -2.687,
+        "minimum_return_pct": -7.173,
+        "final_return_pct": -7.173
+      },
+      {
+        "signal_date": "2019-05-31",
+        "entry_date": "2019-06-03",
+        "entry_spot": 11.9313,
+        "entry_day_return_pct": -3.343,
+        "minimum_return_pct": 8.175,
+        "final_return_pct": 14.265
+      },
+      {
+        "signal_date": "2020-03-12",
+        "entry_date": "2020-03-13",
+        "entry_spot": 36.4413,
+        "entry_day_return_pct": -2.485,
+        "minimum_return_pct": -33.918,
+        "final_return_pct": -21.766
+      },
+      {
+        "signal_date": "2021-02-19",
+        "entry_date": "2021-02-22",
+        "entry_spot": 238.1667,
+        "entry_day_return_pct": -8.55,
+        "minimum_return_pct": -5.458,
+        "final_return_pct": -5.458
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-11",
+        "entry_date": "2021-05-12",
+        "entry_spot": 196.63,
+        "entry_day_return_pct": -4.425,
+        "minimum_return_pct": -3.085,
+        "final_return_pct": -2.038
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-19",
+        "entry_date": "2022-05-20",
+        "entry_spot": 221.3,
+        "entry_day_return_pct": -6.417,
+        "minimum_return_pct": -5.383,
+        "final_return_pct": 6.602
+      },
+      {
+        "signal_date": "2022-09-30",
+        "entry_date": "2022-10-03",
+        "entry_spot": 242.4,
+        "entry_day_return_pct": -8.615,
+        "minimum_return_pct": -7.974,
+        "final_return_pct": -7.974
+      },
+      {
+        "signal_date": "2022-10-10",
+        "entry_date": "2022-10-11",
+        "entry_spot": 216.5,
+        "entry_day_return_pct": -2.897,
+        "minimum_return_pct": -5.316,
+        "final_return_pct": 1.316
+      },
+      {
+        "signal_date": "2022-11-07",
+        "entry_date": "2022-11-08",
+        "entry_spot": 191.3,
+        "entry_day_return_pct": -2.933,
+        "minimum_return_pct": -7.167,
+        "final_return_pct": -0.183
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-21",
+        "entry_date": "2022-12-22",
+        "entry_spot": 125.35,
+        "entry_day_return_pct": -8.883,
+        "minimum_return_pct": -12.964,
+        "final_return_pct": -2.816
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-25",
+        "entry_date": "2023-04-26",
+        "entry_spot": 153.75,
+        "entry_day_return_pct": -4.307,
+        "minimum_return_pct": 4.189,
+        "final_return_pct": 4.267
+      },
+      {
+        "signal_date": "2023-08-08",
+        "entry_date": "2023-08-09",
+        "entry_spot": 242.19,
+        "entry_day_return_pct": -3.008,
+        "minimum_return_pct": -3.811,
+        "final_return_pct": -3.811
+      },
+      {
+        "signal_date": "2023-08-16",
+        "entry_date": "2023-08-17",
+        "entry_spot": 219.22,
+        "entry_day_return_pct": -2.828,
+        "minimum_return_pct": -1.701,
+        "final_return_pct": 8.047
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2024-01-10",
+        "entry_date": "2024-01-11",
+        "entry_spot": 227.22,
+        "entry_day_return_pct": -2.873,
+        "minimum_return_pct": -6.751,
+        "final_return_pct": -6.751
+      },
+      {
+        "signal_date": "2024-01-24",
+        "entry_date": "2024-01-25",
+        "entry_spot": 182.63,
+        "entry_day_return_pct": -12.125,
+        "minimum_return_pct": 0.339,
+        "final_return_pct": 2.552
+      },
+      {
+        "signal_date": "2024-03-05",
+        "entry_date": "2024-03-06",
+        "entry_spot": 176.54,
+        "entry_day_return_pct": -2.324,
+        "minimum_return_pct": -0.68,
+        "final_return_pct": 0.566
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-15",
+        "entry_date": "2024-04-16",
+        "entry_spot": 157.11,
+        "entry_day_return_pct": -2.706,
+        "minimum_return_pct": -9.586,
+        "final_return_pct": -9.586
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2025-02-06",
+        "entry_date": "2025-02-07",
+        "entry_spot": 361.62,
+        "entry_day_return_pct": -3.393,
+        "minimum_return_pct": -9.159,
+        "final_return_pct": -1.571
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-07",
+        "entry_date": "2025-03-10",
+        "entry_spot": 222.15,
+        "entry_day_return_pct": -15.426,
+        "minimum_return_pct": 3.795,
+        "final_return_pct": 12.528
+      },
+      {
+        "signal_date": "2026-02-04",
+        "entry_date": "2026-02-05",
+        "entry_spot": 397.21,
+        "entry_day_return_pct": -2.167,
+        "minimum_return_pct": 3.499,
+        "final_return_pct": 7.82
+      },
+      {
+        "signal_date": "2026-03-19",
+        "entry_date": "2026-03-20",
+        "entry_spot": 367.96,
+        "entry_day_return_pct": -3.245,
+        "minimum_return_pct": 1.128,
+        "final_return_pct": 1.128
+      },
+      {
+        "signal_date": "2026-07-23",
+        "entry_date": "2026-07-24",
+        "entry_spot": 313.03,
+        "entry_day_return_pct": -2.083,
+        "minimum_return_pct": -4.699,
+        "final_return_pct": -1.335
+      }
+    ],
+    "continued_down_3pct": [
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-08-31",
+        "entry_date": "2018-09-04",
+        "entry_spot": 19.2633,
+        "entry_day_return_pct": -4.213,
+        "minimum_return_pct": -8.898,
+        "final_return_pct": -1.194
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-03-04",
+        "entry_date": "2019-03-05",
+        "entry_spot": 18.436,
+        "entry_day_return_pct": -3.091,
+        "minimum_return_pct": -0.108,
+        "final_return_pct": 5.2
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-21",
+        "entry_date": "2019-05-22",
+        "entry_spot": 12.8487,
+        "entry_day_return_pct": -6.022,
+        "minimum_return_pct": -2.091,
+        "final_return_pct": -1.489
+      },
+      {
+        "signal_date": "2019-05-31",
+        "entry_date": "2019-06-03",
+        "entry_spot": 11.9313,
+        "entry_day_return_pct": -3.343,
+        "minimum_return_pct": 8.175,
+        "final_return_pct": 14.265
+      },
+      {
+        "signal_date": "2020-03-13",
+        "entry_date": "2020-03-16",
+        "entry_spot": 29.6713,
+        "entry_day_return_pct": -18.578,
+        "minimum_return_pct": -18.84,
+        "final_return_pct": -3.941
+      },
+      {
+        "signal_date": "2021-02-19",
+        "entry_date": "2021-02-22",
+        "entry_spot": 238.1667,
+        "entry_day_return_pct": -8.55,
+        "minimum_return_pct": -5.458,
+        "final_return_pct": -5.458
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-11",
+        "entry_date": "2021-05-12",
+        "entry_spot": 196.63,
+        "entry_day_return_pct": -4.425,
+        "minimum_return_pct": -3.085,
+        "final_return_pct": -2.038
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-19",
+        "entry_date": "2022-05-20",
+        "entry_spot": 221.3,
+        "entry_day_return_pct": -6.417,
+        "minimum_return_pct": -5.383,
+        "final_return_pct": 6.602
+      },
+      {
+        "signal_date": "2022-09-30",
+        "entry_date": "2022-10-03",
+        "entry_spot": 242.4,
+        "entry_day_return_pct": -8.615,
+        "minimum_return_pct": -7.974,
+        "final_return_pct": -7.974
+      },
+      {
+        "signal_date": "2022-11-08",
+        "entry_date": "2022-11-09",
+        "entry_spot": 177.59,
+        "entry_day_return_pct": -7.167,
+        "minimum_return_pct": 7.393,
+        "final_return_pct": 9.477
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-21",
+        "entry_date": "2022-12-22",
+        "entry_spot": 125.35,
+        "entry_day_return_pct": -8.883,
+        "minimum_return_pct": -12.964,
+        "final_return_pct": -2.816
+      },
+      {
+        "signal_date": "2023-03-07",
+        "entry_date": "2023-03-08",
+        "entry_spot": 182.0,
+        "entry_day_return_pct": -3.042,
+        "minimum_return_pct": -4.989,
+        "final_return_pct": 0.692
+      },
+      {
+        "signal_date": "2023-04-25",
+        "entry_date": "2023-04-26",
+        "entry_spot": 153.75,
+        "entry_day_return_pct": -4.307,
+        "minimum_return_pct": 4.189,
+        "final_return_pct": 4.267
+      },
+      {
+        "signal_date": "2023-08-08",
+        "entry_date": "2023-08-09",
+        "entry_spot": 242.19,
+        "entry_day_return_pct": -3.008,
+        "minimum_return_pct": -3.811,
+        "final_return_pct": -3.811
+      },
+      {
+        "signal_date": "2023-10-19",
+        "entry_date": "2023-10-20",
+        "entry_spot": 211.99,
+        "entry_day_return_pct": -3.689,
+        "minimum_return_pct": -2.939,
+        "final_return_pct": -2.939
+      },
+      {
+        "signal_date": "2024-01-11",
+        "entry_date": "2024-01-12",
+        "entry_spot": 218.89,
+        "entry_day_return_pct": -3.666,
+        "minimum_return_pct": -3.203,
+        "final_return_pct": -3.061
+      },
+      {
+        "signal_date": "2024-01-24",
+        "entry_date": "2024-01-25",
+        "entry_spot": 182.63,
+        "entry_day_return_pct": -12.125,
+        "minimum_return_pct": 0.339,
+        "final_return_pct": 2.552
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-04-17",
+        "entry_date": "2024-04-18",
+        "entry_spot": 149.93,
+        "entry_day_return_pct": -3.551,
+        "minimum_return_pct": -5.256,
+        "final_return_pct": 8.137
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2025-02-06",
+        "entry_date": "2025-02-07",
+        "entry_spot": 361.62,
+        "entry_day_return_pct": -3.393,
+        "minimum_return_pct": -9.159,
+        "final_return_pct": -1.571
+      },
+      {
+        "signal_date": "2025-02-25",
+        "entry_date": "2025-02-26",
+        "entry_spot": 290.8,
+        "entry_day_return_pct": -3.963,
+        "minimum_return_pct": -6.451,
+        "final_return_pct": -6.451
+      },
+      {
+        "signal_date": "2025-03-07",
+        "entry_date": "2025-03-10",
+        "entry_spot": 222.15,
+        "entry_day_return_pct": -15.426,
+        "minimum_return_pct": 3.795,
+        "final_return_pct": 12.528
+      },
+      {
+        "signal_date": "2026-03-19",
+        "entry_date": "2026-03-20",
+        "entry_spot": 367.96,
+        "entry_day_return_pct": -3.245,
+        "minimum_return_pct": 1.128,
+        "final_return_pct": 1.128
+      }
+    ],
+    "continued_down_4pct": [
+      {
+        "signal_date": "2015-08-21",
+        "entry_date": "2015-08-24",
+        "entry_spot": 14.5913,
+        "entry_day_return_pct": -5.157,
+        "minimum_return_pct": 0.53,
+        "final_return_pct": 13.529
+      },
+      {
+        "signal_date": "2016-02-02",
+        "entry_date": "2016-02-03",
+        "entry_spot": 11.5653,
+        "entry_day_return_pct": -5.088,
+        "minimum_return_pct": -14.693,
+        "final_return_pct": -14.543
+      },
+      {
+        "signal_date": "2016-05-03",
+        "entry_date": "2016-05-04",
+        "entry_spot": 14.8373,
+        "entry_day_return_pct": -4.201,
+        "minimum_return_pct": -6.232,
+        "final_return_pct": -6.232
+      },
+      {
+        "signal_date": "2017-07-05",
+        "entry_date": "2017-07-06",
+        "entry_spot": 20.5887,
+        "entry_day_return_pct": -5.583,
+        "minimum_return_pct": 1.421,
+        "final_return_pct": 6.699
+      },
+      {
+        "signal_date": "2018-03-27",
+        "entry_date": "2018-03-28",
+        "entry_spot": 17.1853,
+        "entry_day_return_pct": -7.665,
+        "minimum_return_pct": -2.056,
+        "final_return_pct": 11.312
+      },
+      {
+        "signal_date": "2018-08-31",
+        "entry_date": "2018-09-04",
+        "entry_spot": 19.2633,
+        "entry_day_return_pct": -4.213,
+        "minimum_return_pct": -8.898,
+        "final_return_pct": -1.194
+      },
+      {
+        "signal_date": "2018-10-05",
+        "entry_date": "2018-10-08",
+        "entry_spot": 16.704,
+        "entry_day_return_pct": -4.348,
+        "minimum_return_pct": 0.666,
+        "final_return_pct": 3.281
+      },
+      {
+        "signal_date": "2019-04-24",
+        "entry_date": "2019-04-25",
+        "entry_spot": 16.5087,
+        "entry_day_return_pct": -4.264,
+        "minimum_return_pct": -5.5,
+        "final_return_pct": -5.5
+      },
+      {
+        "signal_date": "2019-05-21",
+        "entry_date": "2019-05-22",
+        "entry_spot": 12.8487,
+        "entry_day_return_pct": -6.022,
+        "minimum_return_pct": -2.091,
+        "final_return_pct": -1.489
+      },
+      {
+        "signal_date": "2020-03-13",
+        "entry_date": "2020-03-16",
+        "entry_spot": 29.6713,
+        "entry_day_return_pct": -18.578,
+        "minimum_return_pct": -18.84,
+        "final_return_pct": -3.941
+      },
+      {
+        "signal_date": "2021-02-19",
+        "entry_date": "2021-02-22",
+        "entry_spot": 238.1667,
+        "entry_day_return_pct": -8.55,
+        "minimum_return_pct": -5.458,
+        "final_return_pct": -5.458
+      },
+      {
+        "signal_date": "2021-03-03",
+        "entry_date": "2021-03-04",
+        "entry_spot": 207.1467,
+        "entry_day_return_pct": -4.862,
+        "minimum_return_pct": -9.404,
+        "final_return_pct": 7.502
+      },
+      {
+        "signal_date": "2021-05-11",
+        "entry_date": "2021-05-12",
+        "entry_spot": 196.63,
+        "entry_day_return_pct": -4.425,
+        "minimum_return_pct": -3.085,
+        "final_return_pct": -2.038
+      },
+      {
+        "signal_date": "2022-02-22",
+        "entry_date": "2022-02-23",
+        "entry_spot": 254.68,
+        "entry_day_return_pct": -6.998,
+        "minimum_return_pct": 4.807,
+        "final_return_pct": 13.132
+      },
+      {
+        "signal_date": "2022-05-06",
+        "entry_date": "2022-05-09",
+        "entry_spot": 262.37,
+        "entry_day_return_pct": -9.073,
+        "minimum_return_pct": -7.51,
+        "final_return_pct": -2.226
+      },
+      {
+        "signal_date": "2022-05-19",
+        "entry_date": "2022-05-20",
+        "entry_spot": 221.3,
+        "entry_day_return_pct": -6.417,
+        "minimum_return_pct": -5.383,
+        "final_return_pct": 6.602
+      },
+      {
+        "signal_date": "2022-09-30",
+        "entry_date": "2022-10-03",
+        "entry_spot": 242.4,
+        "entry_day_return_pct": -8.615,
+        "minimum_return_pct": -7.974,
+        "final_return_pct": -7.974
+      },
+      {
+        "signal_date": "2022-11-08",
+        "entry_date": "2022-11-09",
+        "entry_spot": 177.59,
+        "entry_day_return_pct": -7.167,
+        "minimum_return_pct": 7.393,
+        "final_return_pct": 9.477
+      },
+      {
+        "signal_date": "2022-12-12",
+        "entry_date": "2022-12-13",
+        "entry_spot": 160.95,
+        "entry_day_return_pct": -4.094,
+        "minimum_return_pct": -6.884,
+        "final_return_pct": -6.884
+      },
+      {
+        "signal_date": "2022-12-21",
+        "entry_date": "2022-12-22",
+        "entry_spot": 125.35,
+        "entry_day_return_pct": -8.883,
+        "minimum_return_pct": -12.964,
+        "final_return_pct": -2.816
+      },
+      {
+        "signal_date": "2023-03-08",
+        "entry_date": "2023-03-09",
+        "entry_spot": 172.92,
+        "entry_day_return_pct": -4.989,
+        "minimum_return_pct": 0.301,
+        "final_return_pct": 4.355
+      },
+      {
+        "signal_date": "2023-04-25",
+        "entry_date": "2023-04-26",
+        "entry_spot": 153.75,
+        "entry_day_return_pct": -4.307,
+        "minimum_return_pct": 4.189,
+        "final_return_pct": 4.267
+      },
+      {
+        "signal_date": "2024-01-24",
+        "entry_date": "2024-01-25",
+        "entry_spot": 182.63,
+        "entry_day_return_pct": -12.125,
+        "minimum_return_pct": 0.339,
+        "final_return_pct": 2.552
+      },
+      {
+        "signal_date": "2024-03-13",
+        "entry_date": "2024-03-14",
+        "entry_spot": 162.5,
+        "entry_day_return_pct": -4.118,
+        "minimum_return_pct": 0.658,
+        "final_return_pct": 8.098
+      },
+      {
+        "signal_date": "2024-08-02",
+        "entry_date": "2024-08-05",
+        "entry_spot": 198.88,
+        "entry_day_return_pct": -4.233,
+        "minimum_return_pct": -3.58,
+        "final_return_pct": 0.563
+      },
+      {
+        "signal_date": "2025-02-10",
+        "entry_date": "2025-02-11",
+        "entry_spot": 328.5,
+        "entry_day_return_pct": -6.338,
+        "minimum_return_pct": 2.438,
+        "final_return_pct": 7.796
+      },
+      {
+        "signal_date": "2025-03-07",
+        "entry_date": "2025-03-10",
+        "entry_spot": 222.15,
+        "entry_day_return_pct": -15.426,
+        "minimum_return_pct": 3.795,
+        "final_return_pct": 12.528
+      }
+    ]
+  }
+}
